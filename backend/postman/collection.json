@@ -1,0 +1,988 @@
+{
+  "info": {
+    "name": "Dhun API",
+    "description": "Maintained alongside the code. Any endpoint change — added, removed, renamed, new field, new error code — updates this collection in the SAME change. A stale collection is a broken build.\n\n## Conventions\n\n- Every route lives under `/{{apiVersion}}/` (currently v1). Old app versions stay alive forever, so the prefix is never retrofitted.\n- Auth is `Bearer {{accessToken}}`, set once at collection level and inherited.\n- **Every money endpoint requires an `Idempotency-Key` header** (a UUID). The collection pre-request script generates one automatically for any request whose URL contains `/wallet/`, `/gifts/`, `/cosmetics/` or `/payouts/`.\n- `X-Trace-Id` is echoed back on every response and included in every error body. Quote it in bug reports.\n\n## Error envelope\n\nEvery failure looks like this:\n\n```json\n{ \"error\": { \"code\": \"INSUFFICIENT_BALANCE\", \"message\": \"...\", \"details\": {}, \"trace_id\": \"...\" } }\n```\n\nSwitch on `code`, never on the HTTP status or the message.\n\n## Folder status\n\nFolders map to milestones in `docs/build-plan.md`. Empty ones are not yet built — they are here so the structure is agreed before the endpoints land.\n\n## Errors\n\nEvery failure uses the same envelope. Switch on `code`, never on the status or the message.\n\n```json\n{ \"error\": { \"code\": \"...\", \"message\": \"...\", \"details\": {}, \"trace_id\": \"...\" } }\n```\n\n| Code | Status | Meaning |\n|---|---|---|\n| `VALIDATION_FAILED` | 422 | `details.issues[]` carries `field`, `code`, `message`. Field paths only — your input is never echoed back. |\n| `UNSAFE_PAYLOAD` | 400 | Body contained `__proto__` / `constructor` / `prototype` |\n| `BAD_JSON` | 400 | Body was not valid JSON |\n| `UNSUPPORTED_MEDIA_TYPE` | 415 | Content-Type must be application/json |\n| `PAYLOAD_TOO_LARGE` | 413 | Body over 256 KB |\n| `UNAUTHENTICATED` / `INVALID_TOKEN` | 401 | Missing or bad bearer token |\n| `REGISTRATION_REQUIRED` | 403 | Guest tried to spend — verify a phone first |\n| `DOB_REQUIRED` | 403 | **Adult gate.** No date of birth on file. Open the date picker. |\n| `FORBIDDEN` | 403 | Under 18, or missing a role |\n| `RATE_LIMITED` | 429 | Check `Retry-After` and the `RateLimit-*` headers |\n| `IDEMPOTENCY_KEY_REQUIRED` / `_INVALID` | 400 | Money endpoints need a UUID key |\n| `IDEMPOTENCY_KEY_REUSED` | 422 | Same key, different operation — a client bug |\n| `INSUFFICIENT_BALANCE` | 402 | |\n| `SIGNATURE_INVALID` / `RECEIPT_INVALID` | 402 | Payment did not verify |\n| `RECEIPT_ALREADY_USED` | 409 | Receipt redeemed by another account |\n| `TXN_TYPE_INACTIVE` | 503 | Kill switch is on for that flow |\n| `SERVICE_UNAVAILABLE` / `TIMEOUT` | 503 / 504 | Transient — safe to retry |\n| `INTERNAL_ERROR` | 500 | Always generic. Quote the `trace_id`. |\n\n## Security\n\n- **Unknown fields are rejected, not ignored.** A typo'd key returns 422 rather than being silently dropped.\n- **Rate limits** apply per IP, per device and per user. Guest creation is 5/hour per device; money endpoints 30/min per user.\n- **Money endpoints require a registered adult.** Authenticated, phone-verified, and 18+ with a date of birth on file.\n- 5xx messages are always generic. The detail is in the logs against your `trace_id`.\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequisite",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Money endpoints must carry an Idempotency-Key. Generating it here means",
+          "// it is never forgotten by hand, and re-sending the same request in Postman",
+          "// exercises a genuine new operation rather than an accidental replay.",
+          "const MONEY = ['/wallet/', '/gifts/', '/cosmetics/', '/payouts/'];",
+          "const url = pm.request.url.toString();",
+          "if (MONEY.some((p) => url.includes(p))) {",
+          "  const key = require('uuid').v4();",
+          "  pm.environment.set('idempotencyKey', key);",
+          "}",
+          "",
+          "// One trace id per request, echoed back by the server.",
+          "pm.environment.set('traceId', require('uuid').v4());"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Applies to every request in the collection.",
+          "pm.test('has a trace id', () => {",
+          "  pm.expect(pm.response.headers.get('X-Trace-Id')).to.be.a('string');",
+          "});",
+          "",
+          "if (pm.response.code >= 400) {",
+          "  pm.test('error uses the standard envelope', () => {",
+          "    const body = pm.response.json();",
+          "    pm.expect(body).to.have.property('error');",
+          "    pm.expect(body.error).to.have.property('code');",
+          "    pm.expect(body.error).to.have.property('trace_id');",
+          "  });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "apiVersion",
+      "value": "v1"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "description": "Unversioned on purpose — infrastructure probes should not care about API versions.",
+      "item": [
+        {
+          "name": "Liveness",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Is the process up? Used by the load balancer. Never touches the database."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('ok', () => pm.expect(pm.response.json().ok).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Readiness",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/ready",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ready"
+              ]
+            },
+            "description": "Can it actually serve? Checks Postgres. Returns 503 when the pool is dead, so a broken instance is pulled from rotation rather than failing user requests."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('db up', () => pm.expect(pm.response.json().db).to.eql('up'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Unknown route (404 envelope)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/does-not-exist",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "does-not-exist"
+              ]
+            },
+            "description": "Proves the error envelope is wired up before any real endpoint exists."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));",
+                  "pm.test('code is NOT_FOUND', () => pm.expect(pm.response.json().error.code).to.eql('NOT_FOUND'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "description": "Phone OTP with WhatsApp primary and SMS fallback, JWT access + rotating refresh, guest upgraded in place.\n\n**Run them in order.** Each request saves what the next one needs into the environment, so the whole signup flow works end to end without copying tokens by hand.\n\n`devCode` is returned by the OTP request outside production, which is what makes this runnable before TRAI DLT registration completes.",
+      "item": [
+        {
+          "name": "1 · Create guest session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/auth/guest",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "auth",
+                "guest"
+              ]
+            },
+            "description": "Anonymous but real identity, called on first launch. The user can watch, follow and earn free coins before signing up — and keeps all of it, because signup fills in this same row rather than replacing it.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device\": {\n    \"deviceId\": \"{{deviceId}}\",\n    \"platform\": \"android\",\n    \"appVersion\": \"1.0.0\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.environment.set('accessToken', b.accessToken);",
+                  "pm.environment.set('refreshToken', b.refreshToken);",
+                  "if (b.user) pm.environment.set('userId', b.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 · Request OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/auth/otp/request",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "auth",
+                "otp",
+                "request"
+              ]
+            },
+            "description": "Rate limited to 5 per number per hour. Requesting a new code immediately invalidates the previous one.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"channel\": \"whatsapp\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "// Only present outside production — the console provider logs it there.",
+                  "if (b.devCode) pm.environment.set('otpCode', b.devCode);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 · Verify OTP (upgrades the guest)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/auth/otp/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "auth",
+                "otp",
+                "verify"
+              ]
+            },
+            "description": "Sends the guest access token, so the guest is upgraded IN PLACE and keeps its user id. Without a token a brand new registered user is created instead.\n\nIf the number already belongs to an account, that account is signed into and the guest row is left alone — balances are never merged between two identities.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{phone}}\",\n  \"code\": \"{{otpCode}}\",\n  \"device\": {\n    \"deviceId\": \"{{deviceId}}\",\n    \"platform\": \"android\",\n    \"appVersion\": \"1.0.0\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.environment.set('accessToken', b.accessToken);",
+                  "pm.environment.set('refreshToken', b.refreshToken);",
+                  "if (b.user) pm.environment.set('userId', b.user.id);",
+                  "pm.test('is now active', () => pm.expect(pm.response.json().user.status).to.eql('active'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4 · Who am I",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Current user with their active scoped role grants."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5 · Update profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/auth/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "auth",
+                "profile"
+              ]
+            },
+            "description": "Sets the profile. **A date of birth is required before any money endpoint will work** — hard rule #5 is enforced where money moves, not just as an optional field, so it cannot be bypassed by skipping the question.\n\nAn under-18 date returns 403 UNDERAGE. Without one, purchases return 403 DOB_REQUIRED so the app knows to open the date picker.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"displayName\": \"Rahul\",\n  \"dateOfBirth\": \"1998-04-12\",\n  \"gender\": \"male\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6 · Refresh tokens",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Rotates: the presented token is retired and a new pair issued.\n\nPresenting an already-rotated token means two parties hold it, so the entire device chain is revoked and the response is 401 REFRESH_TOKEN_REUSED. Try running this twice in a row to see it.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.environment.set('accessToken', b.accessToken);",
+                  "pm.environment.set('refreshToken', b.refreshToken);",
+                  "if (b.user) pm.environment.set('userId', b.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7 · Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Revokes refresh tokens for this device, or every device with allDevices: true. The access token stays valid until it expires — that is the trade for stateless auth.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"allDevices\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Catalog",
+      "description": "Server-driven config. Day-1 non-negotiable #6: adding a gift or changing a price must never need an app release, because old app versions stay alive forever.\n\nCached 30s in process; an admin edit clears it immediately.",
+      "item": [
+        {
+          "name": "Gifts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/catalog/gifts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "catalog",
+                "gifts"
+              ]
+            },
+            "description": "20 gifts across 5 tiers, repriced for 55 coins/rupee.\n\n`payoutRateBp` is PER GIFT, never a global constant, so event gifts can carry a different rate later.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('20 gifts', () => pm.expect(pm.response.json().gifts).to.have.lengthOf(20));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cosmetics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/catalog/cosmetics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "catalog",
+                "cosmetics"
+              ]
+            },
+            "description": "Priced in GEMS. Zero host payout — this is the margin path.\n\nVIP tiers are seeded but inactive (Phase 1), so they do not appear here.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Wallet",
+      "description": "Balances, packs, purchases and the coins-to-gems conversion.\n\n**Every endpoint here that moves money requires `Idempotency-Key`** — the collection pre-request script generates one automatically.\n\nFor purchases the header is NOT what makes it safe: the ledger key is derived from the receipt, so replaying a captured receipt under a fresh key still credits exactly once. Send request 3 twice with the same `purchaseToken` to see `replayed: true`.",
+      "item": [
+        {
+          "name": "1 - Balances",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/wallet",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "wallet"
+              ]
+            },
+            "description": "Coins, gems, user level, and lifetime purchased coins.\n\nLevel accrues on PURCHASE, not on spend — free coins are ordinary coins now, so scoring on spend would let daily check-ins be ground into levels."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 - Coin packs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/wallet/packs",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "wallet",
+                "packs"
+              ]
+            },
+            "description": "The 55 coins/rupee table. Totals match the source doc so advertised value is preserved; only the coin/gem split is new.\n\nStarter is deliberately off-formula (105 coins/rupee) — its job is teaching the gifting loop, not margin."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const p = pm.response.json().packs.find(x => x.id === 'popular_299');",
+                  "if (p) pm.environment.set('packId', p.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 - Buy pack, in-app (Play)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/wallet/purchase/iap",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "wallet",
+                "purchase",
+                "iap"
+              ]
+            },
+            "description": "With `IAP_PROVIDER=stub` a token shaped `stub-xxxxxxxx` is accepted without calling Google, so the whole path works before the Play developer account exists.\n\nThe real Google Play verifier is blocked on the M3 spike.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"packId\": \"{{packId}}\",\n  \"purchaseToken\": \"stub-{{$guid}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('coins and gems both credited', () => {",
+                  "  pm.expect(b.balances.coins).to.be.above(0);",
+                  "  pm.expect(b.balances.gems).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4 - Buy pack, web (Razorpay)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/wallet/purchase/web",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "wallet",
+                "purchase",
+                "web"
+              ]
+            },
+            "description": "Signature is verified offline: Razorpay signs `order_id|payment_id` with the account key secret, so this path needs no spike and no network call.\n\nThe web channel has its own cash account, which is how channel mix becomes a balance read rather than a report.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"packId\": \"{{packId}}\",\n  \"orderId\": \"{{razorpayOrderId}}\",\n  \"paymentId\": \"{{razorpayPaymentId}}\",\n  \"signature\": \"{{razorpaySignature}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5 - Convert coins to gems",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/wallet/convert",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "wallet",
+                "convert"
+              ]
+            },
+            "description": "ONE WAY, +20%. This is the lever that pulls blended payout down: coins pay hosts 30% of face value, gems pay nothing.\n\nThere is deliberately no reverse. Gems converting back to coins would let a whale turn cosmetics money into giftable coins and the payout design collapses.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"coins\": 6500\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('plus twenty percent', () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b.gemsReceived).to.eql(Math.floor(6500 * 1.2));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6 - Transaction history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/wallet/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "wallet",
+                "transactions"
+              ]
+            },
+            "description": "Read from the ledger, joined only on the caller own scoped accounts — a user can never see a system account or another person movements."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7 - Purchase history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/wallet/purchases",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "wallet",
+                "purchases"
+              ]
+            },
+            "description": "Includes status, so a purchase stuck at `pending` (a crash between the receipt and the credit) is visible rather than silent."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Rooms — M5",
+      "description": "Room lifecycle and seats. Live chat and presence run over the WebSocket gateway, not REST.\n\nPlanned: `GET /v1/rooms`, `POST /v1/rooms`, `POST /v1/rooms/{id}/join`, `POST /v1/rooms/{id}/seats/{index}`, `DELETE /v1/rooms/{id}/seats/{index}`, `POST /v1/rooms/{id}/go-live`, `POST /v1/rooms/{id}/end`.",
+      "item": []
+    },
+    {
+      "name": "Gifting — M6",
+      "description": "Money endpoints — `Idempotency-Key` required.\n\nPlanned: `GET /v1/gifts/catalog` (server-driven; adding a gift must never need an app release), `POST /v1/gifts/send` (identity: gift_id, host_id, room_id, quantity), `GET /v1/gifts/leaderboard/{roomId}`.",
+      "item": []
+    },
+    {
+      "name": "Cosmetics — M7",
+      "description": "Priced in gems only. Zero host payout — this is the margin path.\n\nPlanned: `GET /v1/cosmetics/catalog`, `POST /v1/cosmetics/purchase`, `GET /v1/cosmetics/owned`, `POST /v1/cosmetics/equip`.",
+      "item": []
+    },
+    {
+      "name": "Host & Payouts — M8",
+      "description": "Verification and withdrawals. Maker-checker is enforced by the system, not by policy — one person can never both prepare and approve.\n\nPlanned: `POST /v1/host/apply`, `POST /v1/host/verify/pan`, `POST /v1/host/verify/bank`, `POST /v1/host/verify/face`, `GET /v1/host/earnings`, `POST /v1/payouts/request`, `GET /v1/payouts`.",
+      "item": []
+    },
+    {
+      "name": "Moderation — M9",
+      "description": "Planned: `POST /v1/reports`, `POST /v1/blocks`, `DELETE /v1/blocks/{userId}`, `POST /v1/appeals`, `GET /v1/appeals/{id}`.",
+      "item": []
+    },
+    {
+      "name": "Admin",
+      "description": "Ships with every milestone rather than as a phase of its own — the docs are explicit that the admin panel is part of the MVP.\n\nPlanned: catalog editing (M4), room monitoring (M5), payout approval (M8), moderator dashboard (M9), and transaction-type kill switches (`PATCH /v1/admin/txn-types/{code}` — flipping `is_active` stops a money flow platform-wide with no deploy).",
+      "item": []
+    }
+  ]
+}

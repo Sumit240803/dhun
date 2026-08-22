@@ -1,0 +1,109 @@
+{
+  "id": "dhun-local",
+  "name": "Dhun — Local",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "apiVersion",
+      "value": "v1",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "traceId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "idempotencyKey",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "hostId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "roomId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "phone",
+      "value": "+919000000001",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "packId",
+      "value": "popular_299",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "giftId",
+      "value": "yacht",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "deviceId",
+      "value": "postman-device-0001",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "otpCode",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "razorpayOrderId",
+      "value": "order_test123456",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "razorpayPaymentId",
+      "value": "pay_test123456",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "razorpaySignature",
+      "value": "compute-with-your-key-secret",
+      "type": "default",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}

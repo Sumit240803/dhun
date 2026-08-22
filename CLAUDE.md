@@ -1,0 +1,343 @@
+# Dhun — Project Memory
+
+**Dhun** (*dhun* — melody, tune), by **Dhunlive Private Limited**.
+
+| | |
+|---|---|
+| App | **Dhun** |
+| Company | **Dhunlive Private Limited** |
+| Company domain | `dhunlive.in` |
+| App domain | `dhun.live` — reads as the brand plus the TLD |
+| Package | **`com.dhunlive.dhun`** |
+
+The package identifier is the one string that can never change after the first Play Store
+upload. A later app rename leaves it harmless, exactly as `com.twitter.android` survived the
+move to X.
+
+Still to verify before filing: MCA name search for **Dhunlive** (bare *Dhun* is a common
+Hindi word, so expect existing companies — *Dhunlive* is the distinctive part), IP India
+classes 9/38/41, and the **Play Store listing title**, which is first-come and where a short
+common word is most likely already taken.
+
+India-first live streaming + voice/video party room social app (Bigo Live / Poppo Live
+model) with a virtual gifting economy. Solo founder in Delhi (full-stack: React Native +
+Expo, backend design, cloud infra) plus one partner; team expands after launch.
+
+**Money flow:** users buy coins with real money → gift them to hosts → hosts earn points
+→ hosts withdraw INR. The platform keeps the spread.
+
+---
+
+## Reading the source documents
+
+Seven PDFs in `documents/` hold every decision and number made so far. **The Read tool
+cannot extract their text on this machine** — poppler/`pdftoppm` is not installed, and the
+files use subset fonts with custom encodings that produce garbage from naive extraction.
+Use the working extractor (inflates content streams, resolves `/ToUnicode` CMaps, expands
+PDF 1.5 object streams, tracks the text matrix for line breaks):
+
+```powershell
+node "C:\Users\Acer\.claude\tools\pdftext.js" "documents/<file>.pdf" | Out-File -Encoding utf8 out.txt
+```
+
+| Document | Contents |
+|---|---|
+| `PROJECT-CONTEXT.pdf` | Master summary of everything below — read this first |
+| `app-blueprint-v1.pdf` | Roles, features by phase, revenue model |
+| `economy-design-v1.pdf` | Coin packs, gift catalog, cosmetics, level curves, commission |
+| `payout-operations-v1.pdf` | Verification, hold periods, TDS, GST, approvals, reconciliation |
+| `trust-and-safety-v1.pdf` | Policy levels, detection, moderation, appeals, fraud |
+| `data-and-launch-plan-v1.pdf` | Event taxonomy, dashboards, launch phases, store submission |
+| `growth-plan-v1.pdf` | Host seeding, user acquisition, agency network, retention |
+
+Docs are written in Hinglish. **All numbers are starting points**, to be retuned about
+three months after launch.
+
+---
+
+## HARD RULES — never violate these
+
+1. **No paid chance-based game, ever.** No lucky boxes, mystery gifts, lucky wheel,
+   Golden Flower, "provably-fair RNG". India's Promotion and Regulation of Online Gaming
+   Act 2025 (rules in force 1 May 2026) bans online money games and erased the
+   skill-vs-chance distinction. Treated as existential risk.
+2. **An agency never holds a host's money.** The platform pays each host directly;
+   agency commission is paid separately, by the platform, out of platform funds. If money
+   routed through an agency it would become an RBI Payment Aggregator (PSS Act 2007 —
+   ₹15cr net worth + escrow).
+3. **A reseller pays before receiving coins.** Never on credit. Pay-first = distributor
+   (legal); pay-later = payment intermediary (illegal).
+4. **Never the word "salary"** for hosts — use "earnings" or "payout". No mandated hours,
+   penalties, or forced exclusivity (employment-classification risk: PF, ESI, gratuity).
+5. **18+ only.** PAN + face match mandatory before any payout. A minor host is an
+   existential risk.
+6. **India-resident Grievance Officer**, contact publicly published (IT Rules 2021).
+7. **Never build user-to-user coin or gem transfer.** Not in the source docs and must stay
+   out. The moment currency moves between users it becomes a payment instrument — RBI
+   prepaid-instrument exposure, plus it is the standard laundering route for gift-economy
+   currency. Expect this to come back as a harmless-sounding feature request.
+
+**Unresolved contradiction:** `app-blueprint-v1.pdf` lists a **lucky wheel** under Phase 1
+daily hooks. If it costs coins to spin, it is a paid chance-based game and breaks hard rule
+#1. Only acceptable as a *free* daily spin awarding coins (a `free_coin_grant` subtype).
+Settle this before anyone builds it.
+
+Store-fee note: Google Play India's alternative billing gives only a 4% reduction. Google
+dropped anti-steering worldwide, but a purchase within 24 hours of an in-app link click
+still incurs 20%. The web recharge portal must therefore be **independently discoverable**
+(SEO, WhatsApp, reseller channels), not driven from inside the app.
+
+---
+
+## Economy — as decided (supersedes `economy-design-v1.pdf` where they differ)
+
+The source doc had **one** spendable currency with a paid/bonus split. That was replaced in
+design discussion with **three currencies**. Where this section and the PDF disagree, this
+section wins.
+
+### The three currencies
+
+| Currency | Source | Use | Host payout |
+|---|---|---|---|
+| **Coins** | Purchased in packs, **or earned free** (signup, check-in, watch, follow, share, referral) | Gift to hosts | 60% of coin count, as points |
+| **Gems** | Pack bonus, or converted from coins | Cosmetics **only** | **Zero** |
+| **Points** | Hosts earn from gifts | Withdraw as INR | — |
+
+Free coins are ordinary coins — no separate balance, no 20% tier, no expiry. Their whole
+job is engagement and referral, and the payout cost (~2.4% of revenue against the ≤8%
+budget) is accepted as retention spend.
+
+### Rates
+
+| | |
+|---|---|
+| Pack rate | **55 coins = ₹1** (was 65 — this is the margin dial) |
+| Accounting face value | 65 units = ₹1, for deferred revenue only |
+| Point rate | 130 points = ₹1 |
+| Gift split | 60% of the gift's **coin count**, issued as points |
+| **Payout formula** | **`points = coins × payout_rate`** — no ×2. Points are worth half a coin, which is what turns an advertised 60% into a real 30%. |
+| Coins → Gems conversion | one-way, **+20%** (`coin_to_gem_rate: 12000` bp), config-driven |
+| Effective payout | 25.4% from packs, +2.4% from free coins = **~27.8% blended** |
+
+**Two-dial mechanic:** dial 1 is the gift split % (the public marketing number); dial 2 is
+the point-to-rupee rate (hidden in the wallet). Together they advertise 60% while paying
+out ~30%. The point rate is the **last** lever to touch — hosts notice immediately.
+
+**Payout ratio is set by one number only:** `coins per ₹ ÷ 216.7`. Gift prices and cosmetic
+prices do not affect it — they only change how many gifts a given balance buys.
+
+### Coin packs
+
+| Pack | Price | Coins | Gems | Total | Gem share |
+|---|---|---|---|---|---|
+| Starter (lifetime once) | ₹19 | 2,000 | 3,300 | 5,300 | 62% |
+| Small | ₹99 | 5,445 | 1,305 | 6,750 | 19% |
+| Popular | ₹299 | 16,445 | 5,355 | 21,800 | 25% |
+| Value | ₹999 | 54,945 | 23,055 | 78,000 | 30% |
+| Big | ₹2,999 | 164,945 | 84,555 | 249,500 | 34% |
+| Whale | ₹9,999 | 549,945 | 327,555 | 877,500 | 37% |
+
+Totals are unchanged from the source doc, so advertised value is preserved — only the
+coin/gem split is new. Starter is deliberately **off-formula** (105 coins/₹, a loss leader
+netting ~₹4) because its job is teaching the gifting loop, not margin. Totals stay
+deliberately awkward so a balance never lands exactly on a gift price.
+
+### Gift catalog — REPRICED for 55 coins/₹ (supersedes the source doc)
+
+Gift prices do **not** affect the payout ratio — that is set only by coins-per-₹ in the
+packs. Repricing changes how many gifts a balance buys, nothing else. The ladder below was
+rebuilt so **every pack affords a hero gift and then cascades down to an awkward
+remainder**.
+
+| Tier | Gift | Coins | ≈₹ |
+|---|---|---|---|
+| 1 Impulse | Heart · Rose · Chai · Laddu · Clap | 10 · 45 · 85 · 165 · 250 | 0.18–4.55 |
+| 2 Regular | Perfume · Teddy · Guitar · Cake · Bouquet | 520 · 999 · 1,250 · 1,650 · 2,200 | 9.45–40 |
+| 3 Statement *(full-screen)* | **Scooter** · Fireworks · Motorbike · Diamond ring · Yacht | 3,300 · 4,150 · 6,600 · 9,900 · 15,500 | 60–282 |
+| 4 Flex *(room banner)* | Sports car · Private jet · Castle | 45,000 · 82,500 · 145,000 | 818–2,636 |
+| 5 Global *(all-rooms)* | Rocket · Galaxy | 400,000 · 825,000 | 7,273 · 15,000 |
+
+**Scooter (3,300) is new** — it bridges the Tier 2 → 3 gap the source doc predicts will
+break first, and it is the cheapest full-screen gift.
+
+Pack cascades: ₹99 → Fireworks + Guitar + Rose · ₹299 → Yacht + Perfume + 2 Laddu ·
+₹999 → Sports car + Diamond ring · ₹2,999 → Castle + Yacht + Fireworks ·
+₹9,999 → Rocket + Castle + Fireworks. Galaxy deliberately needs two whale packs.
+
+**Perfume 520 and Teddy 999 keep their prices** — they echo the sentimental combo
+multipliers. Combo multipliers x1 → x10 → x99 → x520 → x999 are unchanged, single-tap,
+no confirmation dialog.
+
+**Round-rupee anchors were dropped on Yacht, Castle and Rocket.** With packs at ₹299 /
+₹2,999 and gifts at ₹300 / ₹3,000, every hero gift landed *exactly ₹1* out of reach —
+which reads as a trick, not aspiration.
+
+**Cosmetics** are priced in Gems, unchanged from the source doc. The +20% conversion bonus
+almost exactly offsets the 55/₹ rate (₹1 → 55 coins → 66 gems vs the original 65), so every
+cosmetic still lands within 1.5% of its designed rupee price. Everything expiring — VIP
+monthly tiers ₹100/₹500/₹2,000/₹10,000, plus frames, bubbles, entry effects, nickname
+colour, super message.
+
+**User level** accrues on **purchase**, not on spend — otherwise free coins could be ground
+into levels via daily check-ins. Small deviation from the source doc's wording, same intent.
+
+**Agency commission** on trailing-30-day host earnings: 5% / 8% / 12% / 16% / 20% across
+₹0–50K / 50K–2L / 2L–5L / 5L–15L / 15L+. Recalculated monthly, never retroactive. No
+commission on daily/task/reward earnings. Paid by the platform, never deducted from
+the host.
+
+### Corrections to the source docs' arithmetic
+
+Both carried into the financial model — tell the CA:
+
+1. The ₹1,000 revenue table and the 22–25% blended payout target were both calculated at
+   face value (65 coins/₹) and **ignore pack bonuses entirely**. Under the original design
+   the real blended payout was ~26–27%, not 23.4%.
+2. Host cost per ₹1,000 is **₹254** at 55 coins/₹, not the ₹300 in the doc. On the web
+   channel that leaves ~₹501 rather than ₹449.
+
+---
+
+## Architecture — decided
+
+**Modular monolith, single repo.** Chosen deliberately over microservices: the double-entry
+ledger needs single-transaction ACID guarantees (splitting economy from payments would mean
+sagas over live money), the team is 1–3 backend engineers through 10K DAU, and the infra
+budget is ~3.5% of revenue. The seams are already drawn, so extraction stays cheap.
+
+**Three rules of the monolith** (see `backend/README.md`):
+1. Modules talk only through their `index.ts`. Never import another module's internals.
+2. `economy` is the **sole writer** of wallet balances. Everything else moves money by
+   calling its public functions with an idempotency key.
+3. Side effects go through the event bus, never direct calls. Swap `infra/eventBus.ts`
+   for Kafka later and subscribers move out untouched.
+
+**Three processes, one codebase:** API (REST, `npm run dev`) · realtime gateway (WebSocket —
+long-lived connections, scales on concurrency, must deploy independently of the API; M5) ·
+workers (`npm run worker`).
+
+The **workers** process is built. It runs the outbox shipper (LISTEN/NOTIFY with a 2s poll
+floor), the nightly reconciliation at 03:00 IST, and the retention purges. Jobs take a
+Postgres **advisory lock**, so two instances never both run one; every execution is recorded
+in `job_runs`, because a job that silently stops is otherwise invisible. Payout batches, TDS
+accrual, commission recalc and moderation callbacks join it in M8/M9.
+`npm run worker:run <job>` runs one job and exits.
+
+**Extraction triggers, when they arrive:** `realtime`/`rooms` at ~5–10K concurrent;
+`moderation` ingest when ML needs its own runtime. **Never split `economy` + `payments`.**
+
+**Stack:** Node + TypeScript (ESM), Express, Postgres, Redis, zod, vitest. RTC media is
+external (Agora / ZEGO / LiveKit — undecided) and never transits the backend.
+
+### Standing conventions
+
+- **Postman collection is maintained alongside the code.** `backend/postman/` holds
+  `collection.json` (all endpoints, grouped by module) and `environment.json` (base URL,
+  tokens, ids as variables — never hardcoded). **Any change to an endpoint — added,
+  removed, renamed, new field, new error code — updates the collection in the same
+  change.** Every request carries an example body, auth header, and `Idempotency-Key`
+  where the endpoint takes money. Treat a stale collection as a broken build.
+- **Ledger design decisions** are tracked in `backend/docs/ledger-decisions.md`. Nothing
+  in the ledger gets built until its checklist item is resolved there.
+- **Engineering standards — apply to every endpoint, every session. Non-negotiable.**
+
+  1. **Security first.** Assume every request is hostile. Rate-limit by IP, device and
+     user. Security headers, CORS allowlist, `trust proxy`. Guests may never spend.
+     Money endpoints require a registered, verified-adult user. Secrets never in code.
+  2. **Handle every error case.** No unhandled rejection, no uncaught exception, no
+     unmapped database error, no route without a failure path. Malformed JSON, oversized
+     bodies, query timeouts, deadlocks and lost connections all map to a deliberate status
+     code — never a stack trace and never a hang.
+  3. **Sanitise every message sent to a client.** Clients get a stable `code`, a short
+     human message, and field paths for validation failures. They never get SQL, schema
+     names, file paths, stack traces, regex sources, or their own input echoed back.
+     Internal detail is logged with the `trace_id` and stays server-side.
+  4. **Validate every input.** Body, query and route params, all through zod, all
+     `.strict()` so unknown keys are rejected rather than ignored. Every string has a max
+     length, every number has bounds, every id has a format. Reject prototype-pollution
+     keys. Validate for integrity as well as safety — an amount that parses is not the
+     same as an amount that makes sense.
+
+- **`docs/build-plan.md` governs the work.** Milestones are sequential, exit criteria are
+  binary, features ship as vertical slices (backend + app together). Do not start a
+  milestone whose dependencies are unmet and do not jump ahead. **A scope change is an edit
+  to that file, agreed first — never something that happens inside a coding session.**
+  Check it at the start of any build session.
+
+### Day-1 non-negotiables (from the docs)
+
+1. Double-entry ledger: `ledger_accounts` / `ledger_txns` (idempotency_key UNIQUE) /
+   `ledger_entries` (signed amounts, sum = 0). **Balances are never a mutable column.**
+   Nightly verification job with pager alert.
+2. `Idempotency-Key` header on every money endpoint.
+3. **Coin float is a liability, not revenue.** Revenue is recognized when a coin is
+   *spent*. Tell the CA from day one.
+4. API versioning `/v1/` — old app versions stay alive forever.
+5. Force-update + remote kill switch per major feature.
+6. Server-driven config: gift catalog, coin packs, level thresholds, room types. Adding a
+   gift must never require an app release.
+7. EAS Update (OTA) for JS-level fixes.
+8. Structured logging + `trace_id` from client to DB.
+9. Terraform IaC, three environments (dev / staging / prod).
+10. Admin panel is part of the MVP, not "later".
+11. Kafka event stream from day one, even with a single consumer.
+12. `payout_rate` is a **per-gift** field, never a global constant.
+
+---
+
+## Current state of `backend/`
+
+Scaffold only — architecture is right, implementation is placeholder. Known gaps where the
+code contradicts the docs:
+
+- `migrations/001_init.sql` has no `ledger_accounts` or `ledger_txns` — so "sum of entries
+  per txn = 0" (a required daily reconciliation check) is unenforceable.
+- `wallets` has `coins` + `diamonds`; **four** balances are needed: paid coins, bonus
+  coins, held points, withdrawable points.
+- `gifting.service.ts` credits the host 1:1 with a `// apply your rate` placeholder.
+- `giftCatalog.ts` is three hardcoded fake gifts; must be server-driven config with
+  `id, tier, coin_price, payout_rate, animation_asset, is_active, visible_from, visible_to`.
+- `modules/games/index.ts` describes its job as "provably-fair RNG" — **violates hard rule
+  #1**. Keep the module for quiz / karaoke / PK battle; delete the RNG framing.
+- Naming drift: docs say **points**, code says **diamonds**. Docs win.
+
+### Design gaps still to close (blocking ledger work)
+
+1. **The points ledger is undesigned.** Coins are fully specified, points are treated as a
+   number. Given "coin float = liability, revenue on spend", a gift is a **4-leg**
+   transaction (coins: user liability → revenue; points: expense → host liability), not the
+   2-leg transfer currently scaffolded.
+2. **Held vs withdrawable points have no representation.** Should be two ledger accounts
+   per host, so chargeback reversal can claw back held points.
+3. **Agency commission accrual** — monthly batch replaying gift events against
+   point-in-time `host_agency_links` (commission splits by *gift timestamp*, not the
+   current link).
+4. **TDS section undecided** — abstract behind a strategy interface; hard-blocks beta week 3.
+
+---
+
+## Open decisions
+
+| # | Decision | Owner | Status |
+|---|---|---|---|
+| 1 | Niche / positioning (audio-first + one regional language recommended) | Founders | OPEN — blocks #3 |
+| 2 | Equity split + vesting (4yr, 1yr cliff) | Founders | OPEN |
+| 3 | ~~App name~~ | Founders | **DECIDED — Dhun**, company Dhunlive Private Limited. Verification pending: MCA, IP India 9/38/41, Play Store listing title. |
+| 4 | TDS section — 194J (10%, ₹50K threshold) vs 194-O (1%, ₹5L) | CA | OPEN — get it in writing |
+| 5 | RTC vendor — Agora vs ZEGO vs LiveKit, on real pricing | Founder | OPEN |
+| 6 | Bootstrap runway vs funding timing | Founders | OPEN |
+| 7 | Founder role split (product+tech vs ops+growth+agency) | Founders | OPEN |
+
+---
+
+## Cost and scale reference
+
+MVP build ₹40–80L (4–6 months) · growth spend ₹63–90L over 12 months · monthly fixed at
+10K DAU ~₹11L · break-even ~₹28.6L/month · T&S at launch ₹2.4–3.1L/month.
+
+At 10K DAU: MAU ~40,000, payers 4% of MAU = 1,600, gross ~₹13.76L/month. Whale
+concentration: 2% of payers drive 35% of revenue.
+
+Launch sequence: closed beta (4 weeks, 30–50 hosts) → soft launch (6 weeks, Play Store,
+one region, **Android first**) → public, then iOS, then paid ads. At scale, non-engineering
+headcount is 60–70% of total (moderation + support + payout ops).

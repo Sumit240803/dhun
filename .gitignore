@@ -1,0 +1,49 @@
+# Repository-wide ignores. backend/ and mobile/ keep their own for tool-specific
+# artefacts; this covers everything shared and everything dangerous.
+
+# --- secrets -----------------------------------------------------------------
+# .env holds the database password, the JWT secret and the Razorpay key secret.
+# The .example files are committed; the real ones never are.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p8
+*.p12
+*.keystore
+*.jks
+google-services.json
+GoogleService-Info.plist
+# EAS credentials, if ever downloaded locally
+credentials.json
+
+# --- dependencies and build output -------------------------------------------
+node_modules/
+dist/
+build/
+*.tsbuildinfo
+
+# --- Expo --------------------------------------------------------------------
+.expo/
+.expo-shared/
+expo-env.d.ts.bak
+# Continuous Native Generation rebuilds these; committing them defeats the point
+# and guarantees merge conflicts.
+/mobile/android/
+/mobile/ios/
+
+# --- editors and OS ----------------------------------------------------------
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+# .vscode is kept: the Expo template ships shared editor settings worth sharing
+
+# --- logs and local scratch --------------------------------------------------
+*.log
+npm-debug.log*
+yarn-error.log*
+coverage/
+.nyc_output/
+*.local
