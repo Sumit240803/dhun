@@ -1,0 +1,16 @@
+{
+  "name": "dhun",
+  "private": true,
+  "description": "Dhun — live streaming and voice rooms. Backend and mobile in one repo.",
+  "scripts": {
+    "check": "npm run check:backend && npm run check:mobile",
+    "check:backend": "cd backend && npm run typecheck && npm test",
+    "check:mobile": "cd mobile && npm run typecheck && npx expo lint && npm run format:check && npm test",
+    "fix": "cd mobile && npm run format",
+    "dev": "cd backend && npm run dev",
+    "worker": "cd backend && npm run worker",
+    "app": "cd mobile && npx expo start --dev-client",
+    "migrate": "cd backend && npm run migrate",
+    "db:reset": "cd backend && npm run db:reset"
+  }
+}

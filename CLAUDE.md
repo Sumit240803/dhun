@@ -258,6 +258,11 @@ external (Agora / ZEGO / LiveKit — undecided) and never transits the backend.
      keys. Validate for integrity as well as safety — an amount that parses is not the
      same as an amount that makes sense.
 
+- **`docs/development-pipeline.md` is how work gets done.** One command before
+  every commit: `npm run check` from the repo root. Four things it cannot check —
+  Postman updated in the same commit, new strings in both `en.ts` and `hi.ts`, new
+  colours as semantic tokens, ledger changes resolved in `ledger-decisions.md`
+  first. Incidents: **kill switch first, fix second.**
 - **`docs/build-plan.md` governs the work.** Milestones are sequential, exit criteria are
   binary, features ship as vertical slices (backend + app together). Do not start a
   milestone whose dependencies are unmet and do not jump ahead. **A scope change is an edit
