@@ -6,4 +6,4 @@
 
 export { colors } from './colors';
 export type { Colors, TierKey } from './colors';
-export { spacing, radius, typography, zIndex, duration } from './tokens';
+export { spacing, radius, typography, zIndex, duration, absoluteFill } from './tokens';

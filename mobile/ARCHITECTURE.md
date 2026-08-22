@@ -145,6 +145,59 @@ a new id. So cache aggressively and **preload on catalog fetch**, not on first
 open of the gift sheet. The sheet must feel instant; it is the moment money is
 spent.
 
+On cellular, only Tier 1–2 are prefetched. This audience is largely on metered
+tier-2 data, and silently burning it on animations they may never see is a way
+to get uninstalled.
+
+### The format: Lottie
+
+Decided after checking what is actually maintained, not what the industry uses.
+
+| Package                   | Last published                              |
+| ------------------------- | ------------------------------------------- |
+| `lottie-react-native`     | actively maintained                         |
+| `rive-react-native`       | actively maintained                         |
+| `react-native-svga`       | **2022** — abandoned                        |
+| `svgaplayer-react-native` | **2022** — abandoned                        |
+| PAG (`libpag`)            | maintained, but **no React Native binding** |
+
+**SVGA is the category standard** — Bigo, Poppo, MLive and Chamet all use it, and
+the gift marketplaces sell it. It is unusable here: both bindings died in 2022,
+before the New Architecture, and RN 0.82 removed the old bridge entirely.
+
+That is structural, not bad luck. Every app using SVGA or PAG is _native_
+Android/iOS — those formats came from Chinese platform teams with in-house native
+engineers who never needed a React Native binding.
+
+Lottie wins on **hiring**, not on technology: After Effects via Bodymovin is the
+workflow every Indian motion designer already knows. Rive is the better runtime —
+smaller files, state machines, used by Duolingo and Spotify — but that talent pool
+in India is thin.
+
+**Briefing a designer:** After Effects → Bodymovin, 750×750 minimum, under 500KB,
+transparent background, no expressions, no merge paths. **Always keep the AE
+source** — that is what keeps the format decision reversible.
+
+Nothing is baked in: `animation_asset` is a plain string and `effect` drives
+rendering separately, so a Rive renderer could be added per gift later.
+
+### The queue
+
+Tier 3+ gifts take over the screen for 3–6 seconds. During a whale moment
+hundreds arrive in that window, so the queue **sheds load — and sheds the cheap
+gifts**. Dropping a ₹15,000 Galaxy because two hundred Roses queued ahead of it
+is a refund request and a lost whale.
+
+- Tier 1–2 never queue; they render inline so a flood of Roses cannot block the screen
+- Higher tiers jump the queue but **never interrupt** what is playing — a truncated animation reads as a bug
+- Capped at 8: at 3s each that is already 24 seconds behind live
+- Deduplicated by transaction id, since the fast path and the outbox can both deliver
+- Cleared on room change, so a gift never follows you out
+
+The queue is a subscribable store read with `useSyncExternalStore`, not mirrored
+into component state — mirroring means a setState per gift and a cascading render
+during exactly the moment that needs to be smooth.
+
 ---
 
 ## Colour

@@ -59,3 +59,18 @@ export const duration = {
   giftBanner: 5_000,
   giftGlobal: 6_000,
 } as const;
+
+/**
+ * Fills the parent.
+ *
+ * React Native 0.86 dropped `StyleSheet.absoluteFillObject` from its types, and
+ * `absoluteFill` is a registered style id that cannot be spread. Explicit
+ * positioning is version-proof and reads more clearly anyway.
+ */
+export const absoluteFill = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+} as const;
