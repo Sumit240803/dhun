@@ -1,8 +1,12 @@
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
+import { StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
@@ -59,41 +63,55 @@ export default function RootLayout() {
   if (!bootstrapped || !isReady) return null; // splash stays up
 
   return (
-    // Outermost boundary: catches anything the per-screen boundaries miss, so a
-    // render error shows a recoverable panel instead of a white screen.
-    <ErrorBoundary screen="root">
-      <QueryClientProvider client={queryClient}>
-        <SafeAreaProvider>
-          <StatusBar style="light" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.bg.base },
-              animation: 'slide_from_right',
-            }}
-          >
-            {/*
-              Stack.Protected rather than redirect effects. Declarative, and it
-              CLEANS NAVIGATION HISTORY when a screen becomes inaccessible — so a
-              signed-out user cannot swipe back into the wallet.
-            */}
-            <Stack.Protected guard={!isAuthenticated}>
-              <Stack.Screen name="(auth)" />
-            </Stack.Protected>
+    // GestureHandlerRootView must be the outermost view or bottom sheets and
+    // swipe gestures silently do nothing on Android.
+    <GestureHandlerRootView style={styles.root}>
+      {/*
+        Outermost boundary: catches anything the per-screen boundaries miss, so
+        a render error shows a recoverable panel instead of a white screen.
+      */}
+      <ErrorBoundary screen="root">
+        <QueryClientProvider client={queryClient}>
+          <KeyboardProvider>
+            <SafeAreaProvider>
+              <BottomSheetModalProvider>
+                <StatusBar style="light" />
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    contentStyle: { backgroundColor: colors.bg.base },
+                    animation: 'slide_from_right',
+                  }}
+                >
+                  {/*
+                    Stack.Protected rather than redirect effects. Declarative, and it
+                    CLEANS NAVIGATION HISTORY when a screen becomes inaccessible — so a
+                    signed-out user cannot swipe back into the wallet.
+                  */}
+                  <Stack.Protected guard={!isAuthenticated}>
+                    <Stack.Screen name="(auth)" />
+                  </Stack.Protected>
 
-            <Stack.Protected guard={isAuthenticated}>
-              <Stack.Screen name="(app)" />
-            </Stack.Protected>
+                  <Stack.Protected guard={isAuthenticated}>
+                    <Stack.Screen name="(app)" />
+                  </Stack.Protected>
 
-            {/*
-              Legal routes are reachable without a session. IT Rules 2021 require
-              the Grievance Officer contact to be publicly published, and store
-              review asks to see the privacy policy and community guidelines.
-            */}
-            <Stack.Screen name="legal" options={{ presentation: 'modal' }} />
-          </Stack>
-        </SafeAreaProvider>
-      </QueryClientProvider>
-    </ErrorBoundary>
+                  {/*
+                    Legal routes are reachable without a session. IT Rules 2021 require
+                    the Grievance Officer contact to be publicly published, and store
+                    review asks to see the privacy policy and community guidelines.
+                  */}
+                  <Stack.Screen name="legal" options={{ presentation: 'modal' }} />
+                </Stack>
+              </BottomSheetModalProvider>
+            </SafeAreaProvider>
+          </KeyboardProvider>
+        </QueryClientProvider>
+      </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+});

@@ -32,17 +32,17 @@ which is how these apps become impossible to change.
 
 ## Directory map
 
-| Directory          | Holds                                                                                                                                | Never holds                                     |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------- |
-| `app/`             | expo-router routes. A route file should be under ~30 lines: read params, render a feature screen.                                    | Business logic, data fetching, styling          |
-| `features/<name>/` | Screens, hooks, and logic for one feature. `features/gifting/GiftSheet.tsx`, `features/wallet/usePurchase.ts`                        | Design-system primitives                        |
-| `ui/`              | Design-system primitives: `Text`, `Button`, `Sheet`, `Avatar`. Styled, dumb, reusable.                                               | Anything that knows about coins, rooms or hosts |
-| `visuals/`         | **The distinctive layer.** Gift animations, profile frames, entry effects, level badges — everything server-driven and asset-backed. | Layout scaffolding                              |
-| `api/`             | The server contract: client, types, endpoint functions, query hooks                                                                  | UI                                              |
-| `lib/`             | Pure functions. Money formatting, dates, validation. Testable without a renderer.                                                    | React, navigation, anything with side effects   |
-| `theme/`           | Tokens only: colour, spacing, radius, typography, z-index                                                                            | Components                                      |
-| `config/`          | Environment access, validated once at startup                                                                                        | Anything read from more than one place          |
-| `store/`           | Global client state that is genuinely global (session, active room)                                                                  | Server data — that belongs to TanStack Query    |
+| Directory          | Holds                                                                                                                                                                     | Never holds                                     |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `app/`             | expo-router routes. A route file should be under ~30 lines: read params, render a feature screen.                                                                         | Business logic, data fetching, styling          |
+| `features/<name>/` | Screens, hooks, and logic for one feature. `features/gifting/GiftSheet.tsx`, `features/wallet/usePurchase.ts`                                                             | Design-system primitives                        |
+| `ui/`              | The ten design-system primitives: `Screen`, `Row`/`Column`, `Text`, `Button`, `Input`, `Card`, `ListItem`, `Avatar`, `Badge`, `Divider`, `Sheet`. Styled, dumb, reusable. | Anything that knows about coins, rooms or hosts |
+| `visuals/`         | **The distinctive layer.** Gift animations, profile frames, entry effects, level badges — everything server-driven and asset-backed.                                      | Layout scaffolding                              |
+| `api/`             | The server contract: client, types, endpoint functions, query hooks                                                                                                       | UI                                              |
+| `lib/`             | Pure functions. Money formatting, dates, validation. Testable without a renderer.                                                                                         | React, navigation, anything with side effects   |
+| `theme/`           | Tokens only: colour, spacing, radius, typography, z-index                                                                                                                 | Components                                      |
+| `config/`          | Environment access, validated once at startup                                                                                                                             | Anything read from more than one place          |
+| `store/`           | Global client state that is genuinely global (session, active room)                                                                                                       | Server data — that belongs to TanStack Query    |
 
 ---
 
@@ -97,6 +97,52 @@ and returns `DOB_REQUIRED`, which the client turns into a date picker rather tha
 a dead end.
 
 ---
+
+## The primitive set
+
+`ui/` holds ten primitives and no more. Import them from `@/ui`.
+
+|                         |                                                                                           |
+| ----------------------- | ----------------------------------------------------------------------------------------- |
+| `Screen`                | Page container. Background, safe-area insets, optional scroll + keyboard lift.            |
+| `Row` `Column` `Spacer` | Layout. `gap` only accepts a spacing-scale key, so an arbitrary 13px gap is a type error. |
+| `Text`                  | `variant` (typography scale) + `tone` (semantic colour). Never a free-form colour.        |
+| `Button`                | `primary` / `secondary` / `danger` / `ghost`, three sizes, loading and disabled.          |
+| `Input`                 | Label, focus ring, error slot.                                                            |
+| `Card`                  | Solid or `glass` for laying over video. `selected` for a chosen coin pack.                |
+| `ListItem`              | 56pt minimum row, so every list clears the 44pt touch target.                             |
+| `Avatar`                | Five sizes, initial fallback, `live` ring.                                                |
+| `Badge`                 | Currency, tier and status chips.                                                          |
+| `Divider`               | Hairline. Decorative — hidden from screen readers.                                        |
+
+**There is no component library, and this is deliberate.** Tamagui, Paper and
+gluestack were all considered and rejected for the same three reasons: each
+brings its own theme system, which would be a second source of colour truth
+next to `theme/colors.ts`; the generic surface a library covers is about ten
+components, all of which get restyled anyway in a heavily-branded app; and this
+stack (RN 0.86 + React 19.2 + React Compiler + New Architecture) is new enough
+that library breakage costs more than the components save. Nothing in this
+category — Bigo, Poppo, TikTok, Discord — ships on an off-the-shelf kit.
+
+The decision is also asymmetric, which is the real argument: owning the
+primitives leaves the door open to adopting a library for one screen later,
+while adopting one spreads its idiom into every screen and makes removal a
+rewrite. Revisit only if web becomes a first-class target — that is the case
+Tamagui genuinely wins.
+
+Three single-purpose libraries carry their weight and are used directly:
+
+- **`@gorhom/bottom-sheet`** — wrapped by `ui/Sheet`. Gestures, snap points,
+  keyboard, backdrop. Needs `BottomSheetModalProvider` and
+  `GestureHandlerRootView`; both are wired in `app/_layout.tsx`.
+- **`@shopify/flash-list`** — the feed and the chat stream. `FlatList` drops
+  frames during a gift storm, which is exactly when it must not.
+- **`react-native-keyboard-controller`** — `Screen scroll` uses it. Also
+  provides `KeyboardProvider` at the root.
+
+**Feature-specific components do not belong here.** A gift tile, a coin pack
+card and a host header live in `features/`. The test: would this component
+still make sense in an app that was not about live streaming?
 
 ## The visuals layer
 
@@ -470,4 +516,17 @@ CI runs all four on every push, for both the backend and the app, plus a guard
 that no `.env` file is ever tracked. The colour enforcement only works if it runs.
 
 Components are tested where behaviour is non-obvious — the gift queue, the retry
-path — not for snapshot coverage.
+path, a button that must not fire twice — not for snapshot coverage.
+
+**`render` is asynchronous** in react-native-testing-library 14: it awaits
+React 19's concurrent commit. Forget the `await` and you get a Promise whose
+query methods are all undefined, reported as "render function has not been
+called", which points nowhere near the actual mistake.
+
+```ts
+const screen = await render(<Button label="Send code" onPress={fn} loading />);
+expect(screen.getByTestId('btn')).toBeBusy();
+```
+
+The v14 matchers are `toBeBusy()` / `toBeDisabled()` / `toBeOnTheScreen()` /
+`toHaveProp()`. `toHaveAccessibilityState()` was removed.
