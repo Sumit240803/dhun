@@ -417,7 +417,7 @@
                 "profile"
               ]
             },
-            "description": "Sets the profile. **A date of birth is required before any money endpoint will work** — hard rule #5 is enforced where money moves, not just as an optional field, so it cannot be bypassed by skipping the question.\n\nAn under-18 date returns 403 UNDERAGE. Without one, purchases return 403 DOB_REQUIRED so the app knows to open the date picker.",
+            "description": "Sets the profile. **A date of birth is required before any money endpoint will work** — hard rule #5 is enforced where money moves, not just as an optional field, so it cannot be bypassed by skipping the question.\n\nAn under-18 date returns 403 UNDERAGE. Without one, purchases return 403 DOB_REQUIRED so the app knows to open the date picker.\n\nAge is evaluated against the calendar date in IST, so someone turning 18 today passes from 00:00 IST. A date that matches the YYYY-MM-DD shape but is not a real date (`2000-02-31`), or one in the future, returns 422 INVALID_DOB — not UNDERAGE, because a typo must not send a user into an age-appeal flow.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"displayName\": \"Rahul\",\n  \"dateOfBirth\": \"1998-04-12\",\n  \"gender\": \"male\"\n}",

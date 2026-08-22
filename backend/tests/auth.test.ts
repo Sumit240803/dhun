@@ -282,6 +282,24 @@ describe('logout', () => {
   });
 });
 
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+/**
+ * A date of birth `years` years before today in IST, shifted by `dayShift` days.
+ *
+ * Built from IST calendar parts rather than `new Date()` + `toISOString()`.
+ * The old version did the latter, and between midnight and 05:30 IST
+ * toISOString() reports the PREVIOUS UTC day — so "one day short of 18" became
+ * "exactly 18" and the suite failed only when run at night.
+ */
+function dobYearsAgo(years: number, dayShift = 0): string {
+  const ist = new Date(Date.now() + IST_OFFSET_MS);
+  const dob = new Date(
+    Date.UTC(ist.getUTCFullYear() - years, ist.getUTCMonth(), ist.getUTCDate() + dayShift),
+  );
+  return dob.toISOString().slice(0, 10);
+}
+
 describe('profile and the 18+ gate', () => {
   it('accepts an adult date of birth', async () => {
     const session = await guestSession();
@@ -296,13 +314,11 @@ describe('profile and the 18+ gate', () => {
 
   it('refuses anyone under 18', async () => {
     const session = await guestSession();
-    const underage = new Date();
-    underage.setFullYear(underage.getFullYear() - 17);
 
     const res = await request(app)
       .patch('/v1/auth/profile')
       .set('Authorization', `Bearer ${session.accessToken}`)
-      .send({ dateOfBirth: underage.toISOString().slice(0, 10) })
+      .send({ dateOfBirth: dobYearsAgo(17) })
       .expect(403);
 
     expect(res.body.error.code).toBe('UNDERAGE');
@@ -310,15 +326,46 @@ describe('profile and the 18+ gate', () => {
 
   it('refuses someone one day short of their 18th birthday', async () => {
     const session = await guestSession();
-    const almost = new Date();
-    almost.setFullYear(almost.getFullYear() - 18);
-    almost.setDate(almost.getDate() + 1);
 
     await request(app)
       .patch('/v1/auth/profile')
       .set('Authorization', `Bearer ${session.accessToken}`)
-      .send({ dateOfBirth: almost.toISOString().slice(0, 10) })
+      .send({ dateOfBirth: dobYearsAgo(18, 1) })
       .expect(403);
+  });
+
+  it('accepts someone on the morning of their 18th birthday', async () => {
+    const session = await guestSession();
+
+    await request(app)
+      .patch('/v1/auth/profile')
+      .set('Authorization', `Bearer ${session.accessToken}`)
+      .send({ dateOfBirth: dobYearsAgo(18) })
+      .expect(200);
+  });
+
+  it('rejects a date that passes the shape check but does not exist', async () => {
+    const session = await guestSession();
+
+    const res = await request(app)
+      .patch('/v1/auth/profile')
+      .set('Authorization', `Bearer ${session.accessToken}`)
+      .send({ dateOfBirth: '2000-02-31' })
+      .expect(422);
+
+    expect(res.body.error.code).toBe('INVALID_DOB');
+  });
+
+  it('rejects a future date of birth as malformed, not as underage', async () => {
+    const session = await guestSession();
+
+    const res = await request(app)
+      .patch('/v1/auth/profile')
+      .set('Authorization', `Bearer ${session.accessToken}`)
+      .send({ dateOfBirth: dobYearsAgo(-1) })
+      .expect(422);
+
+    expect(res.body.error.code).toBe('INVALID_DOB');
   });
 });
 

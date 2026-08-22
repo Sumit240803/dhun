@@ -165,12 +165,56 @@ export async function getSessionUser(userId: string): Promise<SessionUser> {
 /** Minimum age for the whole platform. Hard rule #5 — a minor host is existential risk. */
 const MIN_AGE_YEARS = 18;
 
-function ageOn(dob: Date, at: Date): number {
-  let age = at.getFullYear() - dob.getFullYear();
-  const beforeBirthday =
-    at.getMonth() < dob.getMonth() ||
-    (at.getMonth() === dob.getMonth() && at.getDate() < dob.getDate());
-  return beforeBirthday ? age - 1 : age;
+/** IST is UTC+5:30 with no daylight saving, so the offset is a constant. */
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+interface CalendarDate {
+  y: number;
+  m: number;
+  d: number;
+}
+
+/**
+ * Parses 'YYYY-MM-DD' as a calendar date, rejecting dates that do not exist.
+ *
+ * The route's regex only checks the SHAPE, so '2008-02-31' and '2008-13-01'
+ * both reach here. Round-tripping through UTC is what catches them.
+ */
+function parseCalendarDate(value: string): CalendarDate | null {
+  const [y, m, d] = value.split('-').map(Number);
+  const roundTrip = new Date(Date.UTC(y, m - 1, d));
+  if (
+    roundTrip.getUTCFullYear() !== y ||
+    roundTrip.getUTCMonth() + 1 !== m ||
+    roundTrip.getUTCDate() !== d
+  ) {
+    return null;
+  }
+  return { y, m, d };
+}
+
+/** Today in IST, as a calendar date. The platform's business day is Indian. */
+function todayIst(nowMs: number): CalendarDate {
+  const shifted = new Date(nowMs + IST_OFFSET_MS);
+  return {
+    y: shifted.getUTCFullYear(),
+    m: shifted.getUTCMonth() + 1,
+    d: shifted.getUTCDate(),
+  };
+}
+
+/**
+ * Age in whole years, from calendar dates only.
+ *
+ * NEVER via Date getters on a parsed 'YYYY-MM-DD'. That string parses as UTC
+ * midnight while getMonth()/getDate() read LOCAL time, so on any server west of
+ * UTC every birthday lands a day early and a 17-year-old clears the gate the
+ * day before turning 18. Hard rule #5 does not tolerate an off-by-one, and the
+ * bug is invisible in India — it only appears once a server moves.
+ */
+function ageInYears(dob: CalendarDate, today: CalendarDate): number {
+  const beforeBirthday = today.m < dob.m || (today.m === dob.m && today.d < dob.d);
+  return today.y - dob.y - (beforeBirthday ? 1 : 0);
 }
 
 export async function updateProfile(
@@ -178,11 +222,20 @@ export async function updateProfile(
   patch: { displayName?: string; avatarUrl?: string; bio?: string; gender?: string; dateOfBirth?: string },
 ): Promise<SessionUser> {
   if (patch.dateOfBirth) {
-    const dob = new Date(patch.dateOfBirth);
-    if (Number.isNaN(dob.getTime())) {
+    const dob = parseCalendarDate(patch.dateOfBirth);
+    if (dob === null) {
       throw new AppError('INVALID_DOB', 'Date of birth is not a valid date', 422);
     }
-    if (ageOn(dob, new Date()) < MIN_AGE_YEARS) {
+
+    const today = todayIst(Date.now());
+    const age = ageInYears(dob, today);
+
+    // A future date of birth is malformed input, not a young user. Reporting it
+    // as UNDERAGE would send someone to an age-appeal flow for a typo.
+    if (age < 0) {
+      throw new AppError('INVALID_DOB', 'Date of birth is not a valid date', 422);
+    }
+    if (age < MIN_AGE_YEARS) {
       throw new AppError('UNDERAGE', 'You must be 18 or older to use this app', 403);
     }
   }
