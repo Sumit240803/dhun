@@ -58,7 +58,9 @@
             "deploymentTarget": "16.4"
           }
         }
-      ]
+      ],
+      "expo-localization",
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true,

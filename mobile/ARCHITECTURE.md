@@ -32,17 +32,17 @@ which is how these apps become impossible to change.
 
 ## Directory map
 
-| Directory | Holds | Never holds |
-|---|---|---|
-| `app/` | expo-router routes. A route file should be under ~30 lines: read params, render a feature screen. | Business logic, data fetching, styling |
-| `features/<name>/` | Screens, hooks, and logic for one feature. `features/gifting/GiftSheet.tsx`, `features/wallet/usePurchase.ts` | Design-system primitives |
-| `ui/` | Design-system primitives: `Text`, `Button`, `Sheet`, `Avatar`. Styled, dumb, reusable. | Anything that knows about coins, rooms or hosts |
-| `visuals/` | **The distinctive layer.** Gift animations, profile frames, entry effects, level badges — everything server-driven and asset-backed. | Layout scaffolding |
-| `api/` | The server contract: client, types, endpoint functions, query hooks | UI |
-| `lib/` | Pure functions. Money formatting, dates, validation. Testable without a renderer. | React, navigation, anything with side effects |
-| `theme/` | Tokens only: colour, spacing, radius, typography, z-index | Components |
-| `config/` | Environment access, validated once at startup | Anything read from more than one place |
-| `store/` | Global client state that is genuinely global (session, active room) | Server data — that belongs to TanStack Query |
+| Directory          | Holds                                                                                                                                | Never holds                                     |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------- |
+| `app/`             | expo-router routes. A route file should be under ~30 lines: read params, render a feature screen.                                    | Business logic, data fetching, styling          |
+| `features/<name>/` | Screens, hooks, and logic for one feature. `features/gifting/GiftSheet.tsx`, `features/wallet/usePurchase.ts`                        | Design-system primitives                        |
+| `ui/`              | Design-system primitives: `Text`, `Button`, `Sheet`, `Avatar`. Styled, dumb, reusable.                                               | Anything that knows about coins, rooms or hosts |
+| `visuals/`         | **The distinctive layer.** Gift animations, profile frames, entry effects, level badges — everything server-driven and asset-backed. | Layout scaffolding                              |
+| `api/`             | The server contract: client, types, endpoint functions, query hooks                                                                  | UI                                              |
+| `lib/`             | Pure functions. Money formatting, dates, validation. Testable without a renderer.                                                    | React, navigation, anything with side effects   |
+| `theme/`           | Tokens only: colour, spacing, radius, typography, z-index                                                                            | Components                                      |
+| `config/`          | Environment access, validated once at startup                                                                                        | Anything read from more than one place          |
+| `store/`           | Global client state that is genuinely global (session, active room)                                                                  | Server data — that belongs to TanStack Query    |
 
 ---
 
@@ -121,12 +121,12 @@ visuals/
 
 The gift catalog's `effect` column drives presentation:
 
-| `effect` | Renders as |
-|---|---|
-| `basic` | Inline in the message stream |
-| `fullscreen` | Full-screen overlay, queued so two gifts never overlap |
-| `room_banner` | Persistent banner plus a host notification |
-| `global_announcement` | Cross-room announcement (Tier 5) |
+| `effect`              | Renders as                                             |
+| --------------------- | ------------------------------------------------------ |
+| `basic`               | Inline in the message stream                           |
+| `fullscreen`          | Full-screen overlay, queued so two gifts never overlap |
+| `room_banner`         | Persistent banner plus a host notification             |
+| `global_announcement` | Cross-room announcement (Tier 5)                       |
 
 ### Every visual has a three-step fallback
 
@@ -163,10 +163,10 @@ Components import from `@/theme` and nothing else:
 ```ts
 import { colors, spacing } from '@/theme';
 
-backgroundColor: colors.bg.surface     // ✅
-color: colors.text.secondary           // ✅
-backgroundColor: '#15151D'             // ❌ lint error
-import { primitives } from '@/theme/primitives'  // ❌ lint error
+backgroundColor: colors.bg.surface; // ✅
+color: colors.text.secondary; // ✅
+backgroundColor: '#15151D'; // ❌ lint error
+import { primitives } from '@/theme/primitives'; // ❌ lint error
 ```
 
 ### Why two layers
@@ -183,11 +183,11 @@ amber is one edit; every button, badge and focus ring follows.
 `eslint.config.js` makes three things errors anywhere under `src/` except
 `src/theme/`:
 
-| Rejected | Why |
-|---|---|
-| `'#RRGGBB'` literals | A single source of truth that can be bypassed is not one |
-| `rgb()` / `rgba()` / `hsl()` | Same, via the other syntax |
-| importing `theme/primitives` | Reaching past the semantic layer defeats the point |
+| Rejected                     | Why                                                      |
+| ---------------------------- | -------------------------------------------------------- |
+| `'#RRGGBB'` literals         | A single source of truth that can be bypassed is not one |
+| `rgb()` / `rgba()` / `hsl()` | Same, via the other syntax                               |
+| importing `theme/primitives` | Reaching past the semantic layer defeats the point       |
 
 These are **errors, not warnings**. An inconsistency caught at authoring time
 costs nothing; one discovered on screen forty, where two greys almost match, is
@@ -226,10 +226,10 @@ single component.
 Four distinct things, four functions, no implicit conversion between them:
 
 ```ts
-formatCoins(16445)    // "16,445"
-formatGems(5355)      // "5,355"
-formatPoints(11700)   // "11,700"
-formatRupees(29900)   // "₹299"      ← input is PAISE, never rupees
+formatCoins(16445); // "16,445"
+formatGems(5355); // "5,355"
+formatPoints(11700); // "11,700"
+formatRupees(29900); // "₹299"      ← input is PAISE, never rupees
 ```
 
 **Indian digit grouping is the default.** `164945` renders as **1,64,945**, not
@@ -258,13 +258,13 @@ EAS builds never see the local file.
 
 ## Naming and file conventions
 
-| Thing | Convention | Example |
-|---|---|---|
-| Components | PascalCase file and export | `GiftSheet.tsx` |
-| Hooks | `use` prefix, camelCase file | `useWallet.ts` |
-| Pure helpers | camelCase | `money.ts` |
-| Routes | kebab-case, expo-router owns the name | `profile-setup.tsx` |
-| Types | PascalCase, colocated or in `api/types.ts` | `CoinPack` |
+| Thing        | Convention                                 | Example             |
+| ------------ | ------------------------------------------ | ------------------- |
+| Components   | PascalCase file and export                 | `GiftSheet.tsx`     |
+| Hooks        | `use` prefix, camelCase file               | `useWallet.ts`      |
+| Pure helpers | camelCase                                  | `money.ts`          |
+| Routes       | kebab-case, expo-router owns the name      | `profile-setup.tsx` |
+| Types        | PascalCase, colocated or in `api/types.ts` | `CoinPack`          |
 
 Imports use the `@/` alias — never `../../..`.
 
@@ -297,10 +297,124 @@ The backend returns a stable envelope: `{ error: { code, message, details, trace
 
 ---
 
+## Localisation
+
+**Every user-facing string goes through `t()`. No exceptions, from the first screen.**
+
+```ts
+import { useTranslation } from '@/i18n';
+const { t } = useTranslation();
+t('auth.otpSubtitle', { phone });
+```
+
+Hand-rolled rather than a library, for one reason: **typed keys**. `t('auth.otpTitl')`
+is a compile error, not a blank label found in QA — or worse, in a language nobody
+on the team reads.
+
+- `en.ts` is the source catalogue; `hi.ts` is typed against it, so a missing key
+  fails the build.
+- **Never concatenate translated fragments.** Hindi is subject-object-verb, so
+  `'You sent ' + gift + ' to ' + host` cannot be reordered. Write whole sentences
+  with named placeholders — `'{sender} sent {gift} to {host}'`.
+- Missing Hindi falls back to English; missing English shows the key, which is a
+  bug report that writes itself.
+
+This exists before any screen because retrofitting it after forty is a week of
+mechanical edits, and regional language is the positioning bet.
+
+---
+
+## Errors and reporting
+
+**Error boundaries are layered, not just at the root.** A single top-level boundary
+means a failed gift animation takes down the entire room, including the video the
+host is streaming.
+
+```tsx
+<ErrorBoundary screen="room">
+  {' '}
+  // room chrome survives
+  <ErrorBoundary // only the effect is lost
+    screen="room.gifts"
+    fallback={() => null}
+  >
+    <GiftAnimationLayer />
+  </ErrorBoundary>
+</ErrorBoundary>
+```
+
+`lib/reporting.ts` wraps Sentry behind an interface and no-ops without a DSN. It
+scrubs `Authorization` and `Idempotency-Key` before sending, never attaches
+screenshots (a room is other people's faces), and tags every report with the
+`trace_id` from the API envelope — which is what turns "the app broke" into one
+server log line.
+
+---
+
+## Analytics
+
+`lib/analytics.ts` holds the client half of the event taxonomy from
+`data-and-launch-plan-v1`, as a **typed union**. That doc's warning is that
+changing an event schema later loses your history, so the names are locked at
+compile time.
+
+Common properties attach automatically. The doc is explicit about why: attached by
+hand, roughly a fifth of events end up missing them.
+
+Events double as crash breadcrumbs — the last five actions before a crash are
+usually more useful than the stack.
+
+---
+
+## Feature flags
+
+`config/flags.ts` is the client half of day-1 non-negotiable #5. The server owns
+the money-layer switch (`ledger_txn_types.is_active`); this covers everything else.
+
+Defaults are local and conservative; remote values override. One flag is worth
+knowing about: **`showWebRechargeLink` defaults to false and must stay that way**
+in-app — a purchase within 24 hours of an in-app link click still incurs Google's
+20% fee.
+
+---
+
+## Network
+
+`lib/network.ts` tracks `isInternetReachable`, not `isConnected` — a phone on a
+Wi-Fi network with no upstream reports connected, which is the captive-portal case
+that produces silent failures.
+
+The audience is largely tier-2 and tier-3 India on patchy data. "Nothing happened
+when I tapped" is almost always a dropped request, and saying so is the difference
+between a retry and an uninstall.
+
+---
+
+## Deep links
+
+`config/links.ts` maps both schemes to the same routes. Not cosmetic: host share
+links are a Phase 0 acquisition channel, and a link that lands on the home screen
+instead of the room wastes the click.
+
+Path builders live beside the route tree so a renamed route breaks loudly, rather
+than producing links that silently 404 months after they were shared.
+
+---
+
 ## Testing
 
 `lib/` is pure and gets unit tests — money formatting especially, because a
-rounding bug there is a support ticket in every screen at once.
+rounding or grouping bug there is wrong on every screen at once.
 
-Components are tested where behaviour is non-obvious (the gift queue, the retry
-path), not for snapshot coverage.
+```
+npm test           jest-expo
+npm run typecheck
+npx expo lint      includes the colour rules
+npm run format:check
+```
+
+CI runs all four on every push, for both the backend and the app, plus a guard
+that no `.env` file is ever tracked. The colour enforcement only works if it runs.
+
+Components are tested where behaviour is non-obvious — the gift queue, the retry
+path — not for snapshot coverage.

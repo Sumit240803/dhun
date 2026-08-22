@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push supersedes an in-flight run on the same branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    services:
+      # The ledger's guarantees live in triggers, deferred constraints and row
+      # locks. A mocked database would prove nothing, so CI runs the real thing.
+      # PostgreSQL 17 to match local; the schema needs 15+ for NULLS NOT DISTINCT.
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: liveapp
+          POSTGRES_PASSWORD: liveapp
+          POSTGRES_DB: liveapp_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U liveapp"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      DATABASE_URL: postgres://liveapp:liveapp@localhost:5432/liveapp_test
+      TEST_DATABASE_URL: postgres://liveapp:liveapp@localhost:5432/liveapp_test
+      REDIS_URL: redis://localhost:6379
+      JWT_SECRET: ci-only-secret-not-used-anywhere-real
+      RAZORPAY_KEY_SECRET: razorpay-test-secret
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        # globalSetup rebuilds the schema from migrations, so this also proves
+        # every migration applies cleanly from scratch.
+        run: npm test
+
+  mobile:
+    name: Mobile
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+
+    env:
+      # Required by config/env.ts, which validates at import and throws when
+      # absent — deliberately, so a misconfigured build fails loudly.
+      EXPO_PUBLIC_API_URL: http://localhost:3000
+      EXPO_PUBLIC_ENV: development
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        # Includes the colour rules: a hardcoded hex fails the build, which is
+        # what makes the token system a single source of truth rather than a
+        # convention people drift away from.
+        run: npx expo lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Test
+        run: npm test
+
+  # Cheap guard against the mistake that is expensive to undo: a committed .env.
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure no environment files are tracked
+        run: |
+          tracked=$(git ls-files | grep -E '(^|/)\.env$|(^|/)\.env\.(local|production|staging)$' || true)
+          if [ -n "$tracked" ]; then
+            echo "::error::Environment files are tracked in git:"
+            echo "$tracked"
+            exit 1
+          fi
+          echo "No environment files tracked."

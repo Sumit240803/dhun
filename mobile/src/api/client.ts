@@ -11,13 +11,12 @@
 //   3. **Retries are bounded and only for safe cases.** A 429 or 503 with an
 //      Idempotency-Key is safe to retry; a 500 without one is not.
 
-import Constants from 'expo-constants';
+import { env } from '@/config/env';
+import { t } from '@/i18n';
 import { ApiErrorBody, ApiErrorCode, FieldIssue, TokenPair } from './types';
 
-const BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL ??
-  (Constants.expoConfig?.extra?.apiUrl as string | undefined) ??
-  'http://localhost:3000';
+// config/env.ts is the single reader of process.env, and it validates at import.
+const BASE_URL = env.apiUrl;
 
 const API_VERSION = 'v1';
 
@@ -41,7 +40,7 @@ export class ApiError extends Error {
   /** The message to put in front of a user. Server text is already sanitised. */
   get userMessage(): string {
     if (this.code === ApiErrorCode.NETWORK_ERROR) {
-      return 'No connection. Check your network and try again.';
+      return t('common.noConnectionBody');
     }
     return this.message;
   }
@@ -102,7 +101,9 @@ async function refreshOnce(): Promise<TokenPair | null> {
 
 function uuid(): string {
   // globalThis.crypto is available on Hermes with RN 0.86.
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return (
+    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -118,7 +119,7 @@ async function parseError(res: Response, traceId: string): Promise<ApiError> {
 
   return new ApiError(
     body?.error?.code ?? `HTTP_${res.status}`,
-    body?.error?.message ?? 'Something went wrong. Please try again.',
+    body?.error?.message ?? t('common.somethingWentWrong'),
     res.status,
     body?.error?.details,
     body?.error?.trace_id ?? traceId,
@@ -185,7 +186,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
       }
       throw new ApiError(
         ApiErrorCode.NETWORK_ERROR,
-        'No connection. Check your network and try again.',
+        t('common.noConnectionBody'),
         0,
         undefined,
         traceId,

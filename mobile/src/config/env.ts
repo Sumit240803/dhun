@@ -36,6 +36,9 @@ if (__DEV__ && /^https?:\/\/(localhost|127\.0\.0\.1)/.test(apiUrl)) {
 
 export const env = {
   apiUrl: apiUrl.replace(/\/+$/, ''),
+
+  /** Crash reporting. Empty is valid and means reporting is disabled. */
+  sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN?.trim() || undefined,
   environment: (process.env.EXPO_PUBLIC_ENV ?? 'development') as AppEnvironment,
 
   get isProduction() {
@@ -46,7 +49,5 @@ export const env = {
   appVersion: Constants.expoConfig?.version ?? '0.0.0',
   /** Bumped by EAS per build (appVersionSource: remote). */
   buildNumber:
-    Constants.expoConfig?.android?.versionCode ??
-    Constants.expoConfig?.ios?.buildNumber ??
-    'dev',
+    Constants.expoConfig?.android?.versionCode ?? Constants.expoConfig?.ios?.buildNumber ?? 'dev',
 } as const;
