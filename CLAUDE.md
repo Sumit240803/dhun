@@ -290,34 +290,81 @@ external (Agora / ZEGO / LiveKit — undecided) and never transits the backend.
 
 ---
 
-## Current state of `backend/`
+## Current state
 
-Scaffold only — architecture is right, implementation is placeholder. Known gaps where the
-code contradicts the docs:
+One repo, pushed to `git@github.com:Sumit240803/dhun.git` (`main`).
+Verify everything with **`npm run check`** from the root.
 
-- `migrations/001_init.sql` has no `ledger_accounts` or `ledger_txns` — so "sum of entries
-  per txn = 0" (a required daily reconciliation check) is unenforceable.
-- `wallets` has `coins` + `diamonds`; **four** balances are needed: paid coins, bonus
-  coins, held points, withdrawable points.
-- `gifting.service.ts` credits the host 1:1 with a `// apply your rate` placeholder.
-- `giftCatalog.ts` is three hardcoded fake gifts; must be server-driven config with
-  `id, tier, coin_price, payout_rate, animation_asset, is_active, visible_from, visible_to`.
-- `modules/games/index.ts` describes its job as "provably-fair RNG" — **violates hard rule
-  #1**. Keep the module for quiz / karaoke / PK battle; delete the RNG framing.
-- Naming drift: docs say **points**, code says **diamonds**. Docs win.
+### `backend/` — M1, M2 and M4 complete. 95 tests.
 
-### Design gaps still to close (blocking ledger work)
+Five migrations, 16 endpoints, three processes' worth of code (API and workers
+built; the realtime gateway is M5).
 
-1. **The points ledger is undesigned.** Coins are fully specified, points are treated as a
-   number. Given "coin float = liability, revenue on spend", a gift is a **4-leg**
-   transaction (coins: user liability → revenue; points: expense → host liability), not the
-   2-leg transfer currently scaffolded.
-2. **Held vs withdrawable points have no representation.** Should be two ledger accounts
-   per host, so chargeback reversal can claw back held points.
-3. **Agency commission accrual** — monthly batch replaying gift events against
-   point-in-time `host_agency_links` (commission splits by *gift timestamp*, not the
-   current link).
-4. **TDS section undecided** — abstract behind a strategy interface; hard-blocks beta week 3.
+| Area | State |
+|---|---|
+| **Ledger** | Done and proven. Unbalanced transactions cannot commit (deferred constraint trigger), entries cannot be mutated (trigger + revoked grants in `ops/roles.sql`), balances cannot go negative. 20 parallel gifts against a 16-gift balance land exactly 16. |
+| **Auth** | Phone OTP behind a provider interface (`console` in dev, `msg91` blocked on DLT), JWT + rotating refresh with replay detection that revokes the device chain, scoped `role_assignments`. |
+| **Wallet / purchases** | Server-driven catalogs, IAP behind a verifier interface (stub in dev), Razorpay signature verification fully implemented, coins→gems conversion. |
+| **Workers** | `npm run worker`. Outbox shipper (LISTEN/NOTIFY + 2s poll floor), nightly reconciliation at 03:00 IST with 7 checks and zero tolerance, five retention purges. Advisory-lock job locking. |
+| **Security** | Rate limiting by IP/device/user, security headers, CORS allowlist, 18+ gate on every money endpoint, strict validation of body/query/params, sanitised client errors. |
+
+**Two invariants worth never breaking:** the ledger idempotency key for a purchase
+derives from the **receipt** (`provider:provider_txn_id`), not the client header —
+keying off the header let a replayed receipt credit twice. And **`points = coins ×
+payout_rate`**, no ×2; a point is worth half a coin, which is what turns an
+advertised 60% into a real 30%.
+
+### `mobile/` — foundation complete, zero screens built.
+
+Expo SDK 57 · React Native 0.86 · React 19.2 · expo-router. EAS project
+`@sumitsumit/dhun` (`c7c547aa-86e2-4d02-befa-b5e643fde400`). 27 tests.
+
+Read **`mobile/ARCHITECTURE.md`** before adding a file. The essentials:
+
+- **Layering:** `app/` composes → `features/` holds logic → `ui/` `visuals/` present
+  → `theme/` `lib/` `api/` `config/` underneath. Never upward.
+- **Colour has one source, enforced by lint.** `theme/primitives.ts` (raw, never
+  imported by components) → `theme/colors.ts` (semantic, the only colour import).
+  A hex literal outside `theme/` is a lint **error**. Currency and gift-tier
+  colours are reserved.
+- **Every string goes through `t()`**, in both `en.ts` and `hi.ts`. Typed keys, so
+  a typo is a compile error. Never concatenate fragments — Hindi is SOV.
+- **Money:** branded `Coins`/`Gems`/`Points`/`Paise` types; Indian lakh grouping
+  (`1,64,945`, not `164,945`).
+- 21 routes exist and are navigable; unbuilt ones render a placeholder naming
+  their milestone. Guards use `Stack.Protected`, never redirect effects.
+
+**Gift animations are Lottie**, decided by checking what is maintained: both SVGA
+React Native bindings died in 2022 and PAG has no RN binding, because every app
+using those formats is native Android/iOS. Brief designers for After Effects →
+Bodymovin, 750×750, under 500KB, **and always keep the `.aep` source** — that is
+what keeps the decision reversible.
+
+The gift queue **sheds the cheapest gift when full**, never the newest. Dropping a
+₹15,000 Galaxy behind two hundred Roses is a refund request.
+
+### Not built yet
+
+Rooms · realtime gateway · RTC (vendor undecided) · chat · gifting UI · feed and
+discovery · host tools · **moderation** · analytics pipeline · CI beyond typecheck
+and tests · Terraform and environments · every app screen.
+
+Honest read: the foundation is stronger than the budget suggests, the product does
+not exist yet, and the things most likely to kill this are people problems —
+**host supply and trust & safety** — not engineering.
+
+---
+
+## Track 0 — external lead times, all still at ZERO
+
+Nothing here needs code, everything has weeks of lead time, and each one blocks a
+milestone. **Incorporation is the critical path** — DLT, Razorpay KYC and the Play
+developer account all queue behind the entity existing.
+
+Incorporation (name now settled) · TRAI DLT or WhatsApp Business verification ·
+Google Play developer account · Razorpay + RazorpayX KYC · **CA: TDS section in
+writing** · CA: agency commission TDS (likely 194H) · RTC vendor on real pricing ·
+gaming-law written opinion · Hive account.
 
 ---
 
@@ -325,11 +372,11 @@ code contradicts the docs:
 
 | # | Decision | Owner | Status |
 |---|---|---|---|
-| 1 | Niche / positioning (audio-first + one regional language recommended) | Founders | OPEN — blocks #3 |
+| 1 | Niche / positioning (audio-first + one regional language recommended) | Founders | OPEN — no longer blocks the name, but still shapes M5 (audio-only vs video rooms) |
 | 2 | Equity split + vesting (4yr, 1yr cliff) | Founders | OPEN |
 | 3 | ~~App name~~ | Founders | **DECIDED — Dhun**, company Dhunlive Private Limited. Verification pending: MCA, IP India 9/38/41, Play Store listing title. |
 | 4 | TDS section — 194J (10%, ₹50K threshold) vs 194-O (1%, ₹5L) | CA | OPEN — get it in writing |
-| 5 | RTC vendor — Agora vs ZEGO vs LiveKit, on real pricing | Founder | OPEN |
+| 5 | RTC vendor — Agora vs ZEGO vs LiveKit, on real pricing | Founder | OPEN — blocks M5. LiveKit has an official Expo config plugin; the other two do not. |
 | 6 | Bootstrap runway vs funding timing | Founders | OPEN |
 | 7 | Founder role split (product+tech vs ops+growth+agency) | Founders | OPEN |
 
