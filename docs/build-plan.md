@@ -81,11 +81,19 @@ OTP delivery is behind an `OtpProvider` interface. `console` logs the code (deve
 `msg91` throws until DLT registration completes — deliberately loud, because an auth flow
 that appears to work but delivers nothing is worse than one that fails.
 
+**App built** (55 mobile tests): phone entry → OTP → profile setup → tabs, plus the
+guest path and the Me screen that upgrades a guest, switches language and signs out.
+Every call wired to the real endpoint, every failure mapped through `lib/errors.ts`.
+
+`(auth)` is gated on `!isRegistered` rather than `!isAuthenticated`, because a guest is
+authenticated and would otherwise be locked out of the screen that upgrades them.
+`profile-setup` moved to `(app)` for the mirror reason — it runs after verification.
+
 **Still outstanding for M2 to close:**
-- The React Native app: splash, phone entry, OTP, profile setup. No `mobile/` yet.
-- MSG91 implementation (blocked on Track 0 DLT registration).
-- **Exit criterion unmet:** a real user signing up on a real device and staying signed in
-  across restarts. Cannot be met until the app exists.
+- MSG91 implementation (blocked on Track 0 DLT registration). `devCode` carries the
+  flow until then, and the OTP screen surfaces it in development builds.
+- **Exit criterion unmet:** a real user signing up on a real device and staying signed
+  in across restarts. Needs the development build — no APK has been produced yet.
 
 ### M4 · Wallet & purchase — BACKEND COMPLETE, app outstanding
 

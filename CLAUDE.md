@@ -258,6 +258,36 @@ external (Agora / ZEGO / LiveKit — undecided) and never transits the backend.
      keys. Validate for integrity as well as safety — an amount that parses is not the
      same as an amount that makes sense.
 
+- **Screen craft — how every screen must be built. Non-negotiable, same standing as
+  the backend engineering standards above.**
+
+  1. **No generic AI-slop pages.** A screen is not a centred card on an empty
+     background with a heading and a button. Real hierarchy, real spacing rhythm,
+     one clear primary action per screen, and content that starts at the top —
+     not floated in the middle of nowhere.
+  2. **Consistent layout.** Every screen is a `<Screen>` from `@/ui`. Same
+     horizontal padding, same header treatment, same button placement. A user
+     moving between two screens should not feel the app change hands.
+  3. **Clear text.** Say the thing. "We'll send a 6-digit code to this number"
+     beats "Verification required". No filler, no marketing voice, no exclamation
+     marks. Every string goes through `t()` in both `en.ts` and `hi.ts`.
+  4. **Subtle motion, never decoration.** Reanimated 4. Entrances 150–250ms with
+     small offsets (8–16px), springs for anything the finger controls, and motion
+     only where it explains a change — an error appearing, a step advancing.
+     Nothing bounces, nothing spins, nothing loops.
+  5. **Haptics on every meaningful commit.** `expo-haptics`: light on selection,
+     success on a completed step, error on a rejected one. Never on scroll,
+     never on every keystroke.
+  6. **Safe insets always**, via `<Screen edges>`. Full-bleed screens (a room)
+     pass `[]` and inset their own chrome.
+  7. **Every async state has a design.** Loading, empty, error and offline are
+     designed states, not afterthoughts — an empty list says what to do next, an
+     error says what happened and offers the retry.
+  8. **Errors are handled where they happen.** Field errors go under the field.
+     Everything else goes through the shared error mapper, which turns an
+     `ApiError` code into a translated sentence. A raw server string never
+     reaches a user, and a screen never dead-ends without a way forward.
+
 - **`docs/development-pipeline.md` is how work gets done.** One command before
   every commit: `npm run check` from the repo root. Four things it cannot check —
   Postman updated in the same commit, new strings in both `en.ts` and `hi.ts`, new

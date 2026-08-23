@@ -16,7 +16,7 @@ import { initNetworkMonitor } from '@/lib/network';
 import { initReporting } from '@/lib/reporting';
 import { colors } from '@/theme';
 import { ErrorBoundary } from '@/ui/ErrorBoundary';
-import { useIsAuthenticated, useSession } from '@/store/session';
+import { useIsAuthenticated, useIsRegistered, useSession } from '@/store/session';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -42,6 +42,7 @@ const queryClient = new QueryClient({
 export default function RootLayout() {
   const { isReady } = useSession();
   const isAuthenticated = useIsAuthenticated();
+  const isRegistered = useIsRegistered();
   const [bootstrapped, setBootstrapped] = useState(false);
 
   useEffect(() => {
@@ -87,8 +88,14 @@ export default function RootLayout() {
                     Stack.Protected rather than redirect effects. Declarative, and it
                     CLEANS NAVIGATION HISTORY when a screen becomes inaccessible — so a
                     signed-out user cannot swipe back into the wallet.
+
+                    The auth stack is gated on REGISTERED, not on authenticated. A guest
+                    is authenticated — they hold a real server-side identity — and gating
+                    on that would lock them out of the very screen that upgrades them to
+                    a phone account. Profile setup lives in (app) for the mirror reason:
+                    it runs AFTER verification, by which point this guard is already false.
                   */}
-                  <Stack.Protected guard={!isAuthenticated}>
+                  <Stack.Protected guard={!isRegistered}>
                     <Stack.Screen name="(auth)" />
                   </Stack.Protected>
 

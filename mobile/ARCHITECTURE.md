@@ -55,12 +55,12 @@ app/
   _layout.tsx                 providers + Stack.Protected guards
   index.tsx                   splash / session bootstrap
 
-  (auth)/                     unauthenticated
+  (auth)/                     NOT REGISTERED — includes a guest
     phone.tsx
     otp.tsx
-    profile-setup.tsx
 
   (app)/                      requires a session (guest OR registered)
+    profile-setup.tsx         runs AFTER verification, so it cannot live in (auth)
     (tabs)/
       index.tsx               live feed
       following.tsx
@@ -92,6 +92,15 @@ Two distinct guards, because they are different questions:
 - `isAuthenticated` — has a session at all (a guest counts)
 - `isRegistered` — phone verified; required before anything that spends
 
+**`(auth)` is gated on `!isRegistered`, not on `!isAuthenticated`.** A guest holds
+a real server-side identity, so gating on authentication would lock them out of
+the one screen that upgrades them to a phone account — and their coins with it.
+
+The mirror of that is why **`profile-setup` lives in `(app)`**. It runs after the
+OTP is verified, at which point the user IS registered; had it stayed in `(auth)`
+the guard would flip false and `Stack.Protected` would unmount the screen out
+from under the navigation that was trying to reach it.
+
 The 18+ gate is **not** a route guard. The backend enforces it per money endpoint
 and returns `DOB_REQUIRED`, which the client turns into a date picker rather than
 a dead end.
@@ -100,7 +109,7 @@ a dead end.
 
 ## The primitive set
 
-`ui/` holds ten primitives and no more. Import them from `@/ui`.
+`ui/` holds the primitives and no more. Import them from `@/ui`.
 
 |                         |                                                                                           |
 | ----------------------- | ----------------------------------------------------------------------------------------- |

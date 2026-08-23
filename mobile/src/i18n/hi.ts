@@ -14,6 +14,10 @@
 import type { Messages } from './en';
 
 export const hi: Messages = {
+  app: {
+    name: 'Dhun',
+  },
+
   common: {
     continue: 'आगे बढ़ें',
     cancel: 'रद्द करें',
@@ -25,6 +29,17 @@ export const hi: Messages = {
     somethingWentWrong: 'कुछ गड़बड़ हो गई',
     noConnection: 'इंटरनेट कनेक्शन नहीं है',
     noConnectionBody: 'अपना नेटवर्क जाँचें और दोबारा कोशिश करें।',
+    change: 'बदलें',
+    save: 'सेव करें',
+    skip: 'अभी नहीं',
+  },
+
+  tabs: {
+    live: 'लाइव',
+    following: 'फ़ॉलोइंग',
+    search: 'खोजें',
+    wallet: 'वॉलेट',
+    me: 'प्रोफ़ाइल',
   },
 
   errors: {
@@ -33,14 +48,22 @@ export const hi: Messages = {
     reference: 'रेफ़रेंस: {traceId}',
     tryAgain: 'दोबारा कोशिश करें',
     visualFailed: 'यह इफ़ेक्ट नहीं चल सका',
+    network: 'इंटरनेट कनेक्शन नहीं है। अपना नेटवर्क जाँचें और दोबारा कोशिश करें।',
+    timeout: 'बहुत ज़्यादा समय लग गया। दोबारा कोशिश करें।',
+    rateLimited: 'बहुत ज़्यादा कोशिशें हो गईं। थोड़ी देर बाद दोबारा कोशिश करें।',
+    serviceUnavailable: 'Dhun थोड़ी देर के लिए उपलब्ध नहीं है। एक मिनट बाद कोशिश करें।',
+    unexpected: 'कुछ गड़बड़ हो गई। दोबारा कोशिश करें।',
+    banned: 'यह अकाउंट निलंबित कर दिया गया है।',
+    sessionEnded: 'आप साइन आउट हो गए हैं। आगे बढ़ने के लिए दोबारा साइन इन करें।',
   },
 
   auth: {
     phoneTitle: 'अपना फ़ोन नंबर डालें',
-    phoneSubtitle: 'हम आपको एक वेरिफ़िकेशन कोड भेजेंगे',
+    phoneSubtitle: 'हम WhatsApp पर 6 अंकों का कोड भेजेंगे।',
     phonePlaceholder: 'फ़ोन नंबर',
     phoneInvalid: '10 अंकों का सही नंबर डालें',
     sendCode: 'कोड भेजें',
+    continueAsGuest: 'बिना साइन इन के देखें',
 
     otpTitle: 'कोड डालें',
     otpSubtitle: '{phone} पर भेजा गया',
@@ -50,12 +73,44 @@ export const hi: Messages = {
     otpAttemptsLeft: '{count} कोशिश बाकी',
     otpAttemptsLeftPlural: '{count} कोशिशें बाकी',
     otpExpired: 'कोड की समय-सीमा खत्म हो गई। नया कोड मँगवाएँ।',
+    otpAttemptsExceeded: 'बहुत ज़्यादा गलत कोशिशें। नया कोड मँगवाएँ।',
+    otpRateLimited: 'बहुत ज़्यादा कोड मँगवाए गए। कुछ मिनट बाद कोशिश करें।',
+    otpChangeNumber: 'नंबर गलत है?',
+    devCode: 'डेव बिल्ड — आपका कोड {code} है',
+    legalNotice: 'आगे बढ़ने पर आप हमारी {terms} और {privacy} से सहमत होते हैं।',
 
     profileTitle: 'अपनी प्रोफ़ाइल बनाएँ',
     displayName: 'नाम',
     dateOfBirth: 'जन्म तिथि',
     mustBeAdult: 'Dhun इस्तेमाल करने के लिए आपकी उम्र 18 साल या उससे ज़्यादा होनी चाहिए',
     dobRequired: 'आगे बढ़ने के लिए अपनी जन्म तिथि डालें',
+    profileSubtitle: 'रूम में लोग आपको ऐसे देखेंगे।',
+    displayNamePlaceholder: 'आपका नाम',
+    displayNameTooShort: 'कम से कम 2 अक्षर डालें',
+    dobHelp: 'सिर्फ़ एक बार जाँचा जाता है, प्रोफ़ाइल पर कभी नहीं दिखता।',
+    dobSelect: 'अपनी जन्म तिथि चुनें',
+    genderLabel: 'लिंग (ज़रूरी नहीं)',
+    genderMale: 'पुरुष',
+    genderFemale: 'महिला',
+    genderOther: 'अन्य',
+    genderUndisclosed: 'बताना नहीं चाहते',
+    finish: 'पूरा करें',
+  },
+
+  me: {
+    title: 'प्रोफ़ाइल',
+    guest: 'गेस्ट',
+    guestBody: 'अपने कॉइन बचाने और लाइव जाने के लिए नंबर वेरिफ़ाई करें।',
+    verifyPhone: 'फ़ोन नंबर वेरिफ़ाई करें',
+    noPhone: 'कोई फ़ोन नंबर नहीं जोड़ा गया',
+    editProfile: 'प्रोफ़ाइल बदलें',
+    account: 'अकाउंट',
+    preferences: 'सेटिंग',
+    language: 'भाषा',
+    legalSection: 'कानूनी',
+    signOut: 'साइन आउट',
+    signOutTitle: 'Dhun से साइन आउट करें?',
+    signOutBody: 'आप उसी नंबर से दोबारा साइन इन कर सकते हैं।',
   },
 
   wallet: {

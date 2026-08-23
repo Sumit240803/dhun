@@ -60,7 +60,8 @@
         }
       ],
       "expo-localization",
-      "@sentry/react-native"
+      "@sentry/react-native",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

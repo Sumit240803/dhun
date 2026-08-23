@@ -34,6 +34,15 @@ export type { BadgeProps } from './Badge';
 export { Divider } from './Divider';
 export type { DividerProps } from './Divider';
 
+export { Chip } from './Chip';
+export type { ChipProps } from './Chip';
+
+export { Banner } from './Banner';
+export type { BannerProps } from './Banner';
+
+export { CodeInput } from './CodeInput';
+export type { CodeInputProps } from './CodeInput';
+
 export { Sheet } from './Sheet';
 export type { SheetProps, SheetHandle } from './Sheet';
 
