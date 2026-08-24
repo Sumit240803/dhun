@@ -320,12 +320,33 @@ Three sets must never be reused for anything else:
 
 Never skip to step 3, and never write a hex outside `theme/`.
 
-### Dark-only, for now
+### Light by default, dark kept in step
 
-Peak usage is 8pm–2am over live video, and every competitor in this category is
-dark for the same reason. `colors` is a plain object, so a second theme can be
-introduced later by swapping which object is exported — without touching a
-single component.
+`colors.ts` defines TWO complete palettes with identical shapes, and `MODE`
+picks which one is exported. Light ships.
+
+The light palette is warm — ivory rather than white, warm near-black rather
+than grey. A pure-grey light UI reads clinical, and the ivory base is also what
+lets a white card read as a card rather than as more page.
+
+Three tokens carry the polarity so components never have to:
+
+- `text.onBrand` — text on a saturated brand or status fill. Near-black in
+  **both** palettes, deliberately: white on the brand rose is 3.2:1 and fails AA
+  for a 15px label, where near-black is 6:1. A hot pink wants dark text on it.
+- `brand.accent` — brand-coloured _text_, darker than `brand.solid`, because a
+  link must clear 4.5:1 against the page where a button surface need not.
+- `glass.wash` — the veil that pushes media back so foreground text wins. White
+  over a light page, black over a dark one.
+
+`MODE` is also what the few polarity-aware platform APIs read: the status bar
+style and the date picker's `themeVariant`. If you find yourself writing
+`"dark"` as a literal anywhere, use `MODE` instead.
+
+**Static, not a context.** Screens read these inside `StyleSheet.create`, which
+runs once at module load. Making the palette reactive would mean a hook in every
+component — that is the change to make when per-user theme switching is actually
+wanted, and not before.
 
 ## Money formatting
 

@@ -53,7 +53,7 @@ export default function MeScreen() {
     // in cache they would flash in front of whoever signs in next.
     queryClient.clear();
     signOutSheet.current?.dismiss();
-    router.replace('/(auth)/phone');
+    router.replace('/(auth)/index');
   }
 
   return (
@@ -85,7 +85,7 @@ export default function MeScreen() {
                   label={t('me.verifyPhone')}
                   onPress={() => {
                     haptic.tap();
-                    router.push('/(auth)/phone');
+                    router.push('/(auth)/index');
                   }}
                   size="sm"
                   testID="verify-phone"

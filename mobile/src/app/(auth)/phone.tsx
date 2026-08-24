@@ -1,7 +1,8 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useMutation } from '@tanstack/react-query';
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
@@ -13,14 +14,12 @@ import {
   normaliseDigits,
   toE164,
 } from '@/features/auth/phone';
-import { adoptSession } from '@/features/auth/session';
-import { getDevicePayload } from '@/features/auth/device';
 import { useTranslation } from '@/i18n';
 import { track } from '@/lib/analytics';
 import { errorMessage, traceReference } from '@/lib/errors';
 import { haptic } from '@/lib/haptics';
 import { colors, spacing } from '@/theme';
-import { Banner, Button, Column, Input, Screen, Text } from '@/ui';
+import { Banner, Button, Column, Input, Row, Screen, Text } from '@/ui';
 
 export default function PhoneScreen() {
   const { t } = useTranslation();
@@ -52,18 +51,8 @@ export default function PhoneScreen() {
     onError: () => haptic.error(),
   });
 
-  const continueAsGuest = useMutation({
-    mutationFn: async () => authApi.createGuest(await getDevicePayload()),
-    onSuccess: async (session) => {
-      await adoptSession(session);
-      track('signup_started', { as_guest: true });
-      router.replace('/(app)/(tabs)');
-    },
-    onError: () => haptic.error(),
-  });
-
-  const busy = sendCode.isPending || continueAsGuest.isPending;
-  const failure = sendCode.error ?? continueAsGuest.error;
+  const busy = sendCode.isPending;
+  const failure = sendCode.error;
 
   function submit() {
     setTouched(true);
@@ -74,13 +63,18 @@ export default function PhoneScreen() {
 
   return (
     <Screen padded>
-      <Animated.View entering={FadeInDown.duration(320)}>
-        <Text variant="display" tone="brand" style={styles.wordmark}>
-          {t('app.name')}
-        </Text>
-      </Animated.View>
+      <Row style={styles.header}>
+        <Pressable
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.back')}
+          hitSlop={spacing.md}
+        >
+          <Ionicons name="chevron-back" size={26} color={colors.text.primary} />
+        </Pressable>
+      </Row>
 
-      <Animated.View entering={FadeInDown.duration(320).delay(60)}>
+      <Animated.View entering={FadeInDown.duration(320)}>
         <Column gap="xs" style={styles.intro}>
           <Text variant="title">{t('auth.phoneTitle')}</Text>
           <Text variant="body" tone="secondary">
@@ -123,73 +117,23 @@ export default function PhoneScreen() {
       <View style={styles.spacer} />
 
       <KeyboardStickyView offset={{ closed: 0, opened: spacing.md }}>
-        <Column gap="md">
-          <LegalNotice />
-          <Button
-            label={t('auth.sendCode')}
-            onPress={submit}
-            disabled={!isValid}
-            loading={sendCode.isPending}
-            size="lg"
-            fullWidth
-            testID="send-code"
-          />
-          <Button
-            label={t('auth.continueAsGuest')}
-            onPress={() => {
-              haptic.tap();
-              continueAsGuest.mutate();
-            }}
-            variant="ghost"
-            loading={continueAsGuest.isPending}
-            fullWidth
-            testID="continue-as-guest"
-          />
-        </Column>
+        <Button
+          label={t('auth.sendCode')}
+          onPress={submit}
+          disabled={!isValid}
+          loading={sendCode.isPending}
+          size="lg"
+          fullWidth
+          testID="send-code"
+        />
       </KeyboardStickyView>
     </Screen>
   );
 }
 
-/**
- * "By continuing you agree to our Terms and Privacy Policy."
- *
- * Split from ONE translated sentence rather than assembled from pieces: Hindi
- * puts the verb last, so concatenating fragments produces word salad. The
- * placeholders keep the order wherever the translator puts them.
- */
-function LegalNotice() {
-  const { t } = useTranslation();
-  const parts = t('auth.legalNotice').split(/(\{terms\}|\{privacy\})/);
-
-  return (
-    <Text variant="micro" tone="faint" style={styles.legal}>
-      {parts.map((part, index) => {
-        if (part === '{terms}') {
-          return (
-            <Link key={index} href="/legal/terms" style={styles.link}>
-              {t('legal.terms')}
-            </Link>
-          );
-        }
-        if (part === '{privacy}') {
-          return (
-            <Link key={index} href="/legal/privacy" style={styles.link}>
-              {t('legal.privacy')}
-            </Link>
-          );
-        }
-        return part;
-      })}
-    </Text>
-  );
-}
-
 const styles = StyleSheet.create({
-  wordmark: { marginTop: spacing.xxl, letterSpacing: -0.5 },
-  intro: { marginTop: spacing.sm, marginBottom: spacing.xl },
+  header: { height: 44, marginLeft: -spacing.xs },
+  intro: { marginTop: spacing.lg, marginBottom: spacing.xl },
   banner: { marginTop: spacing.lg },
   spacer: { flex: 1, minHeight: spacing.xl },
-  legal: { textAlign: 'center', lineHeight: 16 },
-  link: { color: colors.brand.onDark },
 });

@@ -20,7 +20,7 @@ import { useTranslation, type MessageKey } from '@/i18n';
 import { track } from '@/lib/analytics';
 import { errorMessage, fieldError, isErrorCode, traceReference } from '@/lib/errors';
 import { haptic } from '@/lib/haptics';
-import { colors, radius, spacing } from '@/theme';
+import { MODE, colors, radius, spacing } from '@/theme';
 import { sessionStore } from '@/store/session';
 import { Banner, Button, Chip, Column, Input, Row, Screen, Text } from '@/ui';
 
@@ -166,7 +166,7 @@ export default function ProfileSetupScreen() {
               maximumDate={latestAdultDob()}
               minimumDate={earliestDob()}
               onChange={handlePicked}
-              themeVariant="dark"
+              themeVariant={MODE}
             />
             {Platform.OS === 'ios' && (
               <Button

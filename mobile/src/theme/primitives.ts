@@ -28,6 +28,23 @@ export const primitives = {
     1000: '#0B0B10',
   },
 
+  // WARM neutrals — the light theme's spine.
+  //
+  // Warm rather than a cool grey scale: a pure-grey light UI reads clinical,
+  // and this product is meant to feel like an evening out. The ivory base also
+  // keeps white cards legible ON it, which a #FFFFFF page cannot do.
+  warm: {
+    0: '#FFFFFF',
+    50: '#FFF9F2',
+    100: '#FFF2E4',
+    200: '#F6E7D6',
+    300: '#F0E2D2',
+    400: '#E0CDB8',
+    500: '#A6947F',
+    600: '#6B5A4B',
+    900: '#231A14',
+  },
+
   // Brand. Dhun means melody — warm, not corporate blue.
   rose: {
     300: '#FF8FA3',
@@ -35,6 +52,7 @@ export const primitives = {
     500: '#FF4D6D',
     600: '#E63E5C',
     700: '#C22F49',
+    800: '#9E2439',
   },
 
   // Currency hues. Each is deliberately far from the others in both hue AND
@@ -51,11 +69,23 @@ export const primitives = {
   gold: { 500: '#FFD700' },
 
   red: { 500: '#FF3B30', 600: '#E0342A' },
+
+  // Third-party brand marks. Fixed by their owners' guidelines, not ours — they
+  // live here so the "no hex outside theme/" rule stays absolute.
+  external: {
+    facebook: '#1877F2',
+    instagram: '#E1306C',
+    googleSurface: '#FFFFFF',
+  },
   yellow: { 500: '#FFA800' },
 
   // Alpha values. Kept here rather than inlined so an overlay's darkness is
   // tunable in one place — it gets adjusted constantly during design review.
   alpha: {
+    // Fully transparent base. A gradient must fade from the page colour at zero
+    // alpha, not from 'transparent': on Android 'transparent' is black-at-zero,
+    // which greys the midpoint of every fade over a light image.
+    black0: 'rgba(11, 11, 16, 0)',
     black40: 'rgba(11, 11, 16, 0.40)',
     black60: 'rgba(11, 11, 16, 0.60)',
     black86: 'rgba(11, 11, 16, 0.86)',
@@ -65,5 +95,12 @@ export const primitives = {
     amber16: 'rgba(255, 197, 61, 0.16)',
     violet16: 'rgba(123, 97, 255, 0.16)',
     emerald16: 'rgba(49, 196, 141, 0.16)',
+
+    // Light-theme fades and soft fills.
+    warm0: 'rgba(255, 249, 242, 0)',
+    warm55: 'rgba(255, 249, 242, 0.55)',
+    red12: 'rgba(255, 59, 48, 0.12)',
+    yellow16: 'rgba(255, 168, 0, 0.16)',
+    warmInk08: 'rgba(35, 26, 20, 0.08)',
   },
 } as const;

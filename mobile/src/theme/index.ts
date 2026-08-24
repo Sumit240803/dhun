@@ -4,6 +4,6 @@
 // implementation detail of colors.ts, and exposing them here would let a
 // component reach past the semantic layer.
 
-export { colors } from './colors';
+export { colors, MODE } from './colors';
 export type { Colors, TierKey } from './colors';
 export { spacing, radius, typography, zIndex, duration, absoluteFill } from './tokens';

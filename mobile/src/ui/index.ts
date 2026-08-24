@@ -34,6 +34,12 @@ export type { BadgeProps } from './Badge';
 export { Divider } from './Divider';
 export type { DividerProps } from './Divider';
 
+export { Checkbox } from './Checkbox';
+export type { CheckboxProps } from './Checkbox';
+
+export { ProviderButton } from './ProviderButton';
+export type { ProviderButtonProps } from './ProviderButton';
+
 export { Chip } from './Chip';
 export type { ChipProps } from './Chip';
 

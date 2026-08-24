@@ -69,7 +69,24 @@ export const en = {
     phonePlaceholder: 'Phone number',
     phoneInvalid: 'Enter a valid 10-digit number',
     sendCode: 'Send code',
-    continueAsGuest: 'Browse without signing in',
+
+    // The login landing.
+    loginTitle: 'Join the room',
+    loginSubtitle: 'Live audio and video rooms, every night.',
+    needHelp: 'Need help?',
+    continueWithPhone: 'Continue with phone number',
+    withGoogle: 'Log in with Google',
+    withFacebook: 'Log in with Facebook',
+    withInstagram: 'Log in with Instagram',
+    moreMethods: 'More login methods',
+    methodPhone: 'Phone',
+    methodGuest: 'Browse',
+    methodEmail: 'Email',
+    /** Shown when a provider is built but switched off server-side. */
+    methodUnavailable: 'Not available yet',
+    /** The consent gate. Unticked by default — DPDP Act 2023 requires it. */
+    consent: 'I have read and agree to the {terms} and {privacy}',
+    consentRequired: 'Tick the box to continue',
 
     otpTitle: 'Enter the code',
     otpSubtitle: 'Sent to {phone}',

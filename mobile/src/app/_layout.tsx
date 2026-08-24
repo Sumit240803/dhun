@@ -14,7 +14,7 @@ import { restoreSession } from '@/features/auth/session';
 import { track } from '@/lib/analytics';
 import { initNetworkMonitor } from '@/lib/network';
 import { initReporting } from '@/lib/reporting';
-import { colors } from '@/theme';
+import { MODE, colors } from '@/theme';
 import { ErrorBoundary } from '@/ui/ErrorBoundary';
 import { useIsAuthenticated, useIsRegistered, useSession } from '@/store/session';
 
@@ -76,7 +76,8 @@ export default function RootLayout() {
           <KeyboardProvider>
             <SafeAreaProvider>
               <BottomSheetModalProvider>
-                <StatusBar style="light" />
+                {/* Inverted against the page: dark glyphs on a light app. */}
+                <StatusBar style={MODE === 'light' ? 'dark' : 'light'} />
                 <Stack
                   screenOptions={{
                     headerShown: false,

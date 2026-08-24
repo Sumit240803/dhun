@@ -42,16 +42,16 @@ export interface ButtonProps {
  */
 const variants: Record<
   Variant,
-  { bg: string; pressed: string; tone: 'inverse' | 'primary' | 'brand'; border?: string }
+  { bg: string; pressed: string; tone: 'onBrand' | 'primary' | 'brand'; border?: string }
 > = {
-  primary: { bg: colors.brand.solid, pressed: colors.brand.pressed, tone: 'inverse' },
+  primary: { bg: colors.brand.solid, pressed: colors.brand.pressed, tone: 'onBrand' },
   secondary: {
     bg: colors.bg.raised,
     pressed: colors.bg.pressed,
     tone: 'primary',
     border: colors.border.subtle,
   },
-  danger: { bg: colors.status.danger, pressed: colors.status.dangerPressed, tone: 'inverse' },
+  danger: { bg: colors.status.danger, pressed: colors.status.dangerPressed, tone: 'onBrand' },
   ghost: { bg: 'transparent', pressed: colors.bg.pressed, tone: 'brand' },
 };
 

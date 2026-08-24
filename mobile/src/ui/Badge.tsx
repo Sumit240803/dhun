@@ -16,11 +16,11 @@ export interface BadgeProps {
 
 const tones: Record<Tone, { bg: string; fg: string }> = {
   neutral: { bg: colors.bg.raised, fg: colors.text.secondary },
-  brand: { bg: colors.brand.soft, fg: colors.brand.onDark },
+  brand: { bg: colors.brand.soft, fg: colors.brand.accent },
   live: { bg: colors.status.live, fg: colors.text.onMedia },
-  success: { bg: colors.currency.pointSoft, fg: colors.status.success },
-  warning: { bg: colors.glass.fill, fg: colors.status.warning },
-  danger: { bg: colors.glass.fill, fg: colors.status.danger },
+  success: { bg: colors.status.successSoft, fg: colors.status.success },
+  warning: { bg: colors.status.warningSoft, fg: colors.status.warning },
+  danger: { bg: colors.status.dangerSoft, fg: colors.status.danger },
   // The currency badges reuse the reserved currency colours deliberately: a
   // balance chip must read as coins or gems without the user parsing the label.
   coin: { bg: colors.currency.coinSoft, fg: colors.currency.coin },
@@ -30,7 +30,7 @@ const tones: Record<Tone, { bg: string; fg: string }> = {
 
 export function Badge({ label, tone = 'neutral', tier, testID }: BadgeProps) {
   const palette =
-    tier !== undefined ? { bg: colors.glass.fill, fg: colors.tier[tier] } : tones[tone];
+    tier !== undefined ? { bg: colors.bg.raised, fg: colors.tier[tier] } : tones[tone];
 
   return (
     <View testID={testID} style={[styles.base, { backgroundColor: palette.bg }]}>

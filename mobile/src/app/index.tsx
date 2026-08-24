@@ -8,5 +8,5 @@ import { useIsAuthenticated } from '@/store/session';
  */
 export default function Index() {
   const isAuthenticated = useIsAuthenticated();
-  return <Redirect href={isAuthenticated ? '/(app)/(tabs)' : '/(auth)/phone'} />;
+  return <Redirect href={isAuthenticated ? '/(app)/(tabs)' : '/(auth)/index'} />;
 }

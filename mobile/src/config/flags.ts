@@ -23,6 +23,15 @@ export interface Flags {
   videoRoomsEnabled: boolean;
   /** Hindi UI. Lets the translation ship dark and be enabled per cohort. */
   hindiEnabled: boolean;
+
+  /**
+   * Social sign-in buttons on the login screen.
+   *
+   * The kill switch for a provider outage — if Facebook's SDK starts failing at
+   * 3am, this hides the button without a release. It does NOT gate whether the
+   * backend exists: that is `MOCK` in features/auth/social.ts.
+   */
+  socialLoginEnabled: boolean;
 }
 
 const defaults: Flags = {
@@ -32,6 +41,7 @@ const defaults: Flags = {
   conversionEnabled: true,
   videoRoomsEnabled: false,
   hindiEnabled: true,
+  socialLoginEnabled: true,
 };
 
 let flags: Flags = { ...defaults };

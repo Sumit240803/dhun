@@ -3,8 +3,11 @@ import { fireEvent, render } from '@testing-library/react-native';
 // Imported per-file rather than through '@/ui': the barrel pulls in Screen and
 // Sheet, which drag native modules a logic test has no reason to load.
 import { Button } from '@/ui/Button';
+import { Checkbox } from '@/ui/Checkbox';
 import { Input } from '@/ui/Input';
 import { ListItem } from '@/ui/ListItem';
+import { ProviderButton } from '@/ui/ProviderButton';
+import { Text } from '@/ui/Text';
 
 // react-native-testing-library 14 made `render` asynchronous — it awaits React
 // 19's concurrent commit. Forgetting the await returns a Promise whose query
@@ -84,5 +87,71 @@ describe('ListItem', () => {
     );
 
     expect(screen.getByTestId('row')).toHaveProp('accessibilityLabel', 'Coins. 1,64,945');
+  });
+});
+
+describe('Checkbox', () => {
+  it('toggles and reports its state to assistive tech', async () => {
+    const onChange = jest.fn();
+    const screen = await render(
+      <Checkbox checked={false} onChange={onChange} accessibilityLabel="Agree" testID="box">
+        <Text>Agree</Text>
+      </Checkbox>,
+    );
+
+    expect(screen.getByTestId('box')).not.toBeChecked();
+
+    fireEvent.press(screen.getByTestId('box'));
+
+    expect(onChange).toHaveBeenCalledWith(true);
+  });
+
+  it('is controlled, so a parent can never render a pre-ticked consent box', async () => {
+    // DPDP Act 2023 wants consent freely given. There is no internal state here
+    // that could drift to `true` on its own.
+    const screen = await render(
+      <Checkbox checked onChange={jest.fn()} accessibilityLabel="Agree" testID="box">
+        <Text>Agree</Text>
+      </Checkbox>,
+    );
+
+    expect(screen.getByTestId('box')).toBeChecked();
+  });
+});
+
+describe('ProviderButton', () => {
+  it('does not fire while its own request is in flight', async () => {
+    const onPress = jest.fn();
+    const screen = await render(
+      <ProviderButton
+        label="Log in with Google"
+        icon={null}
+        onPress={onPress}
+        loading
+        testID="p"
+      />,
+    );
+
+    fireEvent.press(screen.getByTestId('p'));
+
+    expect(onPress).not.toHaveBeenCalled();
+  });
+
+  it('does not fire while a DIFFERENT provider is signing in', async () => {
+    // Two providers mid-flight would race two sessions into the token store.
+    const onPress = jest.fn();
+    const screen = await render(
+      <ProviderButton
+        label="Log in with Facebook"
+        icon={null}
+        onPress={onPress}
+        disabled
+        testID="p"
+      />,
+    );
+
+    fireEvent.press(screen.getByTestId('p'));
+
+    expect(onPress).not.toHaveBeenCalled();
   });
 });
