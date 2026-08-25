@@ -27,7 +27,25 @@ export const queryKeys = {
 
   rooms: {
     all: ['rooms'] as const,
-    feed: () => [...queryKeys.rooms.all, 'feed'] as const,
+    // Keyed by category so switching tabs does not discard the other tab's
+    // pages — coming back to Explore should be instant, not another spinner.
+    feed: (category: string) => [...queryKeys.rooms.all, 'feed', category] as const,
     detail: (roomId: string) => [...queryKeys.rooms.all, 'detail', roomId] as const,
+  },
+
+  messages: {
+    all: ['messages'] as const,
+    threads: (filter: string) => [...queryKeys.messages.all, 'threads', filter] as const,
+    thread: (threadId: string) => [...queryKeys.messages.all, 'thread', threadId] as const,
+  },
+
+  profile: {
+    all: ['profile'] as const,
+    summary: () => [...queryKeys.profile.all, 'summary'] as const,
+  },
+
+  config: {
+    all: ['config'] as const,
+    banners: () => [...queryKeys.config.all, 'banners'] as const,
   },
 } as const;

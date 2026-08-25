@@ -1,5 +1,5 @@
-import { Placeholder } from '@/ui/Placeholder';
+import { RoomFeed } from '@/features/feed/RoomFeed';
 
-export default function LiveFeedScreen() {
-  return <Placeholder title="Live feed" milestone="M10" />;
+export default function LiveTab() {
+  return <RoomFeed sections={['following', 'explore']} action="live" />;
 }

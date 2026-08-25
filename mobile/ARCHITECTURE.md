@@ -348,6 +348,33 @@ runs once at module load. Making the palette reactive would mean a hook in every
 component — that is the change to make when per-user theme switching is actually
 wanted, and not before.
 
+## Mock data
+
+Anything the UI shows that has no endpoint yet lives in **`src/mocks/`**, and
+nothing outside `api/queries/` imports from it. See `src/mocks/README.md`.
+
+The seam is one line per resource:
+
+```ts
+queryFn: () => fromMock(mockRooms(category)),   // TODO(api): roomsApi.feed(category)
+```
+
+Screens call the hook and cannot tell the difference — which is the point.
+When the endpoint lands, the screen does not change, its loading, empty and
+error states already exist, and the diff is that one line.
+
+Two rules that make it work:
+
+1. **Mocks are typed against the API types, not against themselves.** They are
+   the spec the UI was built to — start from them when building the endpoint.
+2. **`fromMock()` adds latency on purpose.** A mock that resolves synchronously
+   renders every screen already-loaded, so the skeletons are never seen and
+   never found to be wrong until the real network is slower than assumed.
+
+Mock the UNFLATTERING state. `following` returns an empty list and the profile
+summary returns all zeroes, because that is what a real new account looks like
+and it is the state most likely to ship broken.
+
 ## Money formatting
 
 **Never format a currency inline.** Always `lib/money.ts`.

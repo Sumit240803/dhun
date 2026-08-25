@@ -43,6 +43,21 @@ export type { ProviderButtonProps } from './ProviderButton';
 export { Chip } from './Chip';
 export type { ChipProps } from './Chip';
 
+export { SearchBar } from './SearchBar';
+export type { SearchBarProps } from './SearchBar';
+
+export { SegmentedTabs } from './SegmentedTabs';
+export type { SegmentedTabsProps, SegmentedTabsOption } from './SegmentedTabs';
+
+export { EmptyState } from './EmptyState';
+export type { EmptyStateProps } from './EmptyState';
+
+export { Skeleton } from './Skeleton';
+export type { SkeletonProps } from './Skeleton';
+
+export { Fab } from './Fab';
+export type { FabProps } from './Fab';
+
 export { Banner } from './Banner';
 export type { BannerProps } from './Banner';
 
