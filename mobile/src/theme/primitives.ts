@@ -70,6 +70,17 @@ export const primitives = {
 
   red: { 500: '#FF3B30', 600: '#E0342A' },
 
+  // Stand-in fills for imagery that has not loaded, or that does not exist yet.
+  // Distinct hues at similar lightness, so a grid of them reads as a deliberate
+  // pattern rather than as five failed image loads.
+  tint: {
+    blush: '#FBDDE2',
+    peach: '#FBE0C8',
+    sand: '#F3E7D2',
+    lilac: '#EADDF3',
+    mint: '#D9EDE3',
+  },
+
   // Third-party brand marks. Fixed by their owners' guidelines, not ours — they
   // live here so the "no hex outside theme/" rule stays absolute.
   external: {
@@ -99,6 +110,7 @@ export const primitives = {
     // Light-theme fades and soft fills.
     warm0: 'rgba(255, 249, 242, 0)',
     warm55: 'rgba(255, 249, 242, 0.55)',
+    warm30: 'rgba(255, 249, 242, 0.30)',
     red12: 'rgba(255, 59, 48, 0.12)',
     yellow16: 'rgba(255, 168, 0, 0.16)',
     warmInk08: 'rgba(35, 26, 20, 0.08)',

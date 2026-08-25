@@ -42,6 +42,10 @@ export function SegmentedTabs<T extends string>({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
+      // flexGrow: 0 is load-bearing. A horizontal ScrollView is still a flex
+      // child, so inside a column it expands to fill the whole screen unless
+      // told not to — pushing everything below it to the bottom.
+      style={styles.scroll}
       contentContainerStyle={variant === 'underline' ? styles.underlineRow : styles.pillRow}
       testID={testID}
     >
@@ -86,7 +90,13 @@ export function SegmentedTabs<T extends string>({
 }
 
 const styles = StyleSheet.create({
-  underlineRow: { gap: spacing.lg, paddingHorizontal: spacing.lg, alignItems: 'flex-end' },
+  scroll: { flexGrow: 0 },
+  underlineRow: {
+    gap: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    alignItems: 'center',
+  },
   pillRow: { gap: spacing.sm, paddingHorizontal: spacing.lg, alignItems: 'center' },
   item: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   underline: {

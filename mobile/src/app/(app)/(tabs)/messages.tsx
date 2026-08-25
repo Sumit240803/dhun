@@ -20,6 +20,7 @@ import {
   SegmentedTabs,
   Skeleton,
   Text,
+  useTabBarHeight,
 } from '@/ui';
 
 const ACCENT_ICONS: Record<MockThread['accent'], keyof typeof Ionicons.glyphMap> = {
@@ -40,6 +41,7 @@ export default function MessagesTab() {
   const { t } = useTranslation();
   const [filter, setFilter] = useState<ThreadFilter>('all');
   const threads = useMessageThreads(filter);
+  const tabBarHeight = useTabBarHeight();
 
   const unread = (threads.data ?? []).reduce((sum, thread) => sum + thread.unread, 0);
 
@@ -74,6 +76,7 @@ export default function MessagesTab() {
       <FlashList
         data={threads.data ?? []}
         keyExtractor={(thread) => thread.id}
+        contentContainerStyle={{ paddingBottom: tabBarHeight }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl

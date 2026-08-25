@@ -143,7 +143,19 @@ const light = {
      * Theme-dependent in the one way that matters: over the same photograph, a
      * light page needs a WHITE veil and a dark page a black one.
      */
-    wash: p.alpha.warm55,
+    wash: p.alpha.warm30,
+  },
+
+  /**
+   * Fills for imagery that has not arrived. Cycled, never picked at random —
+   * a stable order means the same tile is the same colour on every render.
+   */
+  placeholder: {
+    a: p.tint.blush,
+    b: p.tint.peach,
+    c: p.tint.sand,
+    d: p.tint.lilac,
+    e: p.tint.mint,
   },
 } as const;
 
@@ -225,6 +237,14 @@ const dark: Themed<typeof light> = {
     facebook: p.external.facebook,
     instagram: p.external.instagram,
     googleSurface: p.external.googleSurface,
+  },
+
+  placeholder: {
+    a: p.neutral[800],
+    b: p.neutral[700],
+    c: p.neutral[800],
+    d: p.neutral[700],
+    e: p.neutral[800],
   },
 
   glass: {

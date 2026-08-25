@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
-import { Platform, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useMessageThreads } from '@/api/queries/useFeed';
 import { useTranslation, type MessageKey } from '@/i18n';
 import { haptic } from '@/lib/haptics';
 import { colors, radius, spacing, typography } from '@/theme';
-import { Text } from '@/ui';
+import { Text, tabBarBaseHeight } from '@/ui';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -27,6 +28,7 @@ const TABS: { name: string; label: MessageKey; icon: IconName; active: IconName 
 
 export default function TabsLayout() {
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
 
   // The unread count belongs on the tab, not only inside the screen — it is the
   // reason someone opens the app at all, and it has to survive being on another
@@ -38,7 +40,13 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: styles.bar,
+        // Height and padding both carry the inset. Expo SDK 54 turned on
+        // edge-to-edge by default on Android, so the app draws UNDER the
+        // navigation bar and nothing reserves that space for you.
+        tabBarStyle: [
+          styles.bar,
+          { height: tabBarBaseHeight + insets.bottom, paddingBottom: insets.bottom },
+        ],
         tabBarLabelStyle: styles.label,
         tabBarItemStyle: styles.item,
         tabBarActiveTintColor: colors.brand.solid,
@@ -81,9 +89,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg.surface,
     borderTopColor: colors.border.subtle,
     borderTopWidth: StyleSheet.hairlineWidth,
-    // React Navigation already adds the bottom inset; this is the bar's own
-    // height above it. Android's default is cramped next to the gesture bar.
-    height: Platform.OS === 'ios' ? 84 : 64,
     paddingTop: spacing.xs,
   },
   item: { paddingVertical: spacing.xs },

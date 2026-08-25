@@ -112,6 +112,9 @@ export default function LoginScreen() {
       <Collage />
 
       <View style={styles.help}>
+        <Text variant="title" tone="brand" style={styles.wordmark}>
+          {t('app.name')}
+        </Text>
         <Link href="/legal/grievance" asChild>
           <Pressable accessibilityRole="button" hitSlop={spacing.sm}>
             <Text variant="caption" tone="secondary">
@@ -283,7 +286,7 @@ function CircleMethod({
       {({ pressed }) => (
         <>
           <View style={[styles.circle, pressed && styles.circlePressed]}>
-            <Ionicons name={icon} size={24} color={colors.text.onBrand} />
+            <Ionicons name={icon} size={24} color={colors.text.onMedia} />
           </View>
           <Text variant="micro" tone="faint">
             {label}
@@ -295,7 +298,14 @@ function CircleMethod({
 }
 
 const styles = StyleSheet.create({
-  help: { alignItems: 'flex-end', paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  help: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+  },
+  wordmark: { letterSpacing: -0.5 },
   scroll: { flexGrow: 1 },
   // Pushes the panel to the bottom on a tall screen while still allowing scroll
   // on a short one, which a plain flex:1 spacer inside a ScrollView will not do.

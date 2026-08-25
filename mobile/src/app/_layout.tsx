@@ -1,6 +1,7 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
+import { randomUUID } from 'expo-crypto';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
@@ -10,8 +11,9 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ApiError } from '@/api/client';
+import { getDeviceId } from '@/features/auth/device';
 import { restoreSession } from '@/features/auth/session';
-import { track } from '@/lib/analytics';
+import { startAnalyticsSession, track } from '@/lib/analytics';
 import { initNetworkMonitor } from '@/lib/network';
 import { initReporting } from '@/lib/reporting';
 import { MODE, colors } from '@/theme';
@@ -48,20 +50,45 @@ export default function RootLayout() {
   useEffect(() => {
     const stopNetworkMonitor = initNetworkMonitor();
 
-    // Read the stored session before choosing a stack, otherwise a returning
-    // user sees the phone screen flash before landing on the feed.
-    restoreSession()
-      .finally(() => setBootstrapped(true))
-      .then(() => track('app_opened'));
+    async function bootstrap() {
+      // Stamp the analytics context BEFORE the first event. Without this every
+      // event ships with an empty session_id and no device_id, which makes the
+      // whole funnel unjoinable — you can count app_opened but you cannot tell
+      // whether the same person also finished signup.
+      startAnalyticsSession(randomUUID(), await getDeviceId());
+
+      // Read the stored session before choosing a stack, otherwise a returning
+      // user sees the login screen before landing on the feed.
+      await restoreSession();
+      track('app_opened');
+    }
+
+    // Marked bootstrapped in EVERY outcome. A throw here must not leave the
+    // splash screen up forever with no way out.
+    bootstrap().finally(() => setBootstrapped(true));
 
     return stopNetworkMonitor;
   }, []);
 
-  useEffect(() => {
-    if (bootstrapped && isReady) void SplashScreen.hideAsync();
-  }, [bootstrapped, isReady]);
+  const ready = bootstrapped && isReady;
 
-  if (!bootstrapped || !isReady) return null; // splash stays up
+  useEffect(() => {
+    if (ready) void SplashScreen.hideAsync();
+  }, [ready]);
+
+  // NEVER return null here.
+  //
+  // The navigator has to mount on the first render. expo-router resolves the
+  // initial deep link in a promise and sets state when it lands; if the tree
+  // was still null at that moment it sets state on a component that never
+  // mounted, which is a red screen in development and a dropped deep link in
+  // production. The splash screen — held open until `ready` above — is what
+  // hides the frame or two before the session is known, and it is the reason
+  // SplashScreen.preventAutoHideAsync() is called at module load.
+  //
+  // The guards below still do the real work: until the session is restored
+  // both are false, so neither stack is reachable and there is nothing to
+  // flash even if the splash were not there.
 
   return (
     // GestureHandlerRootView must be the outermost view or bottom sheets and

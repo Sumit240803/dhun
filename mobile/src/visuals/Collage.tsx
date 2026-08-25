@@ -27,7 +27,7 @@ export interface CollageProps {
  * Static by design. A drifting or looping collage is the first thing that reads
  * as a template, and it costs battery on the screen where the app is judged.
  */
-export function Collage({ sources = [], heightRatio = 0.46 }: CollageProps) {
+export function Collage({ sources = [], heightRatio = 0.5 }: CollageProps) {
   const { width, height } = useWindowDimensions();
   const collageHeight = height * heightRatio;
 
@@ -35,9 +35,13 @@ export function Collage({ sources = [], heightRatio = 0.46 }: CollageProps) {
   // forming visible columns, and each starts left of zero so the grid runs off
   // both edges — a mosaic that fits inside the screen looks like a gallery.
   const rows = [
-    { size: 108, offset: -40, count: Math.ceil(width / 108) + 2 },
-    { size: 132, offset: -96, count: Math.ceil(width / 132) + 2 },
-    { size: 108, offset: -24, count: Math.ceil(width / 108) + 2 },
+    { size: 96, offset: -40, count: Math.ceil((width * 1.6) / 96) },
+    { size: 116, offset: -88, count: Math.ceil((width * 1.6) / 116) },
+    { size: 96, offset: -24, count: Math.ceil((width * 1.6) / 96) },
+    // A fourth row that is mostly hidden under the fade. Three rows plus an
+    // 8-degree rotation leaves bare background in the bottom corners, which
+    // reads as a layout bug rather than as a design.
+    { size: 108, offset: -70, count: Math.ceil((width * 1.6) / 108) },
   ];
 
   let tileIndex = 0;
@@ -90,7 +94,7 @@ export function Collage({ sources = [], heightRatio = 0.46 }: CollageProps) {
       <View style={styles.scrim} />
       <LinearGradient
         colors={[colors.bg.baseTransparent, colors.bg.base]}
-        locations={[0, 0.92]}
+        locations={[0, 0.88]}
         style={styles.fade}
       />
     </View>
@@ -100,17 +104,17 @@ export function Collage({ sources = [], heightRatio = 0.46 }: CollageProps) {
 /**
  * Stand-ins until real host photos exist.
  *
- * Muted and warm rather than grey: an empty grey grid looks broken, whereas
- * this reads as a deliberate abstract pattern if it ever ships that way.
+ * Five distinct hues at similar lightness. The first version reused surface and
+ * badge tokens, which on an ivory page are all within a few percent of the
+ * background — the grid was there but invisible, and the screen looked like a
+ * handful of stray rectangles.
  */
 const PLACEHOLDER_TINTS = [
-  colors.bg.raised,
-  colors.brand.soft,
-  colors.bg.surface,
-  colors.currency.coinSoft,
-  colors.bg.raised,
-  colors.currency.gemSoft,
-  colors.bg.surface,
+  colors.placeholder.a,
+  colors.placeholder.b,
+  colors.placeholder.c,
+  colors.placeholder.d,
+  colors.placeholder.e,
 ];
 
 const styles = StyleSheet.create({
@@ -126,5 +130,5 @@ const styles = StyleSheet.create({
   image: { flex: 1 },
   placeholder: { flex: 1 },
   scrim: { ...absoluteFill, backgroundColor: colors.glass.wash },
-  fade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '65%' },
+  fade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '48%' },
 });

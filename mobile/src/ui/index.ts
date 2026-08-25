@@ -43,6 +43,8 @@ export type { ProviderButtonProps } from './ProviderButton';
 export { Chip } from './Chip';
 export type { ChipProps } from './Chip';
 
+export { useTabBarHeight, tabBarBaseHeight } from './useTabBarHeight';
+
 export { SearchBar } from './SearchBar';
 export type { SearchBarProps } from './SearchBar';
 

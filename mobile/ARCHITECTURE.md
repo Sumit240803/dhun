@@ -348,6 +348,34 @@ runs once at module load. Making the palette reactive would mean a hook in every
 component — that is the change to make when per-user theme switching is actually
 wanted, and not before.
 
+## Safe insets
+
+**Three owners, and no screen invents its own.**
+
+1. **`<Screen edges>`** owns the top and the sides. Defaults to `['top','bottom']`;
+   a screen inside the tab navigator passes `['top']` because the tab bar
+   already occupies the bottom; a full-bleed screen (a room) passes `[]` and
+   insets its own chrome.
+2. **The tab bar** owns the bottom inset — `tabBarBaseHeight + insets.bottom`,
+   applied to both its height and its `paddingBottom`.
+3. **`useTabBarHeight()`** is what everything else asks. Every scrollable inside
+   a tab pads its content by it, and anything floating (the Fab) offsets by it.
+
+One source, because three things have to agree. When they do not, either the
+last row of every list sits under the bar forever or there is a strip of dead
+space below every screen — and both look like the app is broken rather than
+like a number is wrong.
+
+**This matters more than it used to.** Expo SDK 54 turned on edge-to-edge by
+default on Android, so the app draws UNDER the navigation bar. Nothing reserves
+that space for you, and a bar with a hardcoded height renders with its icons
+behind the system gesture pill.
+
+**A trap worth knowing:** a horizontal `ScrollView` is still a flex child. Drop
+one into a column without `flexGrow: 0` and it expands to fill the entire
+screen, pushing everything below it to the bottom — which looks exactly like a
+runaway top inset and is not one. `SegmentedTabs` carries that fix.
+
 ## Mock data
 
 Anything the UI shows that has no endpoint yet lives in **`src/mocks/`**, and

@@ -10,7 +10,7 @@
 // why it exists before the first screen.
 
 import { getLocales } from 'expo-localization';
-import { useSyncExternalStore } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
 import { en, type Messages } from './en';
 import { hi } from './hi';
@@ -61,7 +61,16 @@ function interpolate(template: string, values?: Record<string, string | number>)
  * that writes itself, where an empty label is not.
  */
 export function t(key: MessageKey, values?: Record<string, string | number>): string {
-  const message = resolve(catalogues[current], key) ?? resolve(en, key) ?? key;
+  return translateIn(current, key, values);
+}
+
+/** The pure form. Takes the locale rather than reading module state. */
+function translateIn(
+  locale: LocaleCode,
+  key: MessageKey,
+  values?: Record<string, string | number>,
+): string {
+  const message = resolve(catalogues[locale], key) ?? resolve(en, key) ?? key;
   return interpolate(message, values);
 }
 
@@ -96,13 +105,36 @@ function subscribe(listener: () => void) {
 /**
  * Re-renders the component when the locale changes.
  *
- * Returns `t` rather than the locale so call sites read naturally, and so a
- * component that forgets this hook still compiles but simply will not update on
- * a language switch — a visible bug rather than a silent one.
+ * `t` is REBUILT when the locale changes, so its identity changes with it.
+ * That is load-bearing, not tidiness: React Compiler is enabled, and a call
+ * like `t('me.language')` has a stable callee and a literal argument, so the
+ * compiler memoises the resulting string and never recomputes it. The first
+ * version returned the module-level `t` and discarded this hook's value — so
+ * switching language re-rendered every screen and every string on them stayed
+ * exactly as it was. Hindi only appeared once a screen happened to remount.
+ *
+ * The rule this encodes: anything whose RESULT depends on external state must
+ * change identity when that state does, or the compiler is right to cache it.
  */
 export function useTranslation() {
-  useSyncExternalStore(subscribe, getLocale, getLocale);
-  return { t, tPlural, locale: current, setLocale };
+  const locale = useSyncExternalStore(subscribe, getLocale, getLocale);
+
+  const translate = useCallback(
+    (key: MessageKey, values?: Record<string, string | number>) => translateIn(locale, key, values),
+    [locale],
+  );
+
+  const translatePlural = useCallback(
+    (
+      singular: MessageKey,
+      plural: MessageKey,
+      count: number,
+      values?: Record<string, string | number>,
+    ) => translate(count === 1 ? singular : plural, { count, ...values }),
+    [translate],
+  );
+
+  return { t: translate, tPlural: translatePlural, locale, setLocale };
 }
 
 export { en };

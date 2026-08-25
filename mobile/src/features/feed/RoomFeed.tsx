@@ -10,7 +10,16 @@ import { errorMessage } from '@/lib/errors';
 import { haptic } from '@/lib/haptics';
 import type { MockBanner, MockRoom, RoomCategory } from '@/mocks';
 import { colors, spacing } from '@/theme';
-import { Banner, EmptyState, Fab, Screen, SearchBar, SegmentedTabs, Skeleton } from '@/ui';
+import {
+  Banner,
+  EmptyState,
+  Fab,
+  Screen,
+  SearchBar,
+  SegmentedTabs,
+  Skeleton,
+  useTabBarHeight,
+} from '@/ui';
 import { BannerCarousel } from '@/visuals/BannerCarousel';
 import { RoomCard } from '@/visuals/RoomCard';
 
@@ -49,6 +58,7 @@ export function RoomFeed({ sections, action }: RoomFeedProps) {
 
   const feed = useRoomFeed(category);
   const banners = useBanners();
+  const tabBarHeight = useTabBarHeight();
 
   function openRoom(room: MockRoom) {
     haptic.tap();
@@ -89,7 +99,7 @@ export function RoomFeed({ sections, action }: RoomFeedProps) {
         data={feed.data ?? []}
         numColumns={2}
         keyExtractor={(room) => room.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={{ paddingBottom: tabBarHeight + spacing.xxxl }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -160,6 +170,7 @@ export function RoomFeed({ sections, action }: RoomFeedProps) {
           haptic.tap();
           router.push('/(app)/host/go-live');
         }}
+        bottomOffset={tabBarHeight + spacing.md}
         testID="go-live"
       />
     </Screen>
@@ -183,7 +194,6 @@ const styles = StyleSheet.create({
   search: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   header: { gap: spacing.lg, paddingBottom: spacing.lg },
   gutter: { paddingHorizontal: spacing.lg },
-  list: { paddingBottom: spacing.xxxl * 2 },
   cell: { flex: 1, paddingBottom: spacing.md },
   cellLeft: { paddingLeft: spacing.lg, paddingRight: spacing.xs },
   cellRight: { paddingLeft: spacing.xs, paddingRight: spacing.lg },
