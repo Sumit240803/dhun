@@ -81,8 +81,11 @@ const light = {
     /** Tinted background for badges and selected chips. */
     soft: p.alpha.rose14,
     /** Brand-coloured TEXT and icons. Darker than `solid`, because a link has
-     *  to clear 4.5:1 against the page where a button surface does not. */
+     *  to clear 4.5:1 against the page where a button surface does not. Also
+     *  the surface for anything carrying WHITE text — 5.6:1 there. */
     accent: p.rose[700],
+    /** Pressed state for a surface painted with `accent`. */
+    pressedStrong: p.rose[800],
   },
 
   /**
@@ -203,6 +206,7 @@ const dark: Themed<typeof light> = {
     pressed: p.rose[600],
     soft: p.alpha.rose14,
     accent: p.rose[400],
+    pressedStrong: p.rose[600],
   },
 
   currency: {

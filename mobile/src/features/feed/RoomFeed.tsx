@@ -2,6 +2,8 @@ import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { RefreshControl, StyleSheet, View } from 'react-native';
+import { GestureDetector } from 'react-native-gesture-handler';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { useBanners, useRoomFeed } from '@/api/queries/useFeed';
 import { useTranslation, type MessageKey } from '@/i18n';
@@ -14,11 +16,12 @@ import {
   Banner,
   EmptyState,
   Fab,
+  fabClearance,
   Screen,
   SearchBar,
   SegmentedTabs,
   Skeleton,
-  useTabBarHeight,
+  useSectionSwipe,
 } from '@/ui';
 import { BannerCarousel } from '@/visuals/BannerCarousel';
 import { RoomCard } from '@/visuals/RoomCard';
@@ -58,7 +61,11 @@ export function RoomFeed({ sections, action }: RoomFeedProps) {
 
   const feed = useRoomFeed(category);
   const banners = useBanners();
-  const tabBarHeight = useTabBarHeight();
+
+  // Swipe between sections, the way every app in this category does. The
+  // gesture is on the list only — putting it on the whole Screen would fight
+  // the banner carousel and the section row, both of which scroll sideways.
+  const swipe = useSectionSwipe({ sections, value: category, onChange: setCategory });
 
   function openRoom(room: MockRoom) {
     haptic.tap();
@@ -95,73 +102,82 @@ export function RoomFeed({ sections, action }: RoomFeedProps) {
         />
       </View>
 
-      <FlashList
-        data={feed.data ?? []}
-        numColumns={2}
-        keyExtractor={(room) => room.id}
-        contentContainerStyle={{ paddingBottom: tabBarHeight + spacing.xxxl }}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={feed.isRefetching}
-            onRefresh={() => void feed.refetch()}
-            tintColor={colors.brand.solid}
-            colors={[colors.brand.solid]}
-          />
-        }
-        ListHeaderComponent={
-          <View style={styles.header}>
-            {banners.data !== undefined && (
-              <BannerCarousel banners={banners.data} onPress={openBanner} />
-            )}
-            {feed.isError && (
-              <View style={styles.gutter}>
-                <Banner
-                  message={errorMessage(feed.error)}
-                  onRetry={() => void feed.refetch()}
-                  testID="feed-error"
+      <GestureDetector gesture={swipe}>
+        {/*
+          Keyed on the section so the list remounts and fades in. Without it,
+          swiping swaps the data under a stationary scroll position and the new
+          section appears already scrolled halfway down.
+        */}
+        <Animated.View key={category} entering={FadeIn.duration(160)} style={styles.listWrapper}>
+          <FlashList
+            data={feed.data ?? []}
+            numColumns={2}
+            keyExtractor={(room) => room.id}
+            contentContainerStyle={styles.list}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={feed.isRefetching}
+                onRefresh={() => void feed.refetch()}
+                tintColor={colors.brand.solid}
+                colors={[colors.brand.solid]}
+              />
+            }
+            ListHeaderComponent={
+              <View style={styles.header}>
+                {banners.data !== undefined && (
+                  <BannerCarousel banners={banners.data} onPress={openBanner} />
+                )}
+                {feed.isError && (
+                  <View style={styles.gutter}>
+                    <Banner
+                      message={errorMessage(feed.error)}
+                      onRetry={() => void feed.refetch()}
+                      testID="feed-error"
+                    />
+                  </View>
+                )}
+              </View>
+            }
+            // Loading, empty and error are all designed states here rather than
+            // afterthoughts — this list is empty on a new account by definition.
+            ListEmptyComponent={
+              feed.isLoading ? (
+                <FeedSkeleton />
+              ) : feed.isError ? null : category === 'following' ? (
+                <EmptyState
+                  icon="heart-outline"
+                  title={t('feed.emptyFollowingTitle')}
+                  body={t('feed.emptyFollowingBody')}
+                  actionLabel={t('feed.emptyFollowingAction')}
+                  onAction={() => {
+                    haptic.tap();
+                    setCategory(sections.find((section) => section !== 'following') ?? 'explore');
+                  }}
+                  testID="feed-empty-following"
+                />
+              ) : (
+                <EmptyState
+                  icon="videocam-outline"
+                  title={t('feed.emptyTitle')}
+                  body={t('feed.emptyBody')}
+                  testID="feed-empty"
+                />
+              )
+            }
+            renderItem={({ item, index }) => (
+              <View style={[styles.cell, index % 2 === 0 ? styles.cellLeft : styles.cellRight]}>
+                <RoomCard
+                  room={item}
+                  tagLabel={t(TAG_LABELS[item.tag])}
+                  onPress={() => openRoom(item)}
+                  testID={`room-${item.id}`}
                 />
               </View>
             )}
-          </View>
-        }
-        // Loading, empty and error are all designed states here rather than
-        // afterthoughts — this list is empty on a new account by definition.
-        ListEmptyComponent={
-          feed.isLoading ? (
-            <FeedSkeleton />
-          ) : feed.isError ? null : category === 'following' ? (
-            <EmptyState
-              icon="heart-outline"
-              title={t('feed.emptyFollowingTitle')}
-              body={t('feed.emptyFollowingBody')}
-              actionLabel={t('feed.emptyFollowingAction')}
-              onAction={() => {
-                haptic.tap();
-                setCategory(sections.find((section) => section !== 'following') ?? 'explore');
-              }}
-              testID="feed-empty-following"
-            />
-          ) : (
-            <EmptyState
-              icon="videocam-outline"
-              title={t('feed.emptyTitle')}
-              body={t('feed.emptyBody')}
-              testID="feed-empty"
-            />
-          )
-        }
-        renderItem={({ item, index }) => (
-          <View style={[styles.cell, index % 2 === 0 ? styles.cellLeft : styles.cellRight]}>
-            <RoomCard
-              room={item}
-              tagLabel={t(TAG_LABELS[item.tag])}
-              onPress={() => openRoom(item)}
-              testID={`room-${item.id}`}
-            />
-          </View>
-        )}
-      />
+          />
+        </Animated.View>
+      </GestureDetector>
 
       <Fab
         label={action === 'party' ? t('feed.startParty') : t('feed.goLive')}
@@ -170,7 +186,6 @@ export function RoomFeed({ sections, action }: RoomFeedProps) {
           haptic.tap();
           router.push('/(app)/host/go-live');
         }}
-        bottomOffset={tabBarHeight + spacing.md}
         testID="go-live"
       />
     </Screen>
@@ -194,6 +209,9 @@ const styles = StyleSheet.create({
   search: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   header: { gap: spacing.lg, paddingBottom: spacing.lg },
   gutter: { paddingHorizontal: spacing.lg },
+  listWrapper: { flex: 1 },
+  // Clears the floating button, NOT the tab bar — the screen already ends there.
+  list: { paddingBottom: fabClearance },
   cell: { flex: 1, paddingBottom: spacing.md },
   cellLeft: { paddingLeft: spacing.lg, paddingRight: spacing.xs },
   cellRight: { paddingLeft: spacing.xs, paddingRight: spacing.lg },

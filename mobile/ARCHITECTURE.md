@@ -357,14 +357,19 @@ wanted, and not before.
    already occupies the bottom; a full-bleed screen (a room) passes `[]` and
    insets its own chrome.
 2. **The tab bar** owns the bottom inset — `tabBarBaseHeight + insets.bottom`,
-   applied to both its height and its `paddingBottom`.
-3. **`useTabBarHeight()`** is what everything else asks. Every scrollable inside
-   a tab pads its content by it, and anything floating (the Fab) offsets by it.
+   applied to both its height and its `paddingBottom`. That is the ONLY place
+   `tabBarBaseHeight` is used.
+3. **A screen inside the tabs adds nothing for the bar.** React Navigation lays
+   the screen container and the bar out as siblings in a column, so a tab
+   screen's box already ends where the bar begins.
 
-One source, because three things have to agree. When they do not, either the
-last row of every list sits under the bar forever or there is a strip of dead
-space below every screen — and both look like the app is broken rather than
-like a number is wrong.
+That third rule is worth the emphasis because getting it wrong looks like an
+inset bug and is not one. An earlier version exported a `useTabBarHeight()`
+hook that screens added to their padding and to the Fab's offset; the result
+double-counted, and the Go Live button floated a third of the way up the feed.
+
+What a screen DOES need is clearance for anything floating over it — the Fab —
+which is `fabClearance`, a much smaller and unrelated number.
 
 **This matters more than it used to.** Expo SDK 54 turned on edge-to-edge by
 default on Android, so the app draws UNDER the navigation bar. Nothing reserves

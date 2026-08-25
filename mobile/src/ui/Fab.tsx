@@ -35,8 +35,8 @@ export function Fab({ label, icon, onPress, bottomOffset = spacing.lg, testID }:
         accessibilityLabel={label}
         style={({ pressed }) => [styles.fab, pressed && styles.pressed]}
       >
-        <Ionicons name={icon} size={20} color={colors.text.onBrand} />
-        <Text variant="bodyStrong" tone="onBrand">
+        <Ionicons name={icon} size={20} color={colors.text.onMedia} />
+        <Text variant="bodyStrong" tone="onMedia">
           {label}
         </Text>
       </Pressable>
@@ -53,7 +53,10 @@ const styles = StyleSheet.create({
     height: 48,
     paddingHorizontal: spacing.xl,
     borderRadius: radius.pill,
-    backgroundColor: colors.brand.solid,
+    // Deeper than brand.solid ON PURPOSE. White on the standard rose is 3.2:1
+    // and fails AA for a 15px label; on this it is 5.6:1. A floating button
+    // sits over arbitrary content, so it needs the extra weight anyway.
+    backgroundColor: colors.brand.accent,
     // Lifted off the feed so it reads as floating above it, not printed on it.
     shadowColor: colors.text.primary,
     shadowOpacity: 0.25,
@@ -61,5 +64,5 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
-  pressed: { backgroundColor: colors.brand.pressed },
+  pressed: { backgroundColor: colors.brand.pressedStrong },
 });

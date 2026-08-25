@@ -31,7 +31,6 @@ import {
   Sheet,
   Skeleton,
   Text,
-  useTabBarHeight,
   type SheetHandle,
 } from '@/ui';
 
@@ -61,7 +60,6 @@ export default function MeTab() {
   const queryClient = useQueryClient();
   const summary = useProfileSummary();
   const wallet = useWallet();
-  const tabBarHeight = useTabBarHeight();
 
   const signOutSheet = useRef<SheetHandle>(null);
   const [signingOut, setSigningOut] = useState(false);
@@ -91,10 +89,7 @@ export default function MeTab() {
 
   return (
     <Screen padded={false} edges={[]}>
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: tabBarHeight + spacing.xl }}
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <LinearGradient
           colors={[colors.brand.soft, colors.bg.base]}
           style={[styles.hero, { paddingTop: insets.top + spacing.xl }]}
@@ -398,6 +393,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 const styles = StyleSheet.create({
+  scroll: { paddingBottom: spacing.xxl },
   hero: { paddingBottom: spacing.xl },
   heroContent: { alignItems: 'center', gap: spacing.sm },
   gutter: { paddingHorizontal: spacing.lg, gap: spacing.lg, marginTop: -spacing.sm },
