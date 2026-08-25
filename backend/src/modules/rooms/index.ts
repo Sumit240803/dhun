@@ -1,15 +1,22 @@
-// PUBLIC API of the rooms module: room lifecycle + seat/presence state.
-// Room/seat state lives in Redis; RTC tokens come from the realtime module.
-export interface Room { id: string; ownerId: string; title: string; seats: number; }
+// PUBLIC API of the rooms module.
+//
+// The READ side is built: listing live rooms is what the app opens on, what
+// host seeding fills, and none of its shape depends on the RTC vendor.
+//
+// Joining, seats and presence are M5 — they need the realtime gateway and a
+// vendor decision (open decision #5), and writing them now would mean guessing
+// at a token exchange.
 
-export async function createRoom(/* ownerId, title */): Promise<Room> {
-  // TODO: persist room, init seat map in Redis, return room
-  throw new Error('not implemented');
-}
+export { buildRoomsRouter } from './rooms.routes.js';
+export { listFeed } from './rooms.service.js';
+export type { FeedRoom, FeedCategory } from './rooms.service.js';
+
 export async function joinRoom(/* userId, roomId */): Promise<{ rtcToken: string }> {
-  // TODO: add presence in Redis, mint RTC token via realtime module, return it
+  // M5: add presence, mint an RTC token via the realtime module, return it.
   throw new Error('not implemented');
 }
+
 export async function takeSeat(/* userId, roomId, seatIndex */): Promise<void> {
+  // M5.
   throw new Error('not implemented');
 }

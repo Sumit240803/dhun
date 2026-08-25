@@ -10,7 +10,7 @@ import { useTranslation, type MessageKey } from '@/i18n';
 import { track } from '@/lib/analytics';
 import { errorMessage } from '@/lib/errors';
 import { haptic } from '@/lib/haptics';
-import type { MockBanner, MockRoom, RoomCategory } from '@/mocks';
+import type { AppBanner, FeedCategory, FeedRoom, RoomTag } from '@/api/types';
 import { colors, spacing } from '@/theme';
 import {
   Banner,
@@ -32,7 +32,7 @@ const SECTION_LABELS: Record<string, MessageKey> = {
   party: 'feed.party',
 };
 
-const TAG_LABELS: Record<MockRoom['tag'], MessageKey> = {
+const TAG_LABELS: Record<RoomTag, MessageKey> = {
   singing: 'feed.tagSinging',
   dancing: 'feed.tagDancing',
   chatting: 'feed.tagChatting',
@@ -49,14 +49,14 @@ export interface RoomFeedProps {
    * banners, the search and every empty state are identical, and only the
    * sections differ. Two copies of this file would drift within a month.
    */
-  sections: RoomCategory[];
+  sections: FeedCategory[];
   /** The floating action this tab provokes. */
   action: 'live' | 'party';
 }
 
 export function RoomFeed({ sections, action }: RoomFeedProps) {
   const { t } = useTranslation();
-  const [category, setCategory] = useState<RoomCategory>(sections[0]);
+  const [category, setCategory] = useState<FeedCategory>(sections[0]);
   const [query, setQuery] = useState('');
 
   const feed = useRoomFeed(category);
@@ -67,13 +67,13 @@ export function RoomFeed({ sections, action }: RoomFeedProps) {
   // the banner carousel and the section row, both of which scroll sideways.
   const swipe = useSectionSwipe({ sections, value: category, onChange: setCategory });
 
-  function openRoom(room: MockRoom) {
+  function openRoom(room: FeedRoom) {
     haptic.tap();
     track('room_card_tapped', { room_id: room.id, category });
     router.push({ pathname: '/(app)/room/[id]', params: { id: room.id } });
   }
 
-  function openBanner(banner: MockBanner) {
+  function openBanner(banner: AppBanner) {
     haptic.tap();
     if (banner.action === 'topup') router.push('/(app)/wallet');
   }

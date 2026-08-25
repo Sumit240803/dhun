@@ -4,12 +4,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { formatCompact } from '@/lib/money';
-import type { MockRoom } from '@/mocks';
+import type { FeedRoom } from '@/api/types';
 import { absoluteFill, colors, radius, spacing } from '@/theme';
 import { Text } from '@/ui/Text';
 
 export interface RoomCardProps {
-  room: MockRoom;
+  room: FeedRoom;
   onPress: () => void;
   /** Already-translated category label, e.g. "Singing". */
   tagLabel: string;

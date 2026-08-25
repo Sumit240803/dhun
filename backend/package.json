@@ -10,6 +10,7 @@
     "migrate": "tsx --env-file=.env scripts/migrate.ts",
     "migrate:status": "tsx --env-file=.env scripts/migrate.ts --status",
     "db:reset": "tsx --env-file=.env scripts/migrate.ts --reset",
+    "seed": "tsx --env-file=.env scripts/seed.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",

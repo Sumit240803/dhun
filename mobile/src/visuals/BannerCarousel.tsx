@@ -10,13 +10,13 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 
-import type { MockBanner } from '@/mocks';
+import type { AppBanner } from '@/api/types';
 import { colors, radius, spacing } from '@/theme';
 import { Text } from '@/ui/Text';
 
 export interface BannerCarouselProps {
-  banners: MockBanner[];
-  onPress: (banner: MockBanner) => void;
+  banners: AppBanner[];
+  onPress: (banner: AppBanner) => void;
 }
 
 /**
@@ -103,7 +103,7 @@ export function BannerCarousel({ banners, onPress }: BannerCarouselProps) {
  * `theme/` and outside the lint rule, and a bad campaign could then paint an
  * unreadable banner with no way to fix it but a release.
  */
-const THEMES: Record<MockBanner['theme'], [string, string]> = {
+const THEMES: Record<AppBanner['theme'], [string, string]> = {
   gold: [colors.currency.coin, colors.status.warning],
   rose: [colors.brand.solid, colors.brand.accent],
   violet: [colors.currency.gem, colors.tier[3]],

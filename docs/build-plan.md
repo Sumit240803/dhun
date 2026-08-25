@@ -172,6 +172,24 @@ interface — but it is a real trade, taken knowingly.
 
 **Exit:** both work end to end. Findings written down. Code deleted.
 
+### M5 pre-work · The read side, done early — ✅ DONE
+
+Pulled forward from M5 by agreement, because the app had nothing real to show and
+none of it depends on the RTC vendor. Migration `006_social` plus 18 tests:
+
+- `GET /v1/rooms/feed` — explore / party / following, ordered by viewers, trending
+  computed in the same query. Readable WITHOUT a session, because browsing is the
+  top of the funnel.
+- `GET /v1/messages/threads` — unread from a read watermark, not a counter.
+- `GET /v1/users/me/summary` — follows, mutual-follow friends, unseen visitors,
+  level, points from the ledger.
+- `GET /v1/config/banners` — server-driven, killable by a flag, `action` a closed set.
+- `npm run seed` — 11 hosts with live rooms, 3 banners; `--user=<uuid>` adds
+  follows, official threads and visitors. Refuses to run in production.
+
+**Still M5:** joining a room, seats, presence, chat send, and the realtime gateway.
+All of those need open decision #5 settled.
+
 ### M5 · Rooms, realtime & chat (backend + app)
 
 Realtime gateway as its **own process**. WS protocol, auth handshake, presence and seat maps

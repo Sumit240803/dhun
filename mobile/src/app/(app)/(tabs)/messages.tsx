@@ -7,7 +7,7 @@ import { useMessageThreads } from '@/api/queries/useFeed';
 import { useTranslation } from '@/i18n';
 import { errorMessage } from '@/lib/errors';
 import { haptic } from '@/lib/haptics';
-import type { MockThread, ThreadFilter } from '@/mocks';
+import type { MessageThread, ThreadFilter } from '@/api/types';
 import { colors, radius, spacing } from '@/theme';
 import {
   Avatar,
@@ -22,14 +22,14 @@ import {
   Text,
 } from '@/ui';
 
-const ACCENT_ICONS: Record<MockThread['accent'], keyof typeof Ionicons.glyphMap> = {
+const ACCENT_ICONS: Record<MessageThread['accent'], keyof typeof Ionicons.glyphMap> = {
   money: 'cash',
   security: 'shield-checkmark',
   system: 'megaphone',
   person: 'person',
 };
 
-const ACCENT_COLOURS: Record<MockThread['accent'], string> = {
+const ACCENT_COLOURS: Record<MessageThread['accent'], string> = {
   money: colors.status.success,
   security: colors.status.danger,
   system: colors.brand.solid,
@@ -122,7 +122,7 @@ export default function MessagesTab() {
   );
 }
 
-function ThreadRow({ thread, officialLabel }: { thread: MockThread; officialLabel: string }) {
+function ThreadRow({ thread, officialLabel }: { thread: MessageThread; officialLabel: string }) {
   return (
     <Pressable
       onPress={() => haptic.selection()}

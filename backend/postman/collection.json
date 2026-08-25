@@ -983,6 +983,184 @@
       "name": "Admin",
       "description": "Ships with every milestone rather than as a phase of its own — the docs are explicit that the admin panel is part of the MVP.\n\nPlanned: catalog editing (M4), room monitoring (M5), payout approval (M8), moderator dashboard (M9), and transaction-type kill switches (`PATCH /v1/admin/txn-types/{code}` — flipping `is_active` stops a money flow platform-wide with no deploy).",
       "item": []
+    },
+    {
+      "name": "Social",
+      "item": [
+        {
+          "name": "1 · Room feed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rooms/feed?category=explore&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rooms",
+                "feed"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "explore"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "The feed the app opens on. **No session required** — browsing is the top of the funnel and a signed-out user must see what the app is before being asked for a phone number.\n\n`category=explore` returns single-host rooms, `party` returns rooms with seats, `following` needs a session and returns EMPTY without one rather than silently ignoring the filter.\n\nEnded rooms never appear. `trending` marks the top ten by viewers and is computed in the same query, so it can never disagree with the order."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 · Message threads",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/messages/threads?filter=all&limit=30",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "messages",
+                "threads"
+              ],
+              "query": [
+                {
+                  "key": "filter",
+                  "value": "all"
+                },
+                {
+                  "key": "limit",
+                  "value": "30"
+                }
+              ]
+            },
+            "description": "Private by definition — 401 without a session.\n\nUnread is counted from the participant's read WATERMARK, not a stored counter: a counter has to be decremented correctly from several places and drifts the first time one is missed.\n\n`filter` is one of all | official | unread | groups."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 · My profile summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/users/me/summary",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "users",
+                "me",
+                "summary"
+              ]
+            },
+            "description": "Everything the Me screen shows that is not a balance: follower counts, unseen profile visitors, level, and the withdrawable points balance.\n\n`friends` is a follow in BOTH directions, computed rather than stored so it can never disagree with the follow rows.\n\n`verified` means PHONE verified, which is what gates money endpoints today. The payout KYC badge — PAN plus face match, hard rule #5 — is a stricter, separate check that arrives with payouts in M8.\n\n`publicId` is the short number a user reads out to be found. Never the internal uuid."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4 · Banners",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/config/banners",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "config",
+                "banners"
+              ]
+            },
+            "description": "The campaign strip above the feed. Server-driven from day one (non-negotiable #6): a campaign must never need an app release, and a bad banner is killed in seconds by flipping `is_active`.\n\nExpired banners are filtered by the query, not by a sweep — a banner whose countdown has run out is worse than no banner.\n\n⚠️ HARD RULE #1: `action` is a CLOSED set (ranking | rewards | topup | none). An event may be a ranking; it may never be chance. No lucky box, no wheel, no mystery gift."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

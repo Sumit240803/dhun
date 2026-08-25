@@ -116,6 +116,74 @@ export interface OtpRequestResponse {
   devCode?: string;
 }
 
+// --- rooms ------------------------------------------------------------------
+
+export type RoomTag = 'singing' | 'dancing' | 'chatting' | 'gaming' | 'friends' | 'esports';
+export type FeedCategory = 'explore' | 'party' | 'following';
+
+export interface FeedRoom {
+  id: string;
+  hostId: string;
+  hostName: string;
+  title: string;
+  tag: RoomTag;
+  /** ISO 3166-1 alpha-2, rendered as a flag. */
+  country: string;
+  viewers: number;
+  coverUrl: string | null;
+  /** Non-null ONLY for a party room. Its presence is what tells the two apart. */
+  seatCount: number | null;
+  seatCapacity: number | null;
+  video: boolean;
+  trending: boolean;
+}
+
+// --- messages ---------------------------------------------------------------
+
+export type ThreadFilter = 'all' | 'official' | 'unread' | 'groups';
+
+export interface MessageThread {
+  id: string;
+  title: string;
+  preview: string;
+  /** ISO 8601. Formatted on the client — the server knows neither timezone nor locale. */
+  updatedAt: string;
+  unread: number;
+  official: boolean;
+  group: boolean;
+  avatarUrl: string | null;
+  accent: 'money' | 'security' | 'system' | 'person';
+}
+
+// --- profile ----------------------------------------------------------------
+
+export interface ProfileSummary {
+  /** The short number a user reads out to be found. Never the internal uuid. */
+  publicId: string;
+  friends: number;
+  following: number;
+  followers: number;
+  newVisitors: number;
+  vipTier: 'silver' | 'gold' | 'diamond' | null;
+  userLevel: number;
+  hostLevel: number | null;
+  points: number;
+  /** PHONE verified. Payout KYC — PAN plus face — is a stricter, separate check. */
+  verified: boolean;
+}
+
+// --- server-driven config ---------------------------------------------------
+
+export interface AppBanner {
+  id: string;
+  title: string;
+  subtitle: string;
+  endsAt: string | null;
+  action: 'ranking' | 'rewards' | 'topup' | 'none';
+  /** The server names a theme; the CLIENT owns the palette. */
+  theme: 'gold' | 'rose' | 'violet';
+}
+
 // --- wallet -----------------------------------------------------------------
 
 export interface Wallet {

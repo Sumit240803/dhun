@@ -8,7 +8,11 @@ import { globalRateLimit } from './middleware/rateLimit.js';
 import { requestContext } from './middleware/requestContext.js';
 import { cors, requireJsonBody, securityHeaders } from './middleware/security.js';
 import { buildAuthRouter } from './modules/auth/index.js';
+import { buildMessagesRouter } from './modules/chat/index.js';
+import { buildConfigRouter } from './modules/config/index.js';
 import { buildCatalogRouter, buildWalletRouter } from './modules/economy/index.js';
+import { buildRoomsRouter } from './modules/rooms/index.js';
+import { buildUsersRouter } from './modules/users/index.js';
 
 export function buildApp() {
   const app = express();
@@ -46,9 +50,12 @@ export function buildApp() {
   app.use('/v1/auth', buildAuthRouter());
   app.use('/v1/catalog', buildCatalogRouter());
   app.use('/v1/wallet', buildWalletRouter());
+  app.use('/v1/config', buildConfigRouter());
+  app.use('/v1/rooms', buildRoomsRouter());
+  app.use('/v1/messages', buildMessagesRouter());
+  app.use('/v1/users', buildUsersRouter());
 
   // Mounted as each milestone lands (see docs/build-plan.md):
-  //   app.use('/v1/rooms', roomsRouter);      // M5
   //   app.use('/v1/gifts', giftsRouter);      // M6
 
   app.use(notFoundHandler());
