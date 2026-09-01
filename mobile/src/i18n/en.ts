@@ -217,6 +217,34 @@ export const en = {
     loadFailed: 'Could not load coin packs',
   },
 
+  visitors: {
+    title: 'Visitors',
+    subtitle: 'People who looked at your profile',
+    follow: 'Follow',
+    following: 'Following',
+    emptyTitle: 'No visitors yet',
+    emptyBody: 'Go live or send a gift, and people who find you will show up here.',
+    visitedAt: '{when}',
+    loadFailed: 'Could not load visitors',
+  },
+
+  thread: {
+    officialNotice: 'This is an official message. You cannot reply to it.',
+    emptyTitle: 'No messages yet',
+    emptyBody: 'Nothing has been sent in this conversation.',
+    loadFailed: 'Could not load this conversation',
+  },
+
+  update: {
+    requiredTitle: 'Update Dhun to continue',
+    requiredBody:
+      'This version is no longer supported. Update from the Play Store to keep using Dhun.',
+    availableTitle: 'A new version is available',
+    availableBody: 'Update for the newest features and fixes.',
+    action: 'Update',
+    later: 'Not now',
+  },
+
   wallet: {
     title: 'Wallet',
     coins: 'Coins',

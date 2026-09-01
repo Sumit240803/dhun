@@ -187,6 +187,12 @@ none of it depends on the RTC vendor. Migration `006_social` plus 18 tests:
 - `npm run seed` — 11 hosts with live rooms, 3 banners; `--user=<uuid>` adds
   follows, official threads and visitors. Refuses to run in production.
 
+Follow-up pass closed every column that had a read path and no write path —
+`follows`, `thread_participants.last_read_at`, `profile_visits.seen_at` — plus
+`GET /v1/config/app`, which finally feeds the `applyRemoteFlags()` that had been
+sitting unused in the client since the foundation (day-1 non-negotiable #5).
+16 more tests. App screens: Visitors, and a thread that marks itself read.
+
 **Still M5:** joining a room, seats, presence, chat send, and the realtime gateway.
 All of those need open decision #5 settled.
 

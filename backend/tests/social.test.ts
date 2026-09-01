@@ -4,6 +4,7 @@ import { uuidv7 } from 'uuidv7';
 import { buildApp } from '../src/app.js';
 import { pool } from '../src/infra/db.js';
 import { closePool } from './helpers.js';
+import { resetRateLimits } from '../src/middleware/rateLimit.js';
 
 const app = buildApp();
 const DEVICE = { deviceId: 'social-device-0001', platform: 'android' };
@@ -46,6 +47,11 @@ async function liveHost(options: { seats?: number | null; viewers?: number } = {
 }
 
 beforeEach(async () => {
+  // Each test signs up several users, and the OTP limiter is per IP. Without
+  // this the suite starts failing partway through for a reason that has
+  // nothing to do with what it is testing.
+  await resetRateLimits();
+
   await pool.query('DELETE FROM messages');
   await pool.query('DELETE FROM thread_participants');
   await pool.query('DELETE FROM message_threads');

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { FlashList } from '@shopify/flash-list';
 import { useState } from 'react';
+import { router } from 'expo-router';
 import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 
 import { useMessageThreads } from '@/api/queries/useFeed';
@@ -125,7 +126,19 @@ export default function MessagesTab() {
 function ThreadRow({ thread, officialLabel }: { thread: MessageThread; officialLabel: string }) {
   return (
     <Pressable
-      onPress={() => haptic.selection()}
+      onPress={() => {
+        haptic.selection();
+        router.push({
+          pathname: '/(app)/thread/[id]',
+          params: {
+            id: thread.id,
+            title: thread.title,
+            // An official thread cannot be replied to, and the detail screen
+            // says so rather than showing an input that does nothing.
+            official: thread.official ? '1' : '0',
+          },
+        });
+      }}
       accessibilityRole="button"
       accessibilityLabel={`${thread.title}. ${thread.preview}`}
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}

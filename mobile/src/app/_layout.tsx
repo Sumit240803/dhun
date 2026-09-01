@@ -13,6 +13,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ApiError } from '@/api/client';
 import { getDeviceId } from '@/features/auth/device';
 import { restoreSession } from '@/features/auth/session';
+import { UpdateGate } from '@/features/config/UpdateGate';
 import { startAnalyticsSession, track } from '@/lib/analytics';
 import { initNetworkMonitor } from '@/lib/network';
 import { initReporting } from '@/lib/reporting';
@@ -103,16 +104,22 @@ export default function RootLayout() {
           <KeyboardProvider>
             <SafeAreaProvider>
               <BottomSheetModalProvider>
-                {/* Inverted against the page: dark glyphs on a light app. */}
-                <StatusBar style={MODE === 'light' ? 'dark' : 'light'} />
-                <Stack
-                  screenOptions={{
-                    headerShown: false,
-                    contentStyle: { backgroundColor: colors.bg.base },
-                    animation: 'slide_from_right',
-                  }}
-                >
-                  {/*
+                {/*
+                  Wraps the whole navigator, not a screen: a required update
+                  must not be reachable by deep link, by a notification tap, or
+                  by a session that was already open.
+                */}
+                <UpdateGate>
+                  {/* Inverted against the page: dark glyphs on a light app. */}
+                  <StatusBar style={MODE === 'light' ? 'dark' : 'light'} />
+                  <Stack
+                    screenOptions={{
+                      headerShown: false,
+                      contentStyle: { backgroundColor: colors.bg.base },
+                      animation: 'slide_from_right',
+                    }}
+                  >
+                    {/*
                     Stack.Protected rather than redirect effects. Declarative, and it
                     CLEANS NAVIGATION HISTORY when a screen becomes inaccessible — so a
                     signed-out user cannot swipe back into the wallet.
@@ -123,21 +130,22 @@ export default function RootLayout() {
                     a phone account. Profile setup lives in (app) for the mirror reason:
                     it runs AFTER verification, by which point this guard is already false.
                   */}
-                  <Stack.Protected guard={!isRegistered}>
-                    <Stack.Screen name="(auth)" />
-                  </Stack.Protected>
+                    <Stack.Protected guard={!isRegistered}>
+                      <Stack.Screen name="(auth)" />
+                    </Stack.Protected>
 
-                  <Stack.Protected guard={isAuthenticated}>
-                    <Stack.Screen name="(app)" />
-                  </Stack.Protected>
+                    <Stack.Protected guard={isAuthenticated}>
+                      <Stack.Screen name="(app)" />
+                    </Stack.Protected>
 
-                  {/*
+                    {/*
                     Legal routes are reachable without a session. IT Rules 2021 require
                     the Grievance Officer contact to be publicly published, and store
                     review asks to see the privacy policy and community guidelines.
                   */}
-                  <Stack.Screen name="legal" options={{ presentation: 'modal' }} />
-                </Stack>
+                    <Stack.Screen name="legal" options={{ presentation: 'modal' }} />
+                  </Stack>
+                </UpdateGate>
               </BottomSheetModalProvider>
             </SafeAreaProvider>
           </KeyboardProvider>

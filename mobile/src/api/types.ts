@@ -172,7 +172,36 @@ export interface ProfileSummary {
   verified: boolean;
 }
 
+export interface Visitor {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  visitedAt: string;
+  /** Whether you already follow them. Drives the button state without a second call. */
+  following: boolean;
+}
+
+export interface ThreadMessage {
+  id: string;
+  body: string;
+  createdAt: string;
+  /** null for a platform message. */
+  senderId: string | null;
+  senderName: string | null;
+  mine: boolean;
+}
+
 // --- server-driven config ---------------------------------------------------
+
+export interface ClientConfig {
+  /** Merged over the local defaults. Unknown keys are ignored by older builds. */
+  flags: Record<string, boolean>;
+  /** Below this the app blocks with an update prompt it cannot dismiss. */
+  minSupportedVersion: string;
+  /** Below this the app offers an update the user may decline. */
+  latestVersion: string;
+  storeUrl: string;
+}
 
 export interface AppBanner {
   id: string;

@@ -204,6 +204,34 @@ export const hi: Messages = {
     loadFailed: 'कॉइन पैक लोड नहीं हो सके',
   },
 
+  visitors: {
+    title: 'विज़िटर',
+    subtitle: 'जिन लोगों ने आपकी प्रोफ़ाइल देखी',
+    follow: 'फ़ॉलो करें',
+    following: 'फ़ॉलो कर रहे हैं',
+    emptyTitle: 'अभी कोई विज़िटर नहीं',
+    emptyBody: 'लाइव जाएँ या गिफ़्ट भेजें, जो लोग आपको खोजेंगे वे यहाँ दिखेंगे।',
+    visitedAt: '{when}',
+    loadFailed: 'विज़िटर लोड नहीं हो सके',
+  },
+
+  thread: {
+    officialNotice: 'यह एक ऑफ़िशियल मैसेज है। आप इसका जवाब नहीं दे सकते।',
+    emptyTitle: 'अभी कोई मैसेज नहीं',
+    emptyBody: 'इस बातचीत में अभी कुछ नहीं भेजा गया।',
+    loadFailed: 'यह बातचीत लोड नहीं हो सकी',
+  },
+
+  update: {
+    requiredTitle: 'आगे बढ़ने के लिए Dhun अपडेट करें',
+    requiredBody:
+      'यह वर्शन अब सपोर्ट नहीं करता। Dhun इस्तेमाल करते रहने के लिए Play Store से अपडेट करें।',
+    availableTitle: 'नया वर्शन उपलब्ध है',
+    availableBody: 'नए फ़ीचर और सुधार के लिए अपडेट करें।',
+    action: 'अपडेट करें',
+    later: 'अभी नहीं',
+  },
+
   wallet: {
     title: 'वॉलेट',
     coins: 'कॉइन',

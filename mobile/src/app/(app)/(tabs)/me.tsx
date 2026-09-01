@@ -177,7 +177,11 @@ export default function MeTab() {
               }
               left={<Ionicons name="eye-outline" size={20} color={colors.text.secondary} />}
               right={<Ionicons name="chevron-forward" size={18} color={colors.text.faint} />}
-              onPress={() => haptic.selection()}
+              onPress={() => {
+                haptic.selection();
+                router.push('/(app)/visitors');
+              }}
+              testID="visitors-row"
             />
             <Divider />
             <Row style={styles.stats}>

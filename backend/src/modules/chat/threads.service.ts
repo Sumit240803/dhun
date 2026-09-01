@@ -109,3 +109,71 @@ export async function listThreads(input: {
     accent: (row.accent as ThreadSummary['accent'] | null) ?? 'person',
   }));
 }
+
+export interface ThreadMessage {
+  id: string;
+  body: string;
+  createdAt: Date;
+  /** null for a platform message. Not a magic system user — that row would be
+   *  reachable by a direct message and would appear in search. */
+  senderId: string | null;
+  senderName: string | null;
+  mine: boolean;
+}
+
+/**
+ * Messages in a thread, newest first.
+ *
+ * Membership is checked in the WHERE clause rather than by a separate lookup:
+ * one query that returns nothing for a non-member cannot be raced by a
+ * membership change between the check and the read.
+ */
+export async function listMessages(input: {
+  userId: string;
+  threadId: string;
+  limit: number;
+}): Promise<ThreadMessage[]> {
+  const { rows } = await pool.query<{
+    id: string;
+    body: string;
+    created_at: Date;
+    sender_user_id: string | null;
+    sender_name: string | null;
+  }>(
+    `SELECT m.id, m.body, m.created_at, m.sender_user_id, p.display_name AS sender_name
+       FROM messages m
+       JOIN thread_participants tp
+         ON tp.thread_id = m.thread_id AND tp.user_id = $1
+       LEFT JOIN user_profiles p ON p.user_id = m.sender_user_id
+      WHERE m.thread_id = $2
+      ORDER BY m.created_at DESC, m.id DESC
+      LIMIT $3`,
+    [input.userId, input.threadId, input.limit],
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    body: row.body,
+    createdAt: row.created_at,
+    senderId: row.sender_user_id,
+    senderName: row.sender_name,
+    mine: row.sender_user_id === input.userId,
+  }));
+}
+
+/**
+ * Moves the read watermark to now.
+ *
+ * Returns false when the user is not in the thread, so the route can answer
+ * 404 rather than pretending to have marked something they cannot see.
+ *
+ * A watermark, not a counter: idempotent, safe to call on every open, and
+ * still correct after a message is deleted.
+ */
+export async function markThreadRead(userId: string, threadId: string): Promise<boolean> {
+  const { rowCount } = await pool.query(
+    'UPDATE thread_participants SET last_read_at = now() WHERE thread_id = $1 AND user_id = $2',
+    [threadId, userId],
+  );
+  return (rowCount ?? 0) > 0;
+}

@@ -237,6 +237,11 @@ export const api = {
 
   patch: <T>(path: string, body?: unknown, options?: Omit<RequestOptions, 'method' | 'body'>) =>
     apiRequest<T>(path, { ...options, method: 'PATCH', body }),
+
+  // No body. A DELETE that carries one is legal and universally surprising —
+  // proxies drop it, and half of every server framework ignores it.
+  delete: <T>(path: string, options?: Omit<RequestOptions, 'method' | 'body'>) =>
+    apiRequest<T>(path, { ...options, method: 'DELETE' }),
 };
 
 export { BASE_URL };

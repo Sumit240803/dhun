@@ -7,11 +7,14 @@
 import { api } from '@/api/client';
 import type {
   AppBanner,
+  ClientConfig,
   FeedCategory,
   FeedRoom,
   MessageThread,
   ProfileSummary,
   ThreadFilter,
+  ThreadMessage,
+  Visitor,
 } from '@/api/types';
 
 export const roomsApi = {
@@ -27,12 +30,31 @@ export const roomsApi = {
 export const messagesApi = {
   threads: (filter: ThreadFilter, limit = 30) =>
     api.get<{ threads: MessageThread[] }>(`messages/threads?filter=${filter}&limit=${limit}`),
+
+  messages: (threadId: string, limit = 50) =>
+    api.get<{ messages: ThreadMessage[] }>(`messages/threads/${threadId}/messages?limit=${limit}`),
+
+  /** Moves the read watermark. Idempotent, so it is safe on every open. */
+  markRead: (threadId: string) => api.post<{ read: true }>(`messages/threads/${threadId}/read`, {}),
 };
 
 export const usersApi = {
   meSummary: () => api.get<{ summary: ProfileSummary }>('users/me/summary'),
+
+  visitors: (limit = 50) => api.get<{ visitors: Visitor[] }>(`users/me/visitors?limit=${limit}`),
+  markVisitorsSeen: () => api.post<{ cleared: number }>('users/me/visitors/seen', {}),
+
+  // Both idempotent on the server, which is what lets the client fire them
+  // optimistically and reconcile afterwards rather than blocking the tap.
+  follow: (userId: string) => api.post<{ following: boolean }>(`users/${userId}/follow`, {}),
+  unfollow: (userId: string) => api.delete<{ following: boolean }>(`users/${userId}/follow`),
+
+  /** Fire-and-forget. A failed visit record must never interrupt a screen. */
+  recordVisit: (userId: string) => api.post<void>(`users/${userId}/visit`, {}),
 };
 
 export const configApi = {
   banners: () => api.get<{ banners: AppBanner[] }>('config/banners'),
+  /** Anonymous: a force-update has to reach a user who cannot sign in. */
+  app: () => api.get<{ config: ClientConfig }>('config/app', { anonymous: true }),
 };

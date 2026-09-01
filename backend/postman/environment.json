@@ -103,6 +103,18 @@
       "value": "compute-with-your-key-secret",
       "type": "default",
       "enabled": true
+    },
+    {
+      "key": "targetUserId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "threadId",
+      "value": "",
+      "type": "default",
+      "enabled": true
     }
   ],
   "_postman_variable_scope": "environment"

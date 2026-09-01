@@ -33,6 +33,8 @@ export type AnalyticsEvent =
   | 'feed_viewed'
   | 'room_card_impressed'
   | 'room_card_tapped'
+  | 'host_followed'
+  | 'host_unfollowed'
   | 'search_performed'
   | 'category_selected'
   // room

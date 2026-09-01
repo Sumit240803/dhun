@@ -42,10 +42,12 @@ export const queryKeys = {
   profile: {
     all: ['profile'] as const,
     summary: () => [...queryKeys.profile.all, 'summary'] as const,
+    visitors: () => [...queryKeys.profile.all, 'visitors'] as const,
   },
 
   config: {
     all: ['config'] as const,
     banners: () => [...queryKeys.config.all, 'banners'] as const,
+    app: () => [...queryKeys.config.all, 'app'] as const,
   },
 } as const;

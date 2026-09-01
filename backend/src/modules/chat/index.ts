@@ -1,8 +1,8 @@
 // PUBLIC API of the chat module.
 //
-// The READ side only. Sending a message needs the realtime gateway (M5); this
-// is the list the app opens on, and it works without one.
+// Reading and marking read. SENDING a message needs the realtime gateway (M5);
+// everything here works without one.
 
 export { buildMessagesRouter } from './threads.routes.js';
-export { listThreads } from './threads.service.js';
-export type { ThreadSummary, ThreadFilter } from './threads.service.js';
+export { listThreads, listMessages, markThreadRead } from './threads.service.js';
+export type { ThreadSummary, ThreadFilter, ThreadMessage } from './threads.service.js';
