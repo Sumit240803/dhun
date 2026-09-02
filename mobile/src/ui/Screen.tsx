@@ -19,6 +19,7 @@ export interface ScreenProps {
    */
   edges?: readonly Edge[];
   style?: ViewStyle;
+  testID?: string;
 }
 
 /**
@@ -34,21 +35,38 @@ export function Screen({
   scroll = false,
   edges = ['top', 'bottom'],
   style,
+  testID,
 }: ScreenProps) {
   const insets = useSafeAreaInsets();
 
-  const inset: ViewStyle = {
-    paddingTop: edges.includes('top') ? insets.top : 0,
-    paddingBottom: edges.includes('bottom') ? insets.bottom : 0,
-    paddingLeft: edges.includes('left') ? insets.left : 0,
-    paddingRight: edges.includes('right') ? insets.right : 0,
+  /**
+   * Inset and padding COMBINED into longhand, deliberately.
+   *
+   * The first version layered `{paddingLeft: 0, paddingRight: 0}` from the inset
+   * and then `{paddingHorizontal: 16}` from the padding, expecting the later
+   * entry to win. It does not: React Native resolves the LONGHAND over the
+   * shorthand regardless of array order, so `paddingLeft: 0` beat
+   * `paddingHorizontal` and every padded screen rendered flush to both edges.
+   *
+   * Adding the two together in one object removes the hazard entirely — there
+   * is no shorthand left to lose — and it is also more correct on a landscape
+   * notch, where the gutter should sit BESIDE the inset rather than inside it.
+   */
+  const gutter = padded ? spacing.lg : 0;
+
+  const frame: ViewStyle = {
+    paddingTop: (edges.includes('top') ? insets.top : 0) + gutter,
+    paddingBottom: (edges.includes('bottom') ? insets.bottom : 0) + gutter,
+    paddingLeft: (edges.includes('left') ? insets.left : 0) + gutter,
+    paddingRight: (edges.includes('right') ? insets.right : 0) + gutter,
   };
 
   if (scroll) {
     return (
       <KeyboardAwareScrollView
         style={styles.base}
-        contentContainerStyle={[inset, padded && styles.padded, style]}
+        contentContainerStyle={[frame, style]}
+        testID={testID}
         keyboardShouldPersistTaps="handled"
         bottomOffset={spacing.xl}
       >
@@ -57,10 +75,13 @@ export function Screen({
     );
   }
 
-  return <View style={[styles.base, inset, padded && styles.padded, style]}>{children}</View>;
+  return (
+    <View style={[styles.base, frame, style]} testID={testID}>
+      {children}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
   base: { flex: 1, backgroundColor: colors.bg.base },
-  padded: { paddingHorizontal: spacing.lg, paddingVertical: spacing.lg },
 });

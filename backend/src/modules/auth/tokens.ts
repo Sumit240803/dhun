@@ -123,7 +123,8 @@ type RotateOutcome =
   | { kind: 'unknown' }
   | { kind: 'revoked' }
   | { kind: 'expired' }
-  | { kind: 'replayed' };
+  | { kind: 'replayed' }
+  | { kind: 'banned' };
 
 /**
  * Exchanges a refresh token for a new pair.
@@ -163,6 +164,20 @@ export async function rotateRefreshToken(presented: string): Promise<TokenPair> 
     if (token.revoked_at) return { kind: 'revoked' };
     if (token.expires_at.getTime() < Date.now()) return { kind: 'expired' };
 
+    // A banned account may not extend its session. Without this the ban only
+    // bit at sign-in: the holder refreshed every fifteen minutes forever and
+    // was never signed out.
+    //
+    // Their whole chain is revoked here rather than merely declining, so the
+    // stored tokens cannot be tried again from another device.
+    if (token.status === 'banned' || token.status === 'suspended') {
+      await client.query(
+        'UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL',
+        [token.user_id],
+      );
+      return { kind: 'banned' };
+    }
+
     const accessToken = await signAccessToken(token.user_id, token.status);
     const refreshToken = await createRefreshToken(client, token.user_id, token.device_id, token.id);
 
@@ -177,6 +192,8 @@ export async function rotateRefreshToken(presented: string): Promise<TokenPair> 
       return outcome.tokens;
     case 'replayed':
       throw new AppError('REFRESH_TOKEN_REUSED', 'Session ended for security reasons', 401);
+    case 'banned':
+      throw new AppError('ACCOUNT_BANNED', 'This account has been banned', 403);
     case 'expired':
       throw new AppError('REFRESH_TOKEN_EXPIRED', 'Refresh token has expired', 401);
     case 'revoked':

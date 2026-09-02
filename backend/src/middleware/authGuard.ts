@@ -35,6 +35,8 @@ export function authGuard() {
       if (!token) throw new UnauthenticatedError();
 
       const claims = await verifyAccessToken(token);
+      assertUsable(claims.status);
+
       req.userId = claims.sub;
       req.userStatus = claims.status;
       setContextUser(claims.sub); // every later log line carries the user id
@@ -45,6 +47,28 @@ export function authGuard() {
   };
 }
 
+/**
+ * Rejects an account that is no longer allowed to act.
+ *
+ * The status rides in the ACCESS TOKEN, so this costs no query — and the token
+ * lives fifteen minutes, which bounds how long a ban takes to bite. The refresh
+ * path refuses to mint a new one for a banned account, so the window cannot be
+ * extended.
+ *
+ * Without this the ban was only checked at sign-in: a user banned mid-session
+ * kept browsing, following, messaging and reporting indefinitely, because
+ * nothing ever looked at the status again. Money endpoints were safe by
+ * accident — `requireRegistered` demands 'active' — but nothing else was.
+ */
+function assertUsable(status: string): void {
+  if (status === 'banned') {
+    throw new AppError('ACCOUNT_BANNED', 'This account has been permanently banned', 403);
+  }
+  if (status === 'suspended') {
+    throw new AppError('ACCOUNT_SUSPENDED', 'This account is temporarily suspended', 403);
+  }
+}
+
 /** Reads the token when present but never rejects. For endpoints that behave differently when signed in. */
 export function optionalAuth() {
   return async (req: Request, _res: Response, next: NextFunction) => {
@@ -52,11 +76,15 @@ export function optionalAuth() {
     if (!token) return next();
     try {
       const claims = await verifyAccessToken(token);
+      assertUsable(claims.status);
+
       req.userId = claims.sub;
       req.userStatus = claims.status;
       setContextUser(claims.sub);
     } catch {
       // An invalid token on an optional route is treated as no token at all.
+      // A BANNED one lands here too, which is the right outcome: they see the
+      // app exactly as a signed-out stranger does.
     }
     next();
   };

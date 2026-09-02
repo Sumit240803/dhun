@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { buildApp } from '../src/app.js';
+import { pool } from '../src/infra/db.js';
 import { grantRole, hasRole } from '../src/modules/auth/index.js';
 import { closePool, resetLedger } from './helpers.js';
 
@@ -412,5 +413,62 @@ describe('scoped roles', () => {
     expect(me.body.user.roles).toEqual([
       { roleCode: 'host', scopeType: 'global', scopeId: null },
     ]);
+  });
+});
+
+describe('a ban takes effect on a live session', () => {
+  it('rejects a banned account on every request, not only at sign-in', async () => {
+    const session = await guestSession();
+
+    await request(app)
+      .get('/v1/auth/me')
+      .set('Authorization', `Bearer ${session.accessToken}`)
+      .expect(200);
+
+    await pool.query("UPDATE users SET status = 'banned' WHERE id = $1", [session.user.id]);
+
+    // The status rides in the access token, so the OLD token still says guest.
+    // A fresh one is what carries the ban — which is why refresh must refuse.
+    const refreshed = await request(app)
+      .post('/v1/auth/refresh')
+      .send({ refreshToken: session.refreshToken })
+      .expect(403);
+
+    expect(refreshed.body.error.code).toBe('ACCOUNT_BANNED');
+  });
+
+  it('revokes the whole chain, so another device cannot resume', async () => {
+    const session = await guestSession();
+    await pool.query("UPDATE users SET status = 'banned' WHERE id = $1", [session.user.id]);
+
+    await request(app).post('/v1/auth/refresh').send({ refreshToken: session.refreshToken }).expect(403);
+
+    // Second attempt sees a revoked token rather than a live one.
+    await request(app)
+      .post('/v1/auth/refresh')
+      .send({ refreshToken: session.refreshToken })
+      .expect(401);
+  });
+});
+
+describe('a guest can be banned', () => {
+  it('does not fail on the phone constraint', async () => {
+    // A guest is the account an abuser creates in seconds. The original
+    // constraint exempted only 'guest' and 'deleted', so banning one was
+    // impossible and the only remedies were deleting the row — losing the
+    // audit trail — or leaving them running.
+    const session = await guestSession();
+
+    await expect(
+      pool.query("UPDATE users SET status = 'banned' WHERE id = $1", [session.user.id]),
+    ).resolves.toBeDefined();
+  });
+
+  it('still refuses an active user with no verified phone', async () => {
+    const session = await guestSession();
+
+    await expect(
+      pool.query("UPDATE users SET status = 'active' WHERE id = $1", [session.user.id]),
+    ).rejects.toThrow();
   });
 });
