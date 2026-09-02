@@ -67,6 +67,15 @@ export function RoomFeed({ sections, action }: RoomFeedProps) {
   // the banner carousel and the section row, both of which scroll sideways.
   const swipe = useSectionSwipe({ sections, value: category, onChange: setCategory });
 
+  // Filters what is ALREADY loaded, by host name. Immediate, and honest about
+  // its scope — a search across every live room is a server query and its own
+  // screen (M10). Previously this bar set state nothing ever read.
+  const needle = query.trim().toLowerCase();
+  const visible =
+    needle === ''
+      ? (feed.data ?? [])
+      : (feed.data ?? []).filter((room) => room.hostName.toLowerCase().includes(needle));
+
   function openRoom(room: FeedRoom) {
     haptic.tap();
     track('room_card_tapped', { room_id: room.id, category });
@@ -110,7 +119,7 @@ export function RoomFeed({ sections, action }: RoomFeedProps) {
         */}
         <Animated.View key={category} entering={FadeIn.duration(160)} style={styles.listWrapper}>
           <FlashList
-            data={feed.data ?? []}
+            data={visible}
             numColumns={2}
             keyExtractor={(room) => room.id}
             contentContainerStyle={styles.list}

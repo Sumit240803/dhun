@@ -22,6 +22,7 @@ export default function TopUpScreen() {
 
   const [selected, setSelected] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const pack = (packs.data ?? []).find((candidate) => candidate.id === selected) ?? null;
 
@@ -131,10 +132,13 @@ export default function TopUpScreen() {
         <Button
           label={t('topUp.recharge')}
           onPress={() => {
-            haptic.tap();
-            // TODO(M4): IAP purchase flow. The endpoint exists
-            // (POST /v1/wallet/purchase/iap) and takes an Idempotency-Key
-            // generated once here and reused for every retry of this intent.
+            haptic.warning();
+            // The endpoint exists (POST /v1/wallet/purchase/iap, with an
+            // Idempotency-Key generated once here and reused on every retry).
+            // What does not exist is the Play billing client, which needs the
+            // developer account — Track 0. Saying so beats a button that
+            // silently does nothing.
+            setNotice(t('topUp.unavailable'));
           }}
           disabled={pack === null || !agreed}
           size="lg"
@@ -142,7 +146,9 @@ export default function TopUpScreen() {
           testID="recharge"
         />
 
-        {pack === null && (
+        {notice !== null && <Banner tone="warning" message={notice} />}
+
+        {pack === null && notice === null && (
           <Text variant="micro" tone="faint" style={styles.hint}>
             {t('topUp.selectPack')}
           </Text>

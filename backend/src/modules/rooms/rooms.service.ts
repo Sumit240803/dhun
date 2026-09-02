@@ -61,6 +61,17 @@ export async function listFeed(input: {
   const filters: string[] = ['r.ended_at IS NULL'];
   const params: unknown[] = [];
 
+  // A block that does not hide the room is theatre. Applied in BOTH directions:
+  // if A blocked B, neither should see the other's room in a feed.
+  if (input.viewerId) {
+    params.push(input.viewerId);
+    filters.push(
+      `NOT EXISTS (SELECT 1 FROM blocks b
+                    WHERE (b.blocker_user_id = $${params.length}::uuid AND b.blocked_user_id = r.host_user_id)
+                       OR (b.blocked_user_id = $${params.length}::uuid AND b.blocker_user_id = r.host_user_id))`,
+    );
+  }
+
   if (input.category === 'party') {
     filters.push('r.seat_capacity IS NOT NULL');
   } else if (input.category === 'explore') {

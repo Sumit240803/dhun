@@ -36,14 +36,6 @@ import {
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
-const ACTIONS: { key: MessageKey; icon: IconName; tint: string; href?: Href }[] = [
-  { key: 'profile.reward', icon: 'gift', tint: colors.brand.solid },
-  { key: 'profile.rank', icon: 'trophy', tint: colors.currency.coin },
-  { key: 'profile.store', icon: 'bag-handle', tint: colors.currency.gem },
-  { key: 'profile.verification', icon: 'shield-checkmark', tint: colors.status.success },
-  { key: 'profile.vip', icon: 'diamond', tint: colors.tier[4] },
-];
-
 const LEGAL: { href: Href; label: MessageKey; icon: IconName }[] = [
   { href: '/legal/terms', label: 'legal.terms', icon: 'document-text-outline' },
   { href: '/legal/privacy', label: 'legal.privacy', icon: 'lock-closed-outline' },
@@ -219,32 +211,9 @@ export default function MeTab() {
               tint={colors.currency.point}
               soft={colors.currency.pointSoft}
               icon="cash"
-              actionLabel={t('profile.withdraw')}
-              onAction={() => haptic.selection()}
               testID="points-card"
             />
           </Row>
-
-          <Card padded={false}>
-            <Row style={styles.actions} wrap>
-              {ACTIONS.map((action) => (
-                <Pressable
-                  key={action.key}
-                  onPress={() => haptic.selection()}
-                  accessibilityRole="button"
-                  accessibilityLabel={t(action.key)}
-                  style={styles.action}
-                >
-                  <View style={[styles.actionGlyph, { backgroundColor: colors.bg.raised }]}>
-                    <Ionicons name={action.icon} size={22} color={action.tint} />
-                  </View>
-                  <Text variant="micro" tone="secondary" numberOfLines={1}>
-                    {t(action.key)}
-                  </Text>
-                </Pressable>
-              ))}
-            </Row>
-          </Card>
 
           <Section title={t('me.preferences')}>
             <ListItem
@@ -353,8 +322,10 @@ function BalanceCard({
   tint: string;
   soft: string;
   icon: IconName;
-  actionLabel: string;
-  onAction: () => void;
+  /** Omitted where the action does not exist yet — a card with no button beats
+   *  a button that does nothing. Withdraw arrives with payouts in M8. */
+  actionLabel?: string;
+  onAction?: () => void;
   testID?: string;
 }) {
   return (
@@ -373,13 +344,15 @@ function BalanceCard({
         <Text variant="micro" tone="secondary">
           {label}
         </Text>
-        <Pressable onPress={onAction} accessibilityRole="button" accessibilityLabel={actionLabel}>
-          <View style={styles.balanceAction}>
-            <Text variant="micro" style={{ color: tint }}>
-              {actionLabel}
-            </Text>
-          </View>
-        </Pressable>
+        {actionLabel !== undefined && onAction !== undefined && (
+          <Pressable onPress={onAction} accessibilityRole="button" accessibilityLabel={actionLabel}>
+            <View style={styles.balanceAction}>
+              <Text variant="micro" style={{ color: tint }}>
+                {actionLabel}
+              </Text>
+            </View>
+          </Pressable>
+        )}
       </Row>
     </View>
   );
@@ -408,15 +381,6 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: radius.pill,
     backgroundColor: colors.bg.surface,
-  },
-  actions: { padding: spacing.lg, rowGap: spacing.lg },
-  action: { width: '20%', alignItems: 'center', gap: spacing.xs },
-  actionGlyph: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   section: { gap: spacing.sm },
   sectionTitle: { marginLeft: spacing.xs, letterSpacing: 0.6 },

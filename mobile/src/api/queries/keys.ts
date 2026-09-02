@@ -43,6 +43,7 @@ export const queryKeys = {
     all: ['profile'] as const,
     summary: () => [...queryKeys.profile.all, 'summary'] as const,
     visitors: () => [...queryKeys.profile.all, 'visitors'] as const,
+    public: (userId: string) => [...queryKeys.profile.all, 'public', userId] as const,
   },
 
   config: {

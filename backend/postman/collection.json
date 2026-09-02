@@ -417,7 +417,7 @@
                 "profile"
               ]
             },
-            "description": "Sets the profile. **A date of birth is required before any money endpoint will work** — hard rule #5 is enforced where money moves, not just as an optional field, so it cannot be bypassed by skipping the question.\n\nAn under-18 date returns 403 UNDERAGE. Without one, purchases return 403 DOB_REQUIRED so the app knows to open the date picker.\n\nAge is evaluated against the calendar date in IST, so someone turning 18 today passes from 00:00 IST. A date that matches the YYYY-MM-DD shape but is not a real date (`2000-02-31`), or one in the future, returns 422 INVALID_DOB — not UNDERAGE, because a typo must not send a user into an age-appeal flow.",
+            "description": "Sets the profile. **A date of birth is required before any money endpoint will work** — hard rule #5 is enforced where money moves, not just as an optional field, so it cannot be bypassed by skipping the question.\n\nEvery session response now carries `user.profileComplete` — display name AND date of birth both set. The client cannot work this out alone because it never sees the date of birth, and without it someone who quit mid-signup came back authenticated and was never asked again.\n\nAn under-18 date returns 403 UNDERAGE. Without one, purchases return 403 DOB_REQUIRED so the app knows to open the date picker.\n\nAge is evaluated against the calendar date in IST, so someone turning 18 today passes from 00:00 IST. A date that matches the YYYY-MM-DD shape but is not a real date (`2000-02-31`), or one in the future, returns 422 INVALID_DOB — not UNDERAGE, because a typo must not send a user into an age-appeal flow.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"displayName\": \"Rahul\",\n  \"dateOfBirth\": \"1998-04-12\",\n  \"gender\": \"male\"\n}",
@@ -1493,6 +1493,187 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200,204]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Moderation & profiles",
+      "item": [
+        {
+          "name": "1 · Public profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/users/{{targetUserId}}/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "users",
+                "{{targetUserId}}",
+                "profile"
+              ]
+            },
+            "description": "What a STRANGER may see — deliberately narrower than your own summary: no points balance, no unseen-visitor count, no date of birth, no phone. Deciding what a stranger sees is a trust-and-safety question, so a field is absent until someone decides it should be there.\n\nReturns 404 when either party has blocked the other, and for a banned account. NOT 403 — a 403 confirms the account exists."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200,202,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 · Report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/moderation/reports",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "moderation",
+                "reports"
+              ]
+            },
+            "description": "Store review REQUIRES a working report mechanism for user-generated content. This is the intake half; queue triage, strikes and appeals are M9.\n\n`reason` is a CLOSED set mapped to the policy levels in trust-and-safety-v1 — free text alone cannot be triaged, counted, or turned into a threshold that pages someone.\n\nOne row per reporter per subject per day. Twenty people reporting the same host is the strongest signal moderation has; one person reporting twenty times is not. A same-day repeat returns `filed: false` and still 202, because telling a user off for reporting teaches them not to.\n\n202 Accepted, not 201: the report is recorded, and whether it results in anything is a human decision later.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"subjectType\": \"user\",\n  \"subjectId\": \"{{targetUserId}}\",\n  \"reason\": \"harassment\",\n  \"detail\": \"Optional, max 500 characters.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200,202,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 · Block",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/users/{{targetUserId}}/block",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "users",
+                "{{targetUserId}}",
+                "block"
+              ]
+            },
+            "description": "Takes effect immediately and in BOTH directions — neither party sees the other's rooms in any feed. A one-way block that leaves the blocked person able to watch is a mute, not a block.\n\nDoes NOT unfollow: blocking and unfollowing are separate intentions, and a user who blocks then unblocks should not silently lose a follow they chose.\n\nThis is the remedy a user can apply without waiting for a moderator, which matters because the gap between reporting and review is hours at best."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200,202,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4 · Unblock",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/users/{{targetUserId}}/block",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "users",
+                "{{targetUserId}}",
+                "block"
+              ]
+            },
+            "description": "Idempotent."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200,202,204]));"
                 ]
               }
             }

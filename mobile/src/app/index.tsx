@@ -16,10 +16,24 @@ import { useIsAuthenticated, useSession } from '@/store/session';
  * covers the wait.
  */
 export default function Index() {
-  const { isReady } = useSession();
+  const { isReady, user } = useSession();
   const isAuthenticated = useIsAuthenticated();
 
   if (!isReady) return null;
+  if (!isAuthenticated) return <Redirect href="/(auth)" />;
 
-  return <Redirect href={isAuthenticated ? '/(app)/(tabs)' : '/(auth)'} />;
+  // Checked on EVERY launch, not only at the end of signup.
+  //
+  // Someone who quit the app during profile setup used to come back
+  // authenticated, land on the feed, and never be asked again — leaving a
+  // registered account with no name and no date of birth, which then failed
+  // every money endpoint with DOB_REQUIRED and no way to fix it.
+  //
+  // A guest is exempt: they have not started signup, so there is nothing to
+  // finish, and sending them here would block browsing entirely.
+  if (user?.status !== 'guest' && user?.profileComplete === false) {
+    return <Redirect href="/(app)/profile-setup" />;
+  }
+
+  return <Redirect href="/(app)/(tabs)" />;
 }

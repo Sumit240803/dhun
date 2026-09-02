@@ -10,6 +10,8 @@ import {
   recordVisit,
   unfollowUser,
 } from './follows.service.js';
+import { blockUser, unblockUser } from '../moderation/index.js';
+import { getPublicProfile } from './publicProfile.service.js';
 import { getProfileSummary } from './summary.service.js';
 
 const userIdParam = z.object({ id: z.string().uuid() }).strict();
@@ -50,6 +52,37 @@ export function buildUsersRouter(): Router {
   router.post('/me/visitors/seen', async (req, res, next) => {
     try {
       res.json({ cleared: await markVisitorsSeen(req.userId!) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Must come AFTER the /me routes, or ':id' swallows 'me' and every request
+  // for your own summary tries to parse "me" as a uuid.
+  router.get('/:id/profile', validate({ params: userIdParam }), async (req, res, next) => {
+    try {
+      const { id } = req.validatedParams as { id: string };
+      res.json({ profile: await getPublicProfile(req.userId!, id) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/:id/block', validate({ params: userIdParam }), async (req, res, next) => {
+    try {
+      const { id } = req.validatedParams as { id: string };
+      await blockUser(req.userId!, id);
+      res.json({ blocked: true });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.delete('/:id/block', validate({ params: userIdParam }), async (req, res, next) => {
+    try {
+      const { id } = req.validatedParams as { id: string };
+      await unblockUser(req.userId!, id);
+      res.json({ blocked: false });
     } catch (err) {
       next(err);
     }

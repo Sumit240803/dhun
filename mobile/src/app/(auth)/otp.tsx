@@ -53,11 +53,12 @@ export default function OtpScreen() {
       track('otp_verified', {});
       await adoptSession(session);
 
-      // A returning user goes straight in; only someone without a display name
-      // sees the profile step. That step is not the age gate — the server
-      // enforces 18+ on every money endpoint and returns DOB_REQUIRED — it is
-      // where the date is collected before anyone needs it.
-      if (session.user.displayName) {
+      // A returning user goes straight in; only someone whose profile is
+      // unfinished sees that step. `profileComplete` comes from the server
+      // because the client never sees the date of birth and so cannot work it
+      // out — checking `displayName` alone would let a half-finished account
+      // through with no date on file.
+      if (session.user.profileComplete) {
         track('login_completed', {});
         router.replace('/(app)/(tabs)');
       } else {

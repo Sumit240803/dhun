@@ -21,6 +21,8 @@ export interface SessionUser {
   status: string;
   phone: string | null;
   displayName: string | null;
+  /** Display name AND date of birth are both set — the signup flow is finished. */
+  profileComplete: boolean;
   roles: RoleGrant[];
 }
 
@@ -59,7 +61,16 @@ export async function createGuest(device: DeviceInfo): Promise<{ user: SessionUs
 
     const tokens = await issueTokenPair(client, userId, 'guest', device.deviceId);
     return {
-      user: { id: userId, status: 'guest', phone: null, displayName: null, roles: [] },
+      // A brand-new guest has neither, so this is false by construction rather
+      // than by a query that would always return the same answer.
+      user: {
+        id: userId,
+        status: 'guest',
+        phone: null,
+        displayName: null,
+        profileComplete: false,
+        roles: [],
+      },
       ...tokens,
     };
   });
@@ -141,8 +152,9 @@ async function loadSessionUser(client: PoolClient, userId: string): Promise<Sess
     status: string;
     phone_e164: string | null;
     display_name: string | null;
+    date_of_birth: Date | null;
   }>(
-    'SELECT u.id, u.status, u.phone_e164, p.display_name' +
+    'SELECT u.id, u.status, u.phone_e164, p.display_name, p.date_of_birth' +
       ' FROM users u LEFT JOIN user_profiles p ON p.user_id = u.id' +
       ' WHERE u.id = $1',
     [userId],
@@ -154,6 +166,20 @@ async function loadSessionUser(client: PoolClient, userId: string): Promise<Sess
     status: rows[0].status,
     phone: rows[0].phone_e164,
     displayName: rows[0].display_name,
+    /**
+     * Has the profile step actually been finished?
+     *
+     * A BOOLEAN rather than the date itself: the client only needs to know
+     * whether to show the step, and a date of birth is the kind of field that
+     * should not travel further than the one check that needs it.
+     *
+     * This exists because the client had no way to ask. Someone who quit the
+     * app mid-signup came back authenticated, went straight to the feed, and
+     * was never asked again — leaving a registered account with no name and no
+     * date of birth, which then failed every money endpoint with DOB_REQUIRED
+     * and no way to fix it.
+     */
+    profileComplete: rows[0].display_name !== null && rows[0].date_of_birth !== null,
     roles: await getRoles(userId),
   };
 }

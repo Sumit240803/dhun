@@ -46,12 +46,8 @@ export default function MessagesTab() {
 
   return (
     <Screen padded={false} edges={['top']}>
-      <Row style={styles.header} justify="between">
+      <Row style={styles.header}>
         <Text variant="title">{t('messages.title')}</Text>
-        <Row gap="md">
-          <IconButton icon="add" label={t('messages.newChat')} />
-          <IconButton icon="search" label={t('messages.search')} />
-        </Row>
       </Row>
 
       <View style={styles.filters}>
@@ -191,20 +187,6 @@ function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
-function IconButton({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
-  return (
-    <Pressable
-      onPress={() => haptic.selection()}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      hitSlop={spacing.sm}
-      style={({ pressed }) => [styles.iconButton, pressed && styles.rowPressed]}
-    >
-      <Ionicons name={icon} size={20} color={colors.text.primary} />
-    </Pressable>
-  );
-}
-
 function ThreadSkeleton() {
   return (
     <View style={styles.skeleton}>
@@ -223,14 +205,6 @@ function ThreadSkeleton() {
 
 const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md },
-  iconButton: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.bg.raised,
-  },
   filters: { paddingBottom: spacing.md },
   gutter: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   separator: { paddingLeft: 76 },

@@ -54,7 +54,7 @@ export default function LoginScreen() {
       haptic.success();
       track('signup_started', { method: provider });
       await adoptSession(session);
-      router.replace(session.user.displayName ? '/(app)/(tabs)' : '/(app)/profile-setup');
+      router.replace(session.user.profileComplete ? '/(app)/(tabs)' : '/(app)/profile-setup');
     },
     onError: () => haptic.error(),
   });

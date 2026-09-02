@@ -12,6 +12,8 @@ import type {
   FeedRoom,
   MessageThread,
   ProfileSummary,
+  PublicProfile,
+  ReportReason,
   ThreadFilter,
   ThreadMessage,
   Visitor,
@@ -51,6 +53,25 @@ export const usersApi = {
 
   /** Fire-and-forget. A failed visit record must never interrupt a screen. */
   recordVisit: (userId: string) => api.post<void>(`users/${userId}/visit`, {}),
+
+  /** What a STRANGER may see — narrower than your own summary, deliberately. */
+  profile: (userId: string) => api.get<{ profile: PublicProfile }>(`users/${userId}/profile`),
+
+  block: (userId: string) => api.post<{ blocked: boolean }>(`users/${userId}/block`, {}),
+  unblock: (userId: string) => api.delete<{ blocked: boolean }>(`users/${userId}/block`),
+};
+
+export const moderationApi = {
+  /**
+   * 202 Accepted, not 201. The report is recorded; whether it results in
+   * anything is a decision a human makes later.
+   */
+  report: (input: {
+    subjectType: 'user' | 'room' | 'message';
+    subjectId: string;
+    reason: ReportReason;
+    detail?: string;
+  }) => api.post<{ filed: boolean }>('moderation/reports', input),
 };
 
 export const configApi = {

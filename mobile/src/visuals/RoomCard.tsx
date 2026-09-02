@@ -11,6 +11,8 @@ import { Text } from '@/ui/Text';
 export interface RoomCardProps {
   room: FeedRoom;
   onPress: () => void;
+  /** Long-press opens the host. The card's tap is reserved for the room. */
+  onPressHost?: () => void;
   /** Already-translated category label, e.g. "Singing". */
   tagLabel: string;
   testID?: string;
@@ -28,12 +30,15 @@ export interface RoomCardProps {
  * unreadable perhaps one time in five, and that one time is a host whose room
  * nobody opens.
  */
-export function RoomCard({ room, onPress, tagLabel, testID }: RoomCardProps) {
+export function RoomCard({ room, onPress, onPressHost, tagLabel, testID }: RoomCardProps) {
   const isParty = room.seatCount !== null;
 
   return (
     <Pressable
       onPress={onPress}
+      // Long press, not a second tap target: the card is small, and a hit area
+      // for the host name inside it would steal taps meant for the room.
+      onLongPress={onPressHost}
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={`${room.hostName}. ${tagLabel}. ${formatCompact(room.viewers)} watching`}

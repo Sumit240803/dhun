@@ -106,16 +106,25 @@ function VisitorRow({
 }) {
   return (
     <Row gap="md" style={styles.row} testID={`visitor-${visitor.userId}`}>
-      <Avatar uri={visitor.avatarUrl} name={visitor.displayName} size="lg" />
-
-      <View style={styles.body}>
-        <Text variant="bodyStrong" numberOfLines={1}>
-          {visitor.displayName}
-        </Text>
-        <Text variant="caption" tone="faint">
-          {relativeTime(visitor.visitedAt)}
-        </Text>
-      </View>
+      <Pressable
+        onPress={() => {
+          haptic.selection();
+          router.push({ pathname: '/(app)/user/[id]', params: { id: visitor.userId } });
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={visitor.displayName}
+        style={styles.identity}
+      >
+        <Avatar uri={visitor.avatarUrl} name={visitor.displayName} size="lg" />
+        <View style={styles.body}>
+          <Text variant="bodyStrong" numberOfLines={1}>
+            {visitor.displayName}
+          </Text>
+          <Text variant="caption" tone="faint">
+            {relativeTime(visitor.visitedAt)}
+          </Text>
+        </View>
+      </Pressable>
 
       <Pressable
         onPress={onToggle}
@@ -173,6 +182,7 @@ const styles = StyleSheet.create({
   list: { paddingBottom: spacing.xxl },
   gutter: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   row: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  identity: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   body: { flex: 1, gap: 2 },
   follow: {
     paddingHorizontal: spacing.lg,

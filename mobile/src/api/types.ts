@@ -86,6 +86,14 @@ export interface SessionUser {
   status: UserStatus;
   phone: string | null;
   displayName: string | null;
+  /**
+   * Display name AND date of birth are both set.
+   *
+   * The client cannot work this out on its own — it never sees the date of
+   * birth — and without it someone who quit mid-signup came back
+   * authenticated, went straight to the feed, and was never asked again.
+   */
+  profileComplete: boolean;
   roles: RoleGrant[];
 }
 
@@ -170,6 +178,37 @@ export interface ProfileSummary {
   points: number;
   /** PHONE verified. Payout KYC — PAN plus face — is a stricter, separate check. */
   verified: boolean;
+}
+
+export const REPORT_REASONS = [
+  'nudity',
+  'harassment',
+  'hate',
+  'violence',
+  'self_harm',
+  'minor',
+  'scam',
+  'spam',
+  'impersonation',
+  'illegal',
+  'other',
+] as const;
+
+export type ReportReason = (typeof REPORT_REASONS)[number];
+
+export interface PublicProfile {
+  userId: string;
+  publicId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  bio: string | null;
+  country: string;
+  userLevel: number;
+  followers: number;
+  following: number;
+  isFollowing: boolean;
+  /** Their live room, if broadcasting right now. */
+  liveRoomId: string | null;
 }
 
 export interface Visitor {

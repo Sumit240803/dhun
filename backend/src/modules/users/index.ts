@@ -5,6 +5,8 @@
 
 export { buildUsersRouter } from './users.routes.js';
 export { getProfileSummary } from './summary.service.js';
+export { getPublicProfile } from './publicProfile.service.js';
+export type { PublicProfile } from './publicProfile.service.js';
 export type { ProfileSummary } from './summary.service.js';
 
 export {
