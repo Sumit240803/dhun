@@ -20,6 +20,10 @@ export interface SessionUser {
   id: string;
   status: string;
   phone: string | null;
+  /** Present for an email account. Phone-only accounts have none. */
+  email: string | null;
+  /** Confirmed. Deliberately deferrable — it gates MONEY, not access. */
+  emailVerified: boolean;
   displayName: string | null;
   /** Display name AND date of birth are both set — the signup flow is finished. */
   profileComplete: boolean;
@@ -67,6 +71,8 @@ export async function createGuest(device: DeviceInfo): Promise<{ user: SessionUs
         id: userId,
         status: 'guest',
         phone: null,
+        email: null,
+        emailVerified: false,
         displayName: null,
         profileComplete: false,
         roles: [],
@@ -151,10 +157,13 @@ async function loadSessionUser(client: PoolClient, userId: string): Promise<Sess
     id: string;
     status: string;
     phone_e164: string | null;
+    email: string | null;
+    email_verified_at: Date | null;
     display_name: string | null;
     date_of_birth: Date | null;
   }>(
-    'SELECT u.id, u.status, u.phone_e164, p.display_name, p.date_of_birth' +
+    'SELECT u.id, u.status, u.phone_e164, u.email, u.email_verified_at,' +
+      ' p.display_name, p.date_of_birth' +
       ' FROM users u LEFT JOIN user_profiles p ON p.user_id = u.id' +
       ' WHERE u.id = $1',
     [userId],
@@ -165,6 +174,8 @@ async function loadSessionUser(client: PoolClient, userId: string): Promise<Sess
     id: rows[0].id,
     status: rows[0].status,
     phone: rows[0].phone_e164,
+    email: rows[0].email,
+    emailVerified: rows[0].email_verified_at !== null,
     displayName: rows[0].display_name,
     /**
      * Has the profile step actually been finished?

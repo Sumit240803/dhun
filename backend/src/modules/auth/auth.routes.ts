@@ -9,6 +9,13 @@ import {
   updateProfile,
   verifyPhoneAndSignIn,
 } from './auth.service.js';
+import {
+  confirmEmail,
+  loginWithEmail,
+  registerWithEmail,
+  requestEmailVerification,
+} from './email.service.js';
+import { MAX_PASSWORD_LENGTH } from './password.js';
 import { requestOtp } from './otp.service.js';
 import { revokeRefreshTokens, rotateRefreshToken } from './tokens.js';
 
@@ -92,6 +99,98 @@ export function buildAuthRouter(): Router {
           guestUserId: req.userStatus === 'guest' ? req.userId : undefined,
         });
         res.json(result);
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------
+  // Email
+  //
+  // The secondary path. Phone stays primary — it is what India signs up with
+  // and what the payout identity is eventually tied to — but an account with
+  // no recovery channel is one lost SIM away from an unresolvable ticket.
+  //
+  // Verification is DEFERRABLE: the account works immediately and confirming
+  // the address happens whenever. What it gates is money, not access.
+  // ---------------------------------------------------------------------
+
+  const emailSchema = z.string().email().max(254).transform((value) => value.trim());
+  // Bounded, because scrypt is deliberately slow: an unbounded password is an
+  // unauthenticated denial of service costing the attacker one request.
+  const passwordSchema = z.string().min(1).max(MAX_PASSWORD_LENGTH);
+
+  router.post(
+    '/email/register',
+    rateLimit({ scope: 'email:register:ip', limit: 10, windowMs: 3_600_000, by: 'ip' }),
+    optionalAuth(),
+    validate(
+      z.object({ email: emailSchema, password: passwordSchema, device: deviceSchema }),
+    ),
+    async (req, res, next) => {
+      try {
+        res.status(201).json(
+          await registerWithEmail({
+            email: req.body.email,
+            password: req.body.password,
+            device: req.body.device,
+            // A guest is upgraded IN PLACE, so nothing earned before signing up
+            // is orphaned — the same rule as phone signup.
+            guestUserId: req.userStatus === 'guest' ? req.userId : undefined,
+          }),
+        );
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  router.post(
+    '/email/login',
+    // failuresOnly, so a person typing one wrong password is not locked out by
+    // their own successful retry. Per IP, because the attacker controls the
+    // email field and would otherwise just rotate it.
+    rateLimit({
+      scope: 'email:login:ip',
+      limit: 20,
+      windowMs: 900_000,
+      by: 'ip',
+      failuresOnly: true,
+    }),
+    validate(z.object({ email: emailSchema, password: passwordSchema, device: deviceSchema })),
+    async (req, res, next) => {
+      try {
+        res.json(
+          await loginWithEmail({
+            email: req.body.email,
+            password: req.body.password,
+            device: req.body.device,
+          }),
+        );
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  router.post('/email/verify/request', authGuard(), async (req, res, next) => {
+    try {
+      await requestEmailVerification(req.userId!);
+      res.status(202).json({ sent: true });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post(
+    '/email/verify',
+    authGuard(),
+    rateLimit({ scope: 'email:verify', limit: 20, windowMs: 900_000, by: 'user', failuresOnly: true }),
+    validate(z.object({ code: z.string().regex(/^\d{6}$/, 'Code must be 6 digits') })),
+    async (req, res, next) => {
+      try {
+        res.json(await confirmEmail(req.userId!, req.body.code));
       } catch (err) {
         next(err);
       }

@@ -45,4 +45,22 @@ export const authApi = {
   }) => api.patch<{ user: SessionUser }>('auth/profile', patch),
 
   logout: (deviceId?: string) => api.post<{ revoked: number }>('auth/logout', { deviceId }),
+
+  /**
+   * Email registration.
+   *
+   * NOT anonymous, for the same reason as verifyOtp: a guest sends their token
+   * so the server upgrades that account in place, keeping the id and everything
+   * earned before signup.
+   */
+  registerWithEmail: (input: { email: string; password: string; device: DevicePayload }) =>
+    api.post<SessionResponse>('auth/email/register', input),
+
+  loginWithEmail: (input: { email: string; password: string; device: DevicePayload }) =>
+    api.post<SessionResponse>('auth/email/login', input, { anonymous: true }),
+
+  /** Sends, or resends, the confirmation code. */
+  requestEmailVerification: () => api.post<{ sent: true }>('auth/email/verify/request', {}),
+
+  confirmEmail: (code: string) => api.post<{ verified: true }>('auth/email/verify', { code }),
 };

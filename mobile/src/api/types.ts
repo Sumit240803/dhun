@@ -40,6 +40,16 @@ export const ApiErrorCode = {
   /** No date of birth on file. Open the date picker rather than showing a dead end. */
   DOB_REQUIRED: 'DOB_REQUIRED',
   UNDERAGE: 'UNDERAGE',
+  /** Money needs a confirmed phone or email. The client offers the verify flow. */
+  CONTACT_UNVERIFIED: 'CONTACT_UNVERIFIED',
+  INVALID_CREDENTIALS: 'INVALID_CREDENTIALS',
+  EMAIL_TAKEN: 'EMAIL_TAKEN',
+  EMAIL_ALREADY_VERIFIED: 'EMAIL_ALREADY_VERIFIED',
+  PASSWORD_TOO_SHORT: 'PASSWORD_TOO_SHORT',
+  CODE_INVALID: 'CODE_INVALID',
+  CODE_NOT_FOUND: 'CODE_NOT_FOUND',
+  CODE_ATTEMPTS_EXCEEDED: 'CODE_ATTEMPTS_EXCEEDED',
+  EMAIL_RATE_LIMITED: 'EMAIL_RATE_LIMITED',
   ACCOUNT_BANNED: 'ACCOUNT_BANNED',
 
   // otp
@@ -85,6 +95,15 @@ export interface SessionUser {
   id: string;
   status: UserStatus;
   phone: string | null;
+  /** Present for an email account. Phone-only accounts have none. */
+  email: string | null;
+  /**
+   * Address confirmed.
+   *
+   * Deliberately deferrable — an unverified account works normally. What it
+   * gates is MONEY: the server refuses a purchase with CONTACT_UNVERIFIED.
+   */
+  emailVerified: boolean;
   displayName: string | null;
   /**
    * Display name AND date of birth are both set.

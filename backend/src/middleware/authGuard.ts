@@ -116,13 +116,36 @@ export function requireAdult() {
     try {
       if (!req.userId) throw new UnauthenticatedError();
 
-      const { rows } = await pool.query<{ adult: boolean | null }>(
-        "SELECT (date_of_birth <= (current_date - interval '18 years')) AS adult" +
-          ' FROM user_profiles WHERE user_id = $1',
+      // One query, two checks. They travel together because they guard the
+      // same thing — money — and splitting them would mean two round trips on
+      // every purchase for no benefit.
+      const { rows } = await pool.query<{ adult: boolean | null; verified_contact: boolean }>(
+        "SELECT (p.date_of_birth <= (current_date - interval '18 years')) AS adult," +
+          '       (u.phone_verified_at IS NOT NULL OR u.email_verified_at IS NOT NULL)' +
+          '         AS verified_contact' +
+          ' FROM users u LEFT JOIN user_profiles p ON p.user_id = u.id' +
+          ' WHERE u.id = $1',
         [req.userId],
       );
 
-      if (rows[0]?.adult === null || rows[0] === undefined) {
+      if (rows[0] === undefined) {
+        throw new AppError('DOB_REQUIRED', 'Add your date of birth to continue', 403);
+      }
+
+      // Email accounts are 'active' the moment they register, with the address
+      // still unconfirmed — that is deliberate, so signup is not blocked behind
+      // an inbox. The confirmation gate lives HERE instead, because a verified
+      // contact is what every money rule has always assumed and what a payout
+      // dispute is eventually resolved against.
+      if (!rows[0].verified_contact) {
+        throw new AppError(
+          'CONTACT_UNVERIFIED',
+          'Confirm your email or phone number to continue',
+          403,
+        );
+      }
+
+      if (rows[0].adult === null) {
         throw new AppError('DOB_REQUIRED', 'Add your date of birth to continue', 403);
       }
       if (!rows[0].adult) {

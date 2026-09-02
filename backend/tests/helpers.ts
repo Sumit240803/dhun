@@ -25,6 +25,21 @@ export async function resetLedger(): Promise<void> {
     await c.query('DELETE FROM refresh_tokens');
     await c.query('DELETE FROM user_devices');
     await c.query('DELETE FROM otp_challenges');
+    await c.query('DELETE FROM email_verifications');
+
+    // Everything below references users. Kept in dependency order and in ONE
+    // place: a new table with a users foreign key that is not listed here makes
+    // an unrelated suite fail on a constraint violation, which is a confusing
+    // way to learn about it.
+    await c.query('DELETE FROM reports');
+    await c.query('DELETE FROM blocks');
+    await c.query('DELETE FROM profile_visits');
+    await c.query('DELETE FROM follows');
+    await c.query('DELETE FROM messages');
+    await c.query('DELETE FROM thread_participants');
+    await c.query('DELETE FROM message_threads');
+    await c.query('DELETE FROM rooms');
+
     await c.query('DELETE FROM user_profiles');
     await c.query('DELETE FROM users');
   });

@@ -142,6 +142,31 @@ export default function MeTab() {
         </LinearGradient>
 
         <View style={styles.gutter}>
+          {/*
+            Deferred verification only works if it is offered again. Without
+            this card, "I will do this later" means never, and the first time
+            the user learns their email is unconfirmed is a refused purchase.
+          */}
+          {!isGuest && user?.email != null && !user.emailVerified && (
+            <Card selected>
+              <Column gap="md">
+                <Text variant="bodyStrong">{t('email.bannerTitle')}</Text>
+                <Text variant="caption" tone="secondary">
+                  {t('email.bannerBody')}
+                </Text>
+                <Button
+                  label={t('email.bannerAction')}
+                  onPress={() => {
+                    haptic.tap();
+                    router.push('/(app)/verify-email');
+                  }}
+                  size="sm"
+                  testID="confirm-email-card"
+                />
+              </Column>
+            </Card>
+          )}
+
           {isGuest && (
             <Card selected>
               <Column gap="md">

@@ -178,9 +178,7 @@ export default function LoginScreen() {
             <CircleMethod
               icon="mail-outline"
               label={t('auth.methodEmail')}
-              // Email sign-in has no endpoint and no screen. Saying so beats a
-              // button that navigates nowhere.
-              onPress={gated(() => setNotice(t('auth.methodUnavailable')))}
+              onPress={gated(() => router.push('/(auth)/email'))}
               testID="method-email"
             />
           </Row>

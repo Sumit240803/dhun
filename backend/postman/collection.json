@@ -545,6 +545,219 @@
               }
             }
           ]
+        },
+        {
+          "name": "6 · Register with email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/auth/email/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "auth",
+                "email",
+                "register"
+              ]
+            },
+            "description": "The SECONDARY path. Phone stays primary — it is what India signs up with and what the payout identity is tied to — but an account with no recovery channel is one lost SIM away from an unresolvable ticket.\n\nThe account is usable IMMEDIATELY with the address unconfirmed. Blocking signup behind an inbox round trip is where funnels die. What confirmation gates is MONEY: a purchase without a verified phone or email is refused with 403 CONTACT_UNVERIFIED.\n\nSend the guest's Authorization header to UPGRADE that account in place, exactly like phone signup, so nothing earned before signing up is orphaned.\n\nPasswords are scrypt (N=2^17), bounded at 200 characters because a slow hash over an unbounded input is a denial of service costing the attacker one request. 409 EMAIL_TAKEN on a duplicate, matched case-insensitively.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"you@example.com\",\n  \"password\": \"correct horse battery\",\n  \"device\": {\n    \"deviceId\": \"postman-device-01\",\n    \"platform\": \"android\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200,201,202]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7 · Log in with email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/auth/email/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "auth",
+                "email",
+                "login"
+              ]
+            },
+            "description": "ONE error for every failure — unknown address, wrong password, an account with no password set. Distinguishing them turns the login form into an account-existence oracle, which on an app of this kind can out someone.\n\nA dummy scrypt verification runs when the account does not exist, so the response takes the same ~100ms either way. Without it the TIMING leaks exactly what the shared message hides.\n\nBanned and suspended accounts are refused here as well as on every request.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"you@example.com\",\n  \"password\": \"correct horse battery\",\n  \"device\": {\n    \"deviceId\": \"postman-device-01\",\n    \"platform\": \"android\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200,201,202]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8 · Send confirmation code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/auth/email/verify/request",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "auth",
+                "email",
+                "verify",
+                "request"
+              ]
+            },
+            "description": "Sends, or resends, the 6-digit code.\n\nA resend CONSUMES the previous code. Without that, five resends leave five working codes and the attempt limit means five times less than it looks.\n\n5 per address per hour. 409 if the address is already confirmed.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200,201,202]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9 · Confirm email",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/auth/email/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "auth",
+                "email",
+                "verify"
+              ]
+            },
+            "description": "The attempt counter is incremented and COMMITTED before any rejection is thrown — the same trap the OTP flow hit, where the throw rolled back the increment and made brute-force protection theatre.\n\nThe code is matched against the address SNAPSHOTTED when it was sent, so a code mailed to an old address cannot confirm a new one.\n\nOnly an HMAC of the code is stored: a database dump must not hand over a working confirmation for every pending request.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200,201,202]));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },

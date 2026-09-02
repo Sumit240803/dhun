@@ -36,6 +36,11 @@ const codeMessages: Partial<Record<string, MessageKey>> = {
   [ApiErrorCode.OTP_RATE_LIMITED]: 'auth.otpRateLimited',
   [ApiErrorCode.UNDERAGE]: 'auth.mustBeAdult',
   [ApiErrorCode.DOB_REQUIRED]: 'auth.dobRequired',
+  [ApiErrorCode.CONTACT_UNVERIFIED]: 'email.bannerBody',
+  [ApiErrorCode.INVALID_CREDENTIALS]: 'email.invalidCredentials',
+  [ApiErrorCode.EMAIL_TAKEN]: 'email.taken',
+  [ApiErrorCode.CODE_INVALID]: 'email.codeIncorrect',
+  [ApiErrorCode.CODE_NOT_FOUND]: 'email.codeExpired',
 };
 
 /** The sentence to show. Never the raw `error.message` for an unknown code. */

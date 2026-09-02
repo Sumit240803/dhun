@@ -81,6 +81,24 @@ export async function adoptSession(response: SessionResponse): Promise<void> {
   sessionStore.signIn(response.user);
 }
 
+/**
+ * Re-reads the signed-in user.
+ *
+ * For the cases where the SERVER changed something the store is caching —
+ * confirming an email, finishing a profile. Re-reading is cheaper and far less
+ * error-prone than patching the store field by field and hoping every screen
+ * that derives from it agrees.
+ */
+export async function refreshSessionUser(): Promise<void> {
+  try {
+    const { user } = await api.get<{ user: SessionUser }>('auth/me');
+    sessionStore.signIn(user);
+  } catch {
+    // Leave the current user in place. A failed refresh must not sign someone
+    // out of a session that is still perfectly valid.
+  }
+}
+
 export async function signOut(): Promise<void> {
   const refreshToken = await tokenStorage.getRefresh();
 

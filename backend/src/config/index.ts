@@ -26,6 +26,11 @@ const schema = z.object({
   // console = print the code to the log (development only).
   // msg91 = the real sender, which needs TRAI DLT registration completed first.
   OTP_PROVIDER: z.enum(['console', 'msg91']).default('console'),
+  // 'none' is deliberately the default: an unconfigured deploy should fail
+  // loudly on the first send rather than silently swallow every verification.
+  EMAIL_PROVIDER: z.enum(['console', 'none']).default('none'),
+  EMAIL_CODE_TTL_MINUTES: z.coerce.number().default(30),
+  EMAIL_CODES_PER_HOUR: z.coerce.number().default(5),
   OTP_TTL_MINUTES: z.coerce.number().default(10),
   OTP_MAX_ATTEMPTS: z.coerce.number().default(5),
   OTP_PER_PHONE_PER_HOUR: z.coerce.number().default(5),
@@ -75,6 +80,15 @@ export const config = {
     jwtSecret: env.JWT_SECRET,
     accessTokenTtlMinutes: env.ACCESS_TOKEN_TTL_MINUTES,
     refreshTokenTtlDays: env.REFRESH_TOKEN_TTL_DAYS,
+  },
+
+  email: {
+    provider: env.EMAIL_PROVIDER,
+    // Longer than an SMS code's ten minutes: an email sits in an inbox someone
+    // checks on their own schedule, and a code that expires before they open it
+    // just generates another send.
+    codeTtlMinutes: env.EMAIL_CODE_TTL_MINUTES,
+    codesPerHour: env.EMAIL_CODES_PER_HOUR,
   },
 
   otp: {
