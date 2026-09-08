@@ -7,6 +7,8 @@ import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { authApi } from '@/api/endpoints/auth';
+import { isWidgetAvailable, sendWidgetOtp } from '@/features/auth/otpWidget';
+import { useAppConfig } from '@/features/config/useAppConfig';
 import {
   DIAL_CODE,
   formatNational,
@@ -23,6 +25,7 @@ import { Banner, Button, Column, Input, Row, Screen, Text } from '@/ui';
 
 export default function PhoneScreen() {
   const { t } = useTranslation();
+  const { otpWidget } = useAppConfig();
   const [digits, setDigits] = useState('');
   const [touched, setTouched] = useState(false);
 
@@ -32,19 +35,48 @@ export default function PhoneScreen() {
   // having started yet.
   const showInvalid = touched && digits.length === 10 && !isValid;
 
+  /**
+   * Two delivery paths, one screen.
+   *
+   * MSG91's widget when the server says it is configured and the native module
+   * is actually in this build; our own OTP flow otherwise. The OTP path is not
+   * dead code kept for tidiness — it is the fallback that turns an MSG91
+   * outage into a degraded signup rather than no signup at all.
+   *
+   * Which one ran is carried into the next screen, because the code is checked
+   * in different places: MSG91 checks the widget's, our server checks ours.
+   */
   const sendCode = useMutation({
-    mutationFn: () => authApi.requestOtp(toE164(digits)),
-    onSuccess: (result) => {
+    mutationFn: async () => {
+      const phone = toE164(digits);
+
+      if (isWidgetAvailable(otpWidget)) {
+        const reqId = await sendWidgetOtp(otpWidget!, phone);
+        return { via: 'widget' as const, phone, reqId };
+      }
+
+      const result = await authApi.requestOtp(phone);
+      return { via: 'server' as const, phone, result };
+    },
+    onSuccess: (sent) => {
       haptic.success();
-      track('otp_sent', { channel: result.channel });
+      track('otp_sent', {
+        channel: sent.via === 'widget' ? 'widget' : sent.result.channel,
+      });
+
       router.push({
         pathname: '/(auth)/otp',
         params: {
-          phone: toE164(digits),
-          expiresIn: String(result.expiresInSeconds),
-          // Development only — the backend omits it in production. It is what
-          // makes the flow testable before DLT registration clears.
-          ...(result.devCode ? { devCode: result.devCode } : {}),
+          phone: sent.phone,
+          via: sent.via,
+          ...(sent.via === 'widget'
+            ? { reqId: sent.reqId }
+            : {
+                expiresIn: String(sent.result.expiresInSeconds),
+                // Development only — the backend omits it in production, and it
+                // is what makes the flow testable before DLT clears.
+                ...(sent.result.devCode ? { devCode: sent.result.devCode } : {}),
+              }),
         },
       });
     },

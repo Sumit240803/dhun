@@ -6,6 +6,7 @@ import { rateLimit } from '../../middleware/rateLimit.js';
 import {
   createGuest,
   getSessionUser,
+  signInWithWidgetToken,
   updateProfile,
   verifyPhoneAndSignIn,
 } from './auth.service.js';
@@ -191,6 +192,49 @@ export function buildAuthRouter(): Router {
     async (req, res, next) => {
       try {
         res.json(await confirmEmail(req.userId!, req.body.code));
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  // MSG91 widget sign-in.
+  //
+  // The app talks to MSG91 directly — the widget sends the code and checks it
+  // client-side — so what arrives here is a string the client CLAIMS MSG91
+  // gave it. This route is where that claim is confirmed with the account
+  // authkey, which never leaves the server, before anything is trusted.
+  //
+  // Rate-limited despite the token being unforgeable: an attacker who cannot
+  // mint a valid token can still make us call MSG91 on every request.
+  router.post(
+    '/otp/widget/verify',
+    rateLimit({
+      scope: 'widget:verify:ip',
+      limit: 30,
+      windowMs: 900_000,
+      by: 'ip',
+      failuresOnly: true,
+    }),
+    optionalAuth(),
+    validate(
+      z.object({
+        // Bounded like every other client string. A JWT-shaped value is well
+        // under this; anything larger is not a token.
+        accessToken: z.string().min(10).max(2048),
+        device: deviceSchema,
+      }),
+    ),
+    async (req, res, next) => {
+      try {
+        res.json(
+          await signInWithWidgetToken({
+            accessToken: req.body.accessToken,
+            device: req.body.device,
+            // A guest is upgraded in place, exactly as in the OTP path.
+            guestUserId: req.userStatus === 'guest' ? req.userId : undefined,
+          }),
+        );
       } catch (err) {
         next(err);
       }

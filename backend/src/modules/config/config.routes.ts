@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { optionalAuth } from '../../middleware/authGuard.js';
+import { rateLimit } from '../../middleware/rateLimit.js';
 import { getClientConfig } from './appConfig.service.js';
 import { listBanners } from './banners.service.js';
 
@@ -22,13 +23,20 @@ export function buildConfigRouter(): Router {
   // Fetched on every launch and on resume, BEFORE the first screen renders.
   // Anonymous on purpose: a force-update has to reach a user who cannot sign
   // in, which is exactly the situation a broken auth release creates.
-  router.get('/app', async (_req, res, next) => {
-    try {
-      res.json({ config: await getClientConfig() });
-    } catch (err) {
-      next(err);
-    }
-  });
+  router.get(
+    '/app',
+    // Tighter than the global limit. The response carries the widget's public
+    // token, and an unlimited anonymous endpoint handing out a credential —
+    // however public — is a free tap for anyone enumerating them.
+    rateLimit({ scope: 'config:app', limit: 60, windowMs: 3_600_000, by: 'ip' }),
+    async (_req, res, next) => {
+      try {
+        res.json({ config: await getClientConfig() });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
 
   return router;
 }

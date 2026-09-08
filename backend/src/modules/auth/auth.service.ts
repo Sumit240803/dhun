@@ -7,6 +7,7 @@ import { AppError } from '../../infra/errors.js';
 import { logger } from '../../infra/logger.js';
 import { getRoles, RoleGrant } from './permissions.js';
 import { verifyOtp } from './otp.service.js';
+import { verifyWidgetAccessToken } from './msg91.widget.js';
 import { issueTokenPair, TokenPair } from './tokens.js';
 
 export interface DeviceInfo {
@@ -98,7 +99,29 @@ export async function verifyPhoneAndSignIn(input: {
   guestUserId?: string;
 }): Promise<{ user: SessionUser; isNewUser: boolean } & TokenPair> {
   await verifyOtp(input.phoneE164, input.code);
+  return signInWithVerifiedPhone(input);
+}
 
+/**
+ * Signs in a phone number that has ALREADY been proven.
+ *
+ * Split out so there is exactly one place that decides what "a verified phone
+ * becomes a session" means — the guest upgrade, the ban check, the
+ * already-registered case. Two callers prove the number differently and then
+ * share every rule that follows:
+ *
+ *   · verifyPhoneAndSignIn — our own OTP challenge
+ *   · signInWithWidgetToken — MSG91 proved it, and our server confirmed that
+ *     proof with the account authkey
+ *
+ * Not exported. A caller that could reach this directly would be able to mint a
+ * session for any phone number with no proof at all.
+ */
+async function signInWithVerifiedPhone(input: {
+  phoneE164: string;
+  device: DeviceInfo;
+  guestUserId?: string;
+}): Promise<{ user: SessionUser; isNewUser: boolean } & TokenPair> {
   return withTransaction(async (client) => {
     const { rows: existing } = await client.query<{ id: string; status: string }>(
       'SELECT id, status FROM users WHERE phone_e164 = $1',
@@ -149,6 +172,38 @@ export async function verifyPhoneAndSignIn(input: {
     const user = await loadSessionUser(client, userId);
 
     return { user, isNewUser, ...tokens };
+  });
+}
+
+/**
+ * Signs in from a verified MSG91 widget access token.
+ *
+ * The widget sends and checks the code on MSG91's side; this is where that
+ * claim becomes trustworthy. The token is verified SERVER-SIDE with the account
+ * authkey — a credential that never leaves this process — because the token
+ * itself arrives from the client and a client can send anything.
+ *
+ * Everything after the proof is the shared path, so a widget sign-in and an OTP
+ * sign-in cannot drift apart on the guest upgrade or the ban check.
+ */
+export async function signInWithWidgetToken(input: {
+  accessToken: string;
+  device: DeviceInfo;
+  guestUserId?: string;
+}): Promise<{ user: SessionUser; isNewUser: boolean } & TokenPair> {
+  const identifier = await verifyWidgetAccessToken(input.accessToken);
+
+  // The widget can be configured for email as well as phone. Only a phone
+  // identifier may take this path — an email one would otherwise be written
+  // into phone_e164 and every downstream rule that assumes E.164 would break.
+  if (!/^\+[1-9]\d{7,14}$/.test(identifier)) {
+    throw new AppError('WIDGET_IDENTIFIER_UNSUPPORTED', 'That sign-in method is not supported', 422);
+  }
+
+  return signInWithVerifiedPhone({
+    phoneE164: identifier,
+    device: input.device,
+    guestUserId: input.guestUserId,
   });
 }
 

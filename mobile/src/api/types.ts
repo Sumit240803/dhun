@@ -57,6 +57,10 @@ export const ApiErrorCode = {
   OTP_NOT_FOUND: 'OTP_NOT_FOUND',
   OTP_ATTEMPTS_EXCEEDED: 'OTP_ATTEMPTS_EXCEEDED',
   OTP_RATE_LIMITED: 'OTP_RATE_LIMITED',
+  /** The widget token could not be confirmed with MSG91. Fall back to our OTP. */
+  WIDGET_TOKEN_INVALID: 'WIDGET_TOKEN_INVALID',
+  /** MSG91 was unreachable. A provider outage, not the user getting it wrong. */
+  VERIFICATION_UNAVAILABLE: 'VERIFICATION_UNAVAILABLE',
 
   // money
   INSUFFICIENT_BALANCE: 'INSUFFICIENT_BALANCE',
@@ -251,9 +255,22 @@ export interface ThreadMessage {
 
 // --- server-driven config ---------------------------------------------------
 
+export interface OtpWidgetConfig {
+  enabled: boolean;
+  widgetId: string;
+  /**
+   * PUBLIC by construction — it ships to the app and an APK is readable.
+   * Served from config rather than bundled so it can be rotated or revoked
+   * without a release. The account authkey is a different credential and
+   * never leaves the server.
+   */
+  tokenAuth: string;
+}
+
 export interface ClientConfig {
   /** Merged over the local defaults. Unknown keys are ignored by older builds. */
   flags: Record<string, boolean>;
+  otpWidget: OtpWidgetConfig;
   /** Below this the app blocks with an update prompt it cannot dismiss. */
   minSupportedVersion: string;
   /** Below this the app offers an update the user may decline. */

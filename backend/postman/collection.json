@@ -758,6 +758,61 @@
               }
             }
           ]
+        },
+        {
+          "name": "10 · Widget sign-in (MSG91)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/auth/otp/widget/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "auth",
+                "otp",
+                "widget",
+                "verify"
+              ]
+            },
+            "description": "Exchanges an MSG91 widget access token for a session.\n\nWith the widget the app talks to MSG91 DIRECTLY — it sends the code and checks it client-side — so what arrives here is a string the client CLAIMS MSG91 gave it. This route confirms that claim with the account AUTHKEY, which never leaves the server.\n\nTwo credentials, two trust levels: the widget's `tokenAuth` ships in the app and is public (a leak costs money), the authkey is server-only (a leak costs accounts).\n\nFAILS CLOSED in every direction — network error, timeout, non-200, unreadable body, a success flag that is not exactly right, or a missing identifier all reject. A provider outage returns 503, not 401, because that is not the user getting it wrong.\n\nAn EMAIL identifier is refused on this route: writing one into phone_e164 would break every rule downstream that assumes E.164.\n\nSend the guest's Authorization header to upgrade that account in place.\n\n⚠️ The verification URL is https://control.msg91.com/api/v5/widget/verifyAccessToken. The base path is confirmed from the SDK's own api.url.ts; confirm the leaf against the panel's Server-Side Integration section before going live.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accessToken\": \"<token from OTPWidget.verifyOTP>\",\n  \"device\": {\n    \"deviceId\": \"postman-device-01\",\n    \"platform\": \"android\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },

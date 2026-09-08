@@ -8,6 +8,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { authApi } from '@/api/endpoints/auth';
 import { ApiErrorCode } from '@/api/types';
 import { getDevicePayload } from '@/features/auth/device';
+import { verifyWidgetOtp } from '@/features/auth/otpWidget';
 import { formatE164ForDisplay } from '@/features/auth/phone';
 import { adoptSession } from '@/features/auth/session';
 import { useTranslation } from '@/i18n';
@@ -23,8 +24,26 @@ const RESEND_COOLDOWN = 30;
 
 export default function OtpScreen() {
   const { t, tPlural } = useTranslation();
-  const params = useLocalSearchParams<{ phone: string; devCode?: string }>();
+  const params = useLocalSearchParams<{
+    phone: string;
+    devCode?: string;
+    via?: string;
+    reqId?: string;
+  }>();
   const phone = params.phone ?? '';
+
+  /**
+   * Which side is holding the code we are about to check.
+   *
+   * STATE, not the route param, because a resend can change it: the resend
+   * button always uses our own path, and after that the code in the user's
+   * hand came from our server, not MSG91. Reading the param here would send
+   * that code to MSG91 to verify, which fails every time and looks to the user
+   * like the resend simply did not work.
+   */
+  const [via, setVia] = useState<'widget' | 'server'>(
+    params.via === 'widget' ? 'widget' : 'server',
+  );
 
   const [code, setCode] = useState('');
   const [errorKey, setErrorKey] = useState(0);
@@ -46,7 +65,17 @@ export default function OtpScreen() {
   const verify = useMutation({
     mutationFn: async (submitted: string) => {
       submitting.current = true;
-      return authApi.verifyOtp({ phone, code: submitted, device: await getDevicePayload() });
+      const device = await getDevicePayload();
+
+      if (via === 'widget') {
+        // MSG91 checks the code and hands back an access token. That token is
+        // NOT proof on its own — the server confirms it with the account
+        // authkey before issuing a session.
+        const accessToken = await verifyWidgetOtp(params.reqId ?? '', submitted);
+        return authApi.verifyWidgetToken({ accessToken, device });
+      }
+
+      return authApi.verifyOtp({ phone, code: submitted, device });
     },
     onSuccess: async (session) => {
       haptic.success();
@@ -84,6 +113,9 @@ export default function OtpScreen() {
   });
 
   const resend = useMutation({
+    // Always our own path. A resend is the moment someone is already stuck, so
+    // it deliberately takes the route that does not depend on the provider
+    // that may be why they are stuck.
     mutationFn: () => authApi.requestOtp(phone),
     onSuccess: (result) => {
       haptic.success();
@@ -93,6 +125,8 @@ export default function OtpScreen() {
       setAttemptsLeft(null);
       setErrorKey(0);
       setDevCode(result.devCode);
+      // The new code lives on OUR side now, whichever way the first one went.
+      setVia('server');
     },
     onError: () => haptic.error(),
   });

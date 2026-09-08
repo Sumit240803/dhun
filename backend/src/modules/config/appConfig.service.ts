@@ -1,8 +1,21 @@
 import { getConfigNumber } from '../economy/index.js';
 import { pool } from '../../infra/db.js';
 
+export interface OtpWidgetConfig {
+  enabled: boolean;
+  widgetId: string;
+  /**
+   * PUBLIC by construction — it ships to the app and an APK is readable.
+   * Served from config rather than bundled so it can be rotated or revoked
+   * without a release. The account authkey is a different credential and never
+   * appears here.
+   */
+  tokenAuth: string;
+}
+
 export interface ClientConfig {
   flags: Record<string, boolean>;
+  otpWidget: OtpWidgetConfig;
   /** Below this, the app blocks with an update prompt it cannot dismiss. */
   minSupportedVersion: string;
   /** Below this, the app offers an update the user can decline. */
@@ -25,7 +38,9 @@ export interface ClientConfig {
 export async function getClientConfig(): Promise<ClientConfig> {
   const { rows } = await pool.query<{ key: string; value: unknown }>(
     `SELECT key, value FROM app_config
-      WHERE key IN ('client_flags','min_supported_app_version','latest_app_version','store_url_android')`,
+      WHERE key IN ('client_flags','min_supported_app_version','latest_app_version',
+                    'store_url_android','otp_widget_enabled','otp_widget_id',
+                    'otp_widget_token_auth')`,
   );
 
   const byKey = Object.fromEntries(rows.map((row) => [row.key, row.value]));
@@ -42,6 +57,18 @@ export async function getClientConfig(): Promise<ClientConfig> {
             ),
           ) as Record<string, boolean>
         : {},
+    // Enabled only when it is BOTH switched on and actually configured. A
+    // half-filled row would send the app down a path that cannot work, and the
+    // failure would surface as a broken login rather than a missing setting.
+    otpWidget: {
+      enabled:
+        byKey.otp_widget_enabled === true &&
+        asString(byKey.otp_widget_id, '') !== '' &&
+        asString(byKey.otp_widget_token_auth, '') !== '',
+      widgetId: asString(byKey.otp_widget_id, ''),
+      tokenAuth: asString(byKey.otp_widget_token_auth, ''),
+    },
+
     minSupportedVersion: asString(byKey.min_supported_app_version, '1.0.0'),
     latestVersion: asString(byKey.latest_app_version, '1.0.0'),
     storeUrl: asString(byKey.store_url_android, ''),

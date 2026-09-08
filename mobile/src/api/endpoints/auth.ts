@@ -32,6 +32,18 @@ export const authApi = {
   verifyOtp: (input: { phone: string; code: string; device: DevicePayload }) =>
     api.post<SessionResponse>('auth/otp/verify', input),
 
+  /**
+   * Exchanges an MSG91 widget access token for a session.
+   *
+   * NOT anonymous, for the same reason as verifyOtp: a guest sends their token
+   * so the server upgrades that account in place.
+   *
+   * The access token is not proof on its own — the server confirms it with the
+   * account authkey before trusting a single field of it.
+   */
+  verifyWidgetToken: (input: { accessToken: string; device: DevicePayload }) =>
+    api.post<SessionResponse>('auth/otp/widget/verify', input),
+
   refresh: (refreshToken: string) =>
     api.post<TokenPair>('auth/refresh', { refreshToken }, { anonymous: true, retries: 0 }),
 

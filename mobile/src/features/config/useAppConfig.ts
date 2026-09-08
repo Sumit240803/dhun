@@ -10,6 +10,7 @@ import { useEffect } from 'react';
 
 import { configApi } from '@/api/endpoints/feed';
 import { queryKeys } from '@/api/queries/keys';
+import type { OtpWidgetConfig } from '@/api/types';
 import { applyRemoteFlags, type Flags } from '@/config/flags';
 import { isOlderThan } from '@/lib/version';
 
@@ -22,7 +23,11 @@ export type UpdateState = 'none' | 'available' | 'required';
  * defaults — the alternative is that an outage of a non-critical endpoint
  * bricks every install, which is a far worse failure than a stale flag.
  */
-export function useAppConfig(): { update: UpdateState; storeUrl: string } {
+export function useAppConfig(): {
+  update: UpdateState;
+  storeUrl: string;
+  otpWidget?: OtpWidgetConfig;
+} {
   const query = useQuery({
     queryKey: queryKeys.config.app(),
     queryFn: async () => (await configApi.app()).config,
@@ -43,6 +48,7 @@ export function useAppConfig(): { update: UpdateState; storeUrl: string } {
   const version = Application.nativeApplicationVersion ?? '0.0.0';
 
   return {
+    otpWidget: config.otpWidget,
     update: isOlderThan(version, config.minSupportedVersion)
       ? 'required'
       : isOlderThan(version, config.latestVersion)
