@@ -7,6 +7,8 @@ import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { authApi } from '@/api/endpoints/auth';
+import { getDevicePayload } from '@/features/auth/device';
+import { adoptSession } from '@/features/auth/session';
 import { isWidgetAvailable, sendWidgetOtp } from '@/features/auth/otpWidget';
 import { useAppConfig } from '@/features/config/useAppConfig';
 import {
@@ -51,15 +53,37 @@ export default function PhoneScreen() {
       const phone = toE164(digits);
 
       if (isWidgetAvailable(otpWidget)) {
-        const reqId = await sendWidgetOtp(otpWidget!, phone);
-        return { via: 'widget' as const, phone, reqId };
+        const sent = await sendWidgetOtp(otpWidget!, phone);
+
+        // MSG91 can verify without a code — invisible verification, or a
+        // number it has seen before. No SMS is coming, so the code screen
+        // would be a dead end. Sign in directly instead.
+        if (sent.kind === 'verified') {
+          const session = await authApi.verifyWidgetToken({
+            accessToken: sent.accessToken,
+            device: await getDevicePayload(),
+          });
+          return { via: 'verified' as const, phone, session };
+        }
+
+        return { via: 'widget' as const, phone, reqId: sent.reqId };
       }
 
       const result = await authApi.requestOtp(phone);
       return { via: 'server' as const, phone, result };
     },
-    onSuccess: (sent) => {
+    onSuccess: async (sent) => {
       haptic.success();
+
+      if (sent.via === 'verified') {
+        track('otp_verified', { channel: 'widget_invisible' });
+        await adoptSession(sent.session);
+        router.replace(
+          sent.session.user.profileComplete ? '/(app)/(tabs)' : '/(app)/profile-setup',
+        );
+        return;
+      }
+
       track('otp_sent', {
         channel: sent.via === 'widget' ? 'widget' : sent.result.channel,
       });
