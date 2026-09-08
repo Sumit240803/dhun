@@ -43,6 +43,8 @@ const codeMessages: Partial<Record<string, MessageKey>> = {
   [ApiErrorCode.CODE_NOT_FOUND]: 'email.codeExpired',
   [ApiErrorCode.PASSWORD_TOO_SHORT]: 'email.passwordTooShort',
   [ApiErrorCode.NO_PASSWORD]: 'account.noPassword',
+  [ApiErrorCode.PHONE_TAKEN]: 'account.phoneTaken',
+  [ApiErrorCode.PHONE_UNCHANGED]: 'account.phoneUnchanged',
 };
 
 /** The sentence to show. Never the raw `error.message` for an unknown code. */

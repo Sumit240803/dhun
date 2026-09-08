@@ -25,13 +25,29 @@ function generateCode(): string {
   return String(randomInt(0, 1_000_000)).padStart(6, '0');
 }
 
-export async function requestOtp(phoneE164: string, channel: OtpChannel = 'whatsapp') {
+/**
+ * What a code is allowed to authorise.
+ *
+ * The same distinction email_verifications carries, for the same reason: this
+ * is the only thing stopping a code minted for one flow being spent on the
+ * other. Signing in and moving an account to a new number are two different
+ * decisions, and a single six-digit string must not authorise both.
+ */
+export type OtpPurpose = 'signin' | 'phone_change';
+
+export async function requestOtp(
+  phoneE164: string,
+  channel: OtpChannel = 'whatsapp',
+  purpose: OtpPurpose = 'signin',
+) {
   assertValidPhone(phoneE164);
 
   const code = generateCode();
   const challengeId = uuidv7();
 
   await withTransaction(async (client) => {
+    // Counts EVERY purpose. The cap protects the number's owner from being
+    // sent codes, and they do not care which flow asked for them.
     const { rows } = await client.query<{ count: string }>(
       'SELECT count(*) FROM otp_challenges' +
         " WHERE phone_e164 = $1 AND created_at > now() - interval '1 hour'",
@@ -41,21 +57,25 @@ export async function requestOtp(phoneE164: string, channel: OtpChannel = 'whats
       throw new AppError('OTP_RATE_LIMITED', 'Too many codes requested. Try again later.', 429);
     }
 
-    // Supersede any live challenge, so an older code cannot still be used.
+    // Supersede any live challenge for this purpose, so an older code cannot
+    // still be used. Scoped to the purpose: requesting a sign-in code must not
+    // silently invalidate a phone-change one the user is mid-way through.
     await client.query(
       'UPDATE otp_challenges SET consumed_at = now()' +
-        ' WHERE phone_e164 = $1 AND consumed_at IS NULL AND expires_at > now()',
-      [phoneE164],
+        ' WHERE phone_e164 = $1 AND purpose = $2 AND consumed_at IS NULL AND expires_at > now()',
+      [phoneE164, purpose],
     );
 
     await client.query(
-      'INSERT INTO otp_challenges (id, phone_e164, code_hash, channel, max_attempts, expires_at)' +
-        " VALUES ($1,$2,$3,$4,$5, now() + ($6 || ' minutes')::interval)",
+      'INSERT INTO otp_challenges' +
+        ' (id, phone_e164, code_hash, channel, purpose, max_attempts, expires_at)' +
+        " VALUES ($1,$2,$3,$4,$5,$6, now() + ($7 || ' minutes')::interval)",
       [
         challengeId,
         phoneE164,
         hmac(code),
         channel,
+        purpose,
         config.otp.maxAttempts,
         String(config.otp.ttlMinutes),
       ],
@@ -90,7 +110,11 @@ type VerifyOutcome =
  * limit would silently do nothing. A six-digit code is only a million
  * possibilities; the counter is the whole defence.
  */
-export async function verifyOtp(phoneE164: string, code: string): Promise<void> {
+export async function verifyOtp(
+  phoneE164: string,
+  code: string,
+  purpose: OtpPurpose = 'signin',
+): Promise<void> {
   assertValidPhone(phoneE164);
 
   const outcome = await withTransaction<VerifyOutcome>(async (client) => {
@@ -101,9 +125,10 @@ export async function verifyOtp(phoneE164: string, code: string): Promise<void> 
       max_attempts: number;
     }>(
       'SELECT id, code_hash, attempts, max_attempts FROM otp_challenges' +
-        ' WHERE phone_e164 = $1 AND consumed_at IS NULL AND expires_at > now()' +
+        ' WHERE phone_e164 = $1 AND purpose = $2' +
+        ' AND consumed_at IS NULL AND expires_at > now()' +
         ' ORDER BY created_at DESC LIMIT 1 FOR UPDATE',
-      [phoneE164],
+      [phoneE164, purpose],
     );
     const challenge = rows[0];
 

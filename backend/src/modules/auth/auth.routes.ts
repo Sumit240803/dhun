@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { authGuard, optionalAuth } from '../../middleware/authGuard.js';
+import { authGuard, optionalAuth, requireRegistered } from '../../middleware/authGuard.js';
 import { validate } from '../../middleware/validate.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
 import {
@@ -22,6 +22,7 @@ import {
 } from './email.service.js';
 import { MAX_PASSWORD_LENGTH } from './password.js';
 import { requestOtp } from './otp.service.js';
+import { confirmPhoneChange, requestPhoneChange } from './phone.service.js';
 import { revokeRefreshTokens, rotateRefreshToken } from './tokens.js';
 
 const deviceSchema = z.object({
@@ -330,6 +331,83 @@ export function buildAuthRouter(): Router {
           keepDeviceId: req.body.keepDeviceId,
         });
         res.json({ changed: true });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------
+  // Changing the phone number
+  //
+  // The number is the account's primary identity and eventually the thing a
+  // payout hangs off, so this is deliberately the most guarded flow here: the
+  // password when there is one, an OTP on the NEW number, and every other
+  // device signed out afterwards. See phone.service.ts for why the code goes
+  // to the new number rather than the old one.
+  // ---------------------------------------------------------------------
+
+  router.post(
+    '/phone/change/request',
+    authGuard(),
+    requireRegistered(),
+    // Tighter than sign-in on purpose. There is no legitimate reason to start
+    // this more than a handful of times an hour, and each attempt sends an SMS
+    // to a number the caller chose.
+    rateLimit({ scope: 'phone:change:user', limit: 5, windowMs: 3_600_000, by: 'user' }),
+    rateLimit({ scope: 'phone:change:ip', limit: 15, windowMs: 3_600_000, by: 'ip' }),
+    validate(
+      z.object({
+        phone: phoneSchema,
+        channel: z.enum(['whatsapp', 'sms']).default('whatsapp'),
+        password: passwordSchema.optional(),
+      }),
+    ),
+    async (req, res, next) => {
+      try {
+        res.json(
+          await requestPhoneChange({
+            userId: req.userId!,
+            phoneE164: req.body.phone,
+            channel: req.body.channel,
+            password: req.body.password,
+          }),
+        );
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  router.post(
+    '/phone/change/verify',
+    authGuard(),
+    requireRegistered(),
+    rateLimit({
+      scope: 'phone:change:verify',
+      limit: 20,
+      windowMs: 900_000,
+      by: 'user',
+      failuresOnly: true,
+    }),
+    validate(
+      z.object({
+        phone: phoneSchema,
+        code: z.string().regex(/^\d{6}$/, 'Code must be 6 digits'),
+        // Kept signed in, like the password change. Signing you out of the
+        // device you are holding reads as a failure, not as security.
+        keepDeviceId: z.string().min(8).max(128).optional(),
+      }),
+    ),
+    async (req, res, next) => {
+      try {
+        const result = await confirmPhoneChange({
+          userId: req.userId!,
+          phoneE164: req.body.phone,
+          code: req.body.code,
+          keepDeviceId: req.body.keepDeviceId,
+        });
+        res.json({ ...result, user: await getSessionUser(req.userId!) });
       } catch (err) {
         next(err);
       }

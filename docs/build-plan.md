@@ -66,7 +66,7 @@ PostgreSQL restricts constraint triggers on partitioned tables, and the balanced
 guarantee matters more at beta volume). Kysely is installed for later CRUD modules; the
 ledger uses raw SQL deliberately.
 
-### M2 · Auth spine — BACKEND COMPLETE, app outstanding
+### M2 · Auth spine — COMPLETE except OAuth and the dev build
 
 **Backend done** (23 tests): guest sessions as real rows · OTP request/verify with per-phone
 rate limiting, attempt counting and supersession · JWT access + rotating refresh with replay
@@ -89,11 +89,27 @@ Every call wired to the real endpoint, every failure mapped through `lib/errors.
 authenticated and would otherwise be locked out of the screen that upgrades them.
 `profile-setup` moved to `(app)` for the mirror reason — it runs after verification.
 
+**Added since** (213 backend / 68 mobile tests total):
+
+- **Email + password**, with confirmation deliberately DEFERRABLE — the account works
+  immediately and what verification gates is money, not access. Migration `010`.
+- **MSG91 OTP widget** (`011`), where MSG91 sends and checks the code client-side and the
+  server confirms the returned access token with the account authkey. Our own OTP path
+  stays as the fallback, so an MSG91 outage degrades signup rather than stopping it.
+- **Password reset and change**, **session list and per-device revocation**, **account
+  deletion** (anonymises — the ledger is append-only), and **phone-number change** (`012`,
+  which also gave `otp_challenges` a `purpose`).
+
 **Still outstanding for M2 to close:**
-- MSG91 implementation (blocked on Track 0 DLT registration). `devCode` carries the
-  flow until then, and the OTP screen surfaces it in development builds.
+- **OAuth** — Google, Facebook, Instagram. The buttons exist on the sign-in screen and
+  are the only auth surface with nothing behind them.
+- MSG91 delivery is still blocked on Track 0 DLT registration. `devCode` carries the flow
+  until then, and the OTP screen surfaces it in development builds. The widget's
+  `/verifyAccessToken` leaf is unconfirmed — it fails CLOSED, so a wrong shape means
+  nobody signs in through the widget rather than anyone signing in as anyone.
 - **Exit criterion unmet:** a real user signing up on a real device and staying signed
-  in across restarts. Needs the development build — no APK has been produced yet.
+  in across restarts. Needs the development build — no APK has been produced yet, and
+  the widget's native module cannot run without one.
 
 ### M4 · Wallet & purchase — BACKEND COMPLETE, app outstanding
 

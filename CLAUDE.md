@@ -325,29 +325,44 @@ external (Agora / ZEGO / LiveKit — undecided) and never transits the backend.
 One repo, pushed to `git@github.com:Sumit240803/dhun.git` (`main`).
 Verify everything with **`npm run check`** from the root.
 
-### `backend/` — M1, M2 and M4 complete. 95 tests.
+### `backend/` — M1, M2 and M4 complete, M3 auth done. 213 tests.
 
-Five migrations, 16 endpoints, three processes' worth of code (API and workers
+Twelve migrations, 45 endpoints, three processes' worth of code (API and workers
 built; the realtime gateway is M5).
 
 | Area | State |
 |---|---|
 | **Ledger** | Done and proven. Unbalanced transactions cannot commit (deferred constraint trigger), entries cannot be mutated (trigger + revoked grants in `ops/roles.sql`), balances cannot go negative. 20 parallel gifts against a 16-gift balance land exactly 16. |
-| **Auth** | Phone OTP behind a provider interface (`console` in dev, `msg91` blocked on DLT), JWT + rotating refresh with replay detection that revokes the device chain, scoped `role_assignments`. |
+| **Auth** | Complete except OAuth. Phone OTP behind a provider interface (`console` in dev, `msg91` blocked on DLT) plus the MSG91 **widget** path, email + password, deferred email confirmation, password reset and change, session list and per-device revocation, phone-number change, account deletion. JWT + rotating refresh with replay detection that revokes the device chain, scoped `role_assignments`. |
 | **Wallet / purchases** | Server-driven catalogs, IAP behind a verifier interface (stub in dev), Razorpay signature verification fully implemented, coins→gems conversion. |
+| **Social / chat / moderation** | Follows, profile visits, public profiles, profile summary, message threads, reports and blocks. Bans are enforced on every request, not only at sign-in, and guests are bannable. |
 | **Workers** | `npm run worker`. Outbox shipper (LISTEN/NOTIFY + 2s poll floor), nightly reconciliation at 03:00 IST with 7 checks and zero tolerance, five retention purges. Advisory-lock job locking. |
 | **Security** | Rate limiting by IP/device/user, security headers, CORS allowlist, 18+ gate on every money endpoint, strict validation of body/query/params, sanitised client errors. |
 
-**Two invariants worth never breaking:** the ledger idempotency key for a purchase
-derives from the **receipt** (`provider:provider_txn_id`), not the client header —
-keying off the header let a replayed receipt credit twice. And **`points = coins ×
-payout_rate`**, no ×2; a point is worth half a coin, which is what turns an
-advertised 60% into a real 30%.
+**Invariants worth never breaking:**
 
-### `mobile/` — foundation complete, zero screens built.
+1. The ledger idempotency key for a purchase derives from the **receipt**
+   (`provider:provider_txn_id`), not the client header — keying off the header
+   let a replayed receipt credit twice.
+2. **`points = coins × payout_rate`**, no ×2; a point is worth half a coin,
+   which is what turns an advertised 60% into a real 30%.
+3. A six-digit code carries a **`purpose`**. `email_verifications` was built that
+   way and `otp_challenges` gained it in 012 — it is the only thing stopping a
+   code minted for one flow being spent on another.
+4. **Deleting an account anonymises, it does not delete the row.** The ledger is
+   append-only and its entries point at the user. Clearing the identity frees the
+   phone and email for reuse, which is what someone signing up again will do.
+5. **MSG91 returns HTTP 200 with error bodies.** `response.ok` is true on
+   failure; the body's `type` is the real signal. A status-only check would sign
+   in anyone who asked. Two credentials, two trust levels: `tokenAuth` ships in
+   the app and is PUBLIC (a leak lets someone spend your SMS balance);
+   `authkey` is server-only (a leak lets any number be claimed). The authkey
+   must never be served to a client, logged, or returned in an error.
+
+### `mobile/` — 31 routes, 23 of them built.
 
 Expo SDK 57 · React Native 0.86 · React 19.2 · expo-router. EAS project
-`@sumitsumit/dhun` (`c7c547aa-86e2-4d02-befa-b5e643fde400`). 27 tests.
+`@sumitsumit/dhun` (`c7c547aa-86e2-4d02-befa-b5e643fde400`). 68 tests.
 
 Read **`mobile/ARCHITECTURE.md`** before adding a file. The essentials:
 
@@ -356,13 +371,26 @@ Read **`mobile/ARCHITECTURE.md`** before adding a file. The essentials:
 - **Colour has one source, enforced by lint.** `theme/primitives.ts` (raw, never
   imported by components) → `theme/colors.ts` (semantic, the only colour import).
   A hex literal outside `theme/` is a lint **error**. Currency and gift-tier
-  colours are reserved.
+  colours are reserved. **`MODE` in `colors.ts` selects the palette; light is the
+  default and both palettes are complete.**
 - **Every string goes through `t()`**, in both `en.ts` and `hi.ts`. Typed keys, so
   a typo is a compile error. Never concatenate fragments — Hindi is SOV.
 - **Money:** branded `Coins`/`Gems`/`Points`/`Paise` types; Indian lakh grouping
   (`1,64,945`, not `164,945`).
-- 21 routes exist and are navigable; unbuilt ones render a placeholder naming
-  their milestone. Guards use `Stack.Protected`, never redirect effects.
+- 31 routes exist and are navigable; the 8 unbuilt ones render a placeholder
+  naming their milestone. Guards use `Stack.Protected`, never redirect effects.
+- **Every screen reads a real endpoint.** The mock layer was deleted once the
+  endpoints existed. TanStack Query throughout, keys centralised in
+  `api/queries/keys.ts`.
+
+**Built:** the five tabs (home feed, party, discover placeholder, messages, me),
+auth (phone, OTP, email sign-in/up, forgot and reset password), profile setup,
+email confirmation, account and security (password, phone number, signed-in
+devices, delete), wallet, thread, public profile, visitors.
+
+**Adding a route needs the typed-route file regenerated** — it comes from
+`expo start`, not from `tsc` or `expo export`, and until it runs a new
+`router.push` path is a type error.
 
 **Gift animations are Lottie**, decided by checking what is maintained: both SVGA
 React Native bindings died in 2022 and PAG has no RN binding, because every app
@@ -375,9 +403,11 @@ The gift queue **sheds the cheapest gift when full**, never the newest. Dropping
 
 ### Not built yet
 
-Rooms · realtime gateway · RTC (vendor undecided) · chat · gifting UI · feed and
-discovery · host tools · **moderation** · analytics pipeline · CI beyond typecheck
-and tests · Terraform and environments · every app screen.
+OAuth (Google / Facebook / Instagram) · rooms and the realtime gateway · RTC
+(vendor undecided) · live chat · gifting UI · discover · host tools · payouts ·
+the legal screens' actual text · admin panel · push token registration ·
+analytics pipeline · CI beyond typecheck and tests · Terraform and environments ·
+**a development build** (M2 exit criterion — the MSG91 widget needs one).
 
 Honest read: the foundation is stronger than the budget suggests, the product does
 not exist yet, and the things most likely to kill this are people problems —

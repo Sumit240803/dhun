@@ -1051,7 +1051,113 @@
           ]
         },
         {
-          "name": "18 · Delete account",
+          "name": "18 · Change phone · request code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/auth/phone/change/request",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "auth",
+                "phone",
+                "change",
+                "request"
+              ]
+            },
+            "description": "Sends a code to the NEW number, not the old one. The commonest reason to change is that the old SIM is gone, and a flow that needs the thing you lost is a flow nobody can finish — the password re-proves the account instead, and is REQUIRED whenever the account has one (422 PASSWORD_REQUIRED).\n\nRefuses before sending: 409 PHONE_TAKEN if the number belongs to someone else, 409 PHONE_UNCHANGED if it is already yours. Checking first costs an existence signal on an authenticated, per-user rate-limited endpoint; sending first would let anyone signed in text a stranger on demand.\n\nGuests are refused — signup is the flow they want.\n\nThe challenge is stored with purpose `phone_change`, so this code cannot be spent at /auth/otp/verify and a sign-in code cannot be spent here.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{newPhone}}\",\n  \"channel\": \"whatsapp\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "if (b.devCode) pm.environment.set('otpCode', b.devCode);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 · Change phone · confirm",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/auth/phone/change/verify",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "auth",
+                "phone",
+                "change",
+                "verify"
+              ]
+            },
+            "description": "Moves the number and returns the updated user.\n\nEvery OTHER device is signed out — a number change is a security event whether or not the person meant it as one, and if it was not the owner’s doing, ending the attacker’s session is the only thing that still helps them. `keepDeviceId` is the device making the call.\n\nWritten to `phone_changes` and logged at warn: the support ticket after a takeover starts with \"when did my number change, and from which device\".\n\nThe old number is released, so someone else can sign up on it — Indian numbers get recycled.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"{{newPhone}}\",\n  \"code\": \"{{otpCode}}\",\n  \"keepDeviceId\": \"{{deviceId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('the number moved', () => pm.expect(pm.response.json().user.phone).to.eql(pm.environment.get('newPhone')));",
+                  "pm.environment.set('phone', pm.environment.get('newPhone'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 · Delete account",
           "request": {
             "method": "POST",
             "header": [

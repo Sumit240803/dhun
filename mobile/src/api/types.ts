@@ -51,6 +51,11 @@ export const ApiErrorCode = {
   PASSWORD_REQUIRED: 'PASSWORD_REQUIRED',
   /** A phone-only account has nothing to change. Offer to set one instead. */
   NO_PASSWORD: 'NO_PASSWORD',
+  /** The new number belongs to someone else. Nothing was sent to it. */
+  PHONE_TAKEN: 'PHONE_TAKEN',
+  /** The "new" number is the one already on the account. */
+  PHONE_UNCHANGED: 'PHONE_UNCHANGED',
+  INVALID_PHONE: 'INVALID_PHONE',
   CODE_INVALID: 'CODE_INVALID',
   CODE_NOT_FOUND: 'CODE_NOT_FOUND',
   CODE_ATTEMPTS_EXCEEDED: 'CODE_ATTEMPTS_EXCEEDED',

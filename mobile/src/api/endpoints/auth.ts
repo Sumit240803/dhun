@@ -108,6 +108,27 @@ export const authApi = {
     api.delete<{ revoked: number }>(`auth/sessions/${encodeURIComponent(deviceId)}`),
 
   /**
+   * Starts a phone number change.
+   *
+   * The code goes to the NEW number, not the old one — the commonest reason to
+   * change is that the old SIM is gone, and a flow that needs the thing you
+   * lost is a flow nobody can finish. The password re-proves the account
+   * instead, and is required whenever the account has one.
+   */
+  requestPhoneChange: (input: { phone: string; channel?: 'whatsapp' | 'sms'; password?: string }) =>
+    api.post<OtpRequestResponse>('auth/phone/change/request', input),
+
+  /**
+   * Confirms the code and moves the number.
+   *
+   * `keepDeviceId` is this device. Every other device is signed out, because a
+   * number change is a security event whether or not the person meant it as
+   * one.
+   */
+  confirmPhoneChange: (input: { phone: string; code: string; keepDeviceId: string }) =>
+    api.post<{ phone: string; user: SessionUser }>('auth/phone/change/verify', input),
+
+  /**
    * Deletes the account.
    *
    * Required by Google Play for any app with accounts, and by DPDP Act 2023.

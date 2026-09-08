@@ -43,6 +43,14 @@ export default function AccountScreen() {
       testID: 'account-password',
     },
     {
+      href: '/(app)/account/phone',
+      title: 'account.phone',
+      subtitle: 'account.phoneSubtitle',
+      icon: 'call-outline',
+      show: true,
+      testID: 'account-phone',
+    },
+    {
       href: '/(app)/account/sessions',
       title: 'account.sessions',
       subtitle: 'account.sessionsSubtitle',
