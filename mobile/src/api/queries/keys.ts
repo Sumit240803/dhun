@@ -19,6 +19,11 @@ export const queryKeys = {
     purchases: () => [...queryKeys.wallet.all, 'purchases'] as const,
   },
 
+  devices: {
+    all: ['devices'] as const,
+    sessions: () => [...queryKeys.devices.all, 'sessions'] as const,
+  },
+
   catalog: {
     all: ['catalog'] as const,
     gifts: () => [...queryKeys.catalog.all, 'gifts'] as const,

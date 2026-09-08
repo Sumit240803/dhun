@@ -46,6 +46,11 @@ export const ApiErrorCode = {
   EMAIL_TAKEN: 'EMAIL_TAKEN',
   EMAIL_ALREADY_VERIFIED: 'EMAIL_ALREADY_VERIFIED',
   PASSWORD_TOO_SHORT: 'PASSWORD_TOO_SHORT',
+  PASSWORD_TOO_LONG: 'PASSWORD_TOO_LONG',
+  /** Deleting an account with a password set needs that password. */
+  PASSWORD_REQUIRED: 'PASSWORD_REQUIRED',
+  /** A phone-only account has nothing to change. Offer to set one instead. */
+  NO_PASSWORD: 'NO_PASSWORD',
   CODE_INVALID: 'CODE_INVALID',
   CODE_NOT_FOUND: 'CODE_NOT_FOUND',
   CODE_ATTEMPTS_EXCEEDED: 'CODE_ATTEMPTS_EXCEEDED',
@@ -93,6 +98,23 @@ export interface RoleGrant {
   roleCode: string;
   scopeType: 'global' | 'room' | 'agency';
   scopeId: string | null;
+}
+
+/**
+ * A device with a live session.
+ *
+ * Only devices with an unrevoked refresh token appear — a device with no live
+ * token is not a session, and listing it would make "sign out" look like it did
+ * nothing.
+ */
+export interface ActiveSession {
+  deviceId: string;
+  platform: string;
+  appVersion: string | null;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  /** This device. It never offers to sign itself out from the list. */
+  current: boolean;
 }
 
 export interface SessionUser {

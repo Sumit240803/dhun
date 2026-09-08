@@ -10,11 +10,15 @@ import {
   updateProfile,
   verifyPhoneAndSignIn,
 } from './auth.service.js';
+import { deleteAccount, listSessions, revokeSession } from './account.service.js';
 import {
+  changePassword,
   confirmEmail,
   loginWithEmail,
   registerWithEmail,
   requestEmailVerification,
+  requestPasswordReset,
+  resetPassword,
 } from './email.service.js';
 import { MAX_PASSWORD_LENGTH } from './password.js';
 import { requestOtp } from './otp.service.js';
@@ -235,6 +239,148 @@ export function buildAuthRouter(): Router {
             guestUserId: req.userStatus === 'guest' ? req.userId : undefined,
           }),
         );
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------
+  // Password reset
+  //
+  // Without this a forgotten password is an unrecoverable account, which is
+  // why it ships alongside email login rather than after it.
+  // ---------------------------------------------------------------------
+
+  router.post(
+    '/email/password/forgot',
+    // Per IP, because the attacker controls the address field. The per-address
+    // limit lives in issueCode, so neither can be used to probe the other.
+    rateLimit({ scope: 'password:forgot:ip', limit: 10, windowMs: 3_600_000, by: 'ip' }),
+    validate(z.object({ email: emailSchema })),
+    async (req, res, next) => {
+      try {
+        await requestPasswordReset(req.body.email);
+        // 202 and an empty body, ALWAYS — whether or not the address exists.
+        // Any difference here turns the form into an account-existence oracle.
+        res.status(202).json({ sent: true });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  router.post(
+    '/email/password/reset',
+    rateLimit({
+      scope: 'password:reset:ip',
+      limit: 20,
+      windowMs: 900_000,
+      by: 'ip',
+      failuresOnly: true,
+    }),
+    validate(
+      z.object({
+        email: emailSchema,
+        code: z.string().regex(/^\d{6}$/, 'Code must be 6 digits'),
+        password: passwordSchema,
+      }),
+    ),
+    async (req, res, next) => {
+      try {
+        await resetPassword({
+          email: req.body.email,
+          code: req.body.code,
+          password: req.body.password,
+        });
+        res.json({ reset: true });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  // Changing a password requires the CURRENT one even though the caller is
+  // signed in: a borrowed unlocked phone must not be able to lock the owner out.
+  router.post(
+    '/password/change',
+    authGuard(),
+    rateLimit({
+      scope: 'password:change',
+      limit: 10,
+      windowMs: 900_000,
+      by: 'user',
+      failuresOnly: true,
+    }),
+    validate(
+      z.object({
+        currentPassword: passwordSchema,
+        newPassword: passwordSchema,
+        // Kept signed in. Changing a password should not sign you out of the
+        // device in your hand — that reads as a failure, not as security.
+        keepDeviceId: z.string().min(8).max(128).optional(),
+      }),
+    ),
+    async (req, res, next) => {
+      try {
+        await changePassword({
+          userId: req.userId!,
+          currentPassword: req.body.currentPassword,
+          newPassword: req.body.newPassword,
+          keepDeviceId: req.body.keepDeviceId,
+        });
+        res.json({ changed: true });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------
+  // Sessions and account
+  // ---------------------------------------------------------------------
+
+  router.get(
+    '/sessions',
+    authGuard(),
+    validate({
+      query: z.object({ deviceId: z.string().min(8).max(128).optional() }).strict(),
+    }),
+    async (req, res, next) => {
+      try {
+        const { deviceId } = req.validatedQuery as { deviceId?: string };
+        res.json({ sessions: await listSessions(req.userId!, deviceId) });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  router.delete(
+    '/sessions/:deviceId',
+    authGuard(),
+    validate({ params: z.object({ deviceId: z.string().min(8).max(128) }).strict() }),
+    async (req, res, next) => {
+      try {
+        const { deviceId } = req.validatedParams as { deviceId: string };
+        res.json({ revoked: await revokeSession(req.userId!, deviceId) });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  // Required by Google Play for any app with accounts, and by DPDP Act 2023.
+  // Anonymises rather than deletes — see the note in account.service.ts.
+  router.post(
+    '/account/delete',
+    authGuard(),
+    rateLimit({ scope: 'account:delete', limit: 5, windowMs: 3_600_000, by: 'user' }),
+    validate(z.object({ password: passwordSchema.optional() })),
+    async (req, res, next) => {
+      try {
+        await deleteAccount({ userId: req.userId!, password: req.body.password });
+        res.json({ deleted: true });
       } catch (err) {
         next(err);
       }

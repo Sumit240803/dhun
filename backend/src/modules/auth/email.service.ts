@@ -7,8 +7,10 @@ import { AppError } from '../../infra/errors.js';
 import { logger } from '../../infra/logger.js';
 import { emailProvider, type EmailPurpose } from './email.provider.js';
 import { hashPassword, passwordProblem, verifyPassword } from './password.js';
-import { issueTokenPair } from './tokens.js';
-import type { DeviceInfo, SessionUser } from './auth.service.js';
+import { issueTokenPair, revokeRefreshTokens } from './tokens.js';
+import { upsertDevice } from './devices.js';
+import type { DeviceInfo } from './devices.js';
+import type { SessionUser } from './auth.service.js';
 
 const CODE_LENGTH = 6;
 
@@ -139,9 +141,13 @@ export async function registerWithEmail(input: {
 
   await emailProvider().sendCode(email, code, 'verify');
 
-  const tokens = await withTransaction((client) =>
-    issueTokenPair(client, userId, 'active', input.device.deviceId),
-  );
+  const tokens = await withTransaction(async (client) => {
+    // Recorded on every sign-in path, not just the phone ones. Without it an
+    // email account has no push token to notify and no row to show on the
+    // signed-in-devices screen.
+    await upsertDevice(client, userId, input.device);
+    return issueTokenPair(client, userId, 'active', input.device.deviceId);
+  });
 
   return {
     user: {
@@ -211,9 +217,10 @@ export async function loginWithEmail(input: {
     throw new AppError('ACCOUNT_SUSPENDED', 'This account is temporarily suspended', 403);
   }
 
-  const tokens = await withTransaction((client) =>
-    issueTokenPair(client, row.id, row.status, input.device.deviceId),
-  );
+  const tokens = await withTransaction(async (client) => {
+    await upsertDevice(client, row.id, input.device);
+    return issueTokenPair(client, row.id, row.status, input.device.deviceId);
+  });
 
   return {
     user: {
@@ -333,4 +340,189 @@ export async function confirmEmail(userId: string, code: string): Promise<{ veri
     default:
       throw new AppError('CODE_INVALID', 'That code is not correct', 401);
   }
+}
+
+/**
+ * Starts a password reset.
+ *
+ * ALWAYS reports success, whether or not the address exists. Anything else
+ * turns this form into an account-existence oracle — the same leak the login
+ * path is careful to avoid, and on an app of this kind it can out someone.
+ *
+ * The rate limit inside issueCode is keyed on the address, so an attacker
+ * cannot use timing or throttling to infer existence either.
+ */
+export async function requestPasswordReset(rawEmail: string): Promise<void> {
+  const email = normalise(rawEmail);
+
+  const issued = await withTransaction(async (client) => {
+    const { rows } = await client.query<{ id: string }>(
+      // Only an account with a PASSWORD can reset one. A phone-only account
+      // that happens to carry an email must not be resettable by email — that
+      // would be a way to add a password to an account you do not control.
+      'SELECT id FROM users WHERE lower(email) = $1 AND password_hash IS NOT NULL',
+      [email],
+    );
+
+    const user = rows[0];
+    if (!user) return null;
+
+    return issueCode(client, { userId: user.id, email, purpose: 'reset' });
+  });
+
+  // The send is skipped for an unknown address, but the caller is never told.
+  if (issued !== null) await emailProvider().sendCode(email, issued, 'reset');
+}
+
+/**
+ * Completes a reset.
+ *
+ * Revokes EVERY refresh token on success. Someone resetting because they were
+ * compromised would otherwise leave the attacker signed in on their own
+ * device — the reset would change the password and nothing else.
+ *
+ * The attempt counter commits before any rejection throws, the same rule the
+ * OTP and verification flows follow.
+ */
+export async function resetPassword(input: {
+  email: string;
+  code: string;
+  password: string;
+}): Promise<void> {
+  const problem = passwordProblem(input.password);
+  if (problem !== null) {
+    throw new AppError(
+      problem === 'too_short' ? 'PASSWORD_TOO_SHORT' : 'PASSWORD_TOO_LONG',
+      problem === 'too_short' ? 'Use at least 8 characters' : 'That password is too long',
+      422,
+    );
+  }
+
+  const email = normalise(input.email);
+  const passwordHash = await hashPassword(input.password);
+
+  type Outcome = { kind: 'ok'; userId: string } | { kind: 'none' } | { kind: 'exhausted' } | { kind: 'wrong' };
+
+  const outcome = await withTransaction<Outcome>(async (client) => {
+    const { rows } = await client.query<{
+      id: string;
+      user_id: string;
+      code_hash: string;
+      attempts: number;
+      max_attempts: number;
+    }>(
+      `SELECT v.id, v.user_id, v.code_hash, v.attempts, v.max_attempts
+         FROM email_verifications v
+         JOIN users u ON u.id = v.user_id
+        WHERE v.purpose = 'reset'
+          AND v.email = $1
+          AND lower(u.email) = $1
+          AND v.consumed_at IS NULL
+          AND v.expires_at > now()
+        ORDER BY v.created_at DESC
+        LIMIT 1
+        FOR UPDATE OF v`,
+      [email],
+    );
+
+    const challenge = rows[0];
+    if (!challenge) return { kind: 'none' };
+    if (challenge.attempts >= challenge.max_attempts) return { kind: 'exhausted' };
+
+    const presented = Buffer.from(hmac(input.code));
+    const expected = Buffer.from(challenge.code_hash);
+    const matches = presented.length === expected.length && timingSafeEqual(presented, expected);
+
+    if (!matches) {
+      await client.query('UPDATE email_verifications SET attempts = attempts + 1 WHERE id = $1', [
+        challenge.id,
+      ]);
+      return { kind: 'wrong' };
+    }
+
+    await client.query('UPDATE email_verifications SET consumed_at = now() WHERE id = $1', [
+      challenge.id,
+    ]);
+    await client.query('UPDATE users SET password_hash = $2 WHERE id = $1', [
+      challenge.user_id,
+      passwordHash,
+    ]);
+
+    return { kind: 'ok', userId: challenge.user_id };
+  });
+
+  switch (outcome.kind) {
+    case 'ok':
+      await revokeRefreshTokens(outcome.userId);
+      logger.info('password reset', { user_id: outcome.userId });
+      return;
+    case 'none':
+      throw new AppError('CODE_NOT_FOUND', 'No active code. Request a new one.', 400);
+    case 'exhausted':
+      throw new AppError('CODE_ATTEMPTS_EXCEEDED', 'Too many wrong attempts. Request a new code.', 429);
+    default:
+      throw new AppError('CODE_INVALID', 'That code is not correct', 401);
+  }
+}
+
+/**
+ * Changes the password of a signed-in user.
+ *
+ * The CURRENT password is required even though the caller is authenticated: a
+ * borrowed unlocked phone should not be able to lock the owner out of their
+ * own account.
+ *
+ * Other devices are signed out, this one is not. Changing your password should
+ * not log you out of the device you are holding — that reads as a failure.
+ */
+export async function changePassword(input: {
+  userId: string;
+  currentPassword: string;
+  newPassword: string;
+  keepDeviceId?: string;
+}): Promise<void> {
+  const problem = passwordProblem(input.newPassword);
+  if (problem !== null) {
+    throw new AppError(
+      problem === 'too_short' ? 'PASSWORD_TOO_SHORT' : 'PASSWORD_TOO_LONG',
+      problem === 'too_short' ? 'Use at least 8 characters' : 'That password is too long',
+      422,
+    );
+  }
+
+  const { rows } = await pool.query<{ password_hash: string | null }>(
+    'SELECT password_hash FROM users WHERE id = $1',
+    [input.userId],
+  );
+
+  const current = rows[0]?.password_hash;
+  if (!current) {
+    throw new AppError('NO_PASSWORD', 'This account does not use a password', 422);
+  }
+
+  if (!(await verifyPassword(input.currentPassword, current))) {
+    throw new AppError('INVALID_CREDENTIALS', 'That password is not correct', 401);
+  }
+
+  const passwordHash = await hashPassword(input.newPassword);
+  await pool.query('UPDATE users SET password_hash = $2 WHERE id = $1', [
+    input.userId,
+    passwordHash,
+  ]);
+
+  await revokeOtherDevices(input.userId, input.keepDeviceId);
+  logger.info('password changed', { user_id: input.userId });
+}
+
+async function revokeOtherDevices(userId: string, keepDeviceId?: string): Promise<void> {
+  if (keepDeviceId === undefined) {
+    await revokeRefreshTokens(userId);
+    return;
+  }
+
+  await pool.query(
+    `UPDATE refresh_tokens SET revoked_at = now()
+      WHERE user_id = $1 AND device_id IS DISTINCT FROM $2 AND revoked_at IS NULL`,
+    [userId, keepDeviceId],
+  );
 }

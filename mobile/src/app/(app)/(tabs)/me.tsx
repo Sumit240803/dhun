@@ -262,6 +262,27 @@ export default function MeTab() {
             />
           </Section>
 
+          {/*
+            Only for a registered account. A guest has no password, no other
+            devices and nothing to delete — the row they need is "sign up",
+            which is already above.
+          */}
+          {!isGuest && (
+            <Section title={t('account.section')}>
+              <ListItem
+                title={t('account.title')}
+                subtitle={t('account.sessionsSubtitle')}
+                left={<Ionicons name="shield-outline" size={20} color={colors.text.secondary} />}
+                right={<Ionicons name="chevron-forward" size={18} color={colors.text.faint} />}
+                onPress={() => {
+                  haptic.selection();
+                  router.push('/(app)/account');
+                }}
+                testID="account-row"
+              />
+            </Section>
+          )}
+
           <Section title={t('me.legalSection')}>
             {LEGAL.map((item, index) => (
               <View key={String(item.href)}>

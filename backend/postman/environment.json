@@ -115,6 +115,36 @@
       "value": "",
       "type": "default",
       "enabled": true
+    },
+    {
+      "key": "email",
+      "value": "sumit@example.com",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "password",
+      "value": "correct horse battery",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "newPassword",
+      "value": "a brand new passphrase",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "emailCode",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "targetDeviceId",
+      "value": "",
+      "type": "default",
+      "enabled": true
     }
   ],
   "_postman_variable_scope": "environment"

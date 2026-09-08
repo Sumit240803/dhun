@@ -160,6 +160,27 @@ export default function EmailAuthScreen() {
         </Column>
       </Animated.View>
 
+      {/*
+        Only on sign-in. Offering a reset to someone in the middle of CREATING
+        an account is noise, and worse, it hints the address might already exist.
+      */}
+      {mode === 'signIn' && (
+        <Pressable
+          onPress={() => {
+            haptic.selection();
+            router.push('/(auth)/forgot-password');
+          }}
+          accessibilityRole="button"
+          style={styles.forgot}
+          hitSlop={spacing.sm}
+          testID="forgot-password"
+        >
+          <Text variant="caption" tone="brand">
+            {t('email.forgot')}
+          </Text>
+        </Pressable>
+      )}
+
       {submit.error != null && !credentialsError && (
         <View style={styles.banner}>
           <Banner message={errorMessage(submit.error)} detail={traceReference(submit.error)} />
@@ -199,6 +220,7 @@ export default function EmailAuthScreen() {
 const styles = StyleSheet.create({
   header: { height: 44, marginLeft: -spacing.xs },
   intro: { marginTop: spacing.lg, marginBottom: spacing.xl },
+  forgot: { alignSelf: 'flex-start', marginTop: spacing.md },
   banner: { marginTop: spacing.lg },
   spacer: { flex: 1, minHeight: spacing.xl },
 });

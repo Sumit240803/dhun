@@ -6,6 +6,7 @@
 
 import { api } from '@/api/client';
 import type {
+  ActiveSession,
   DevicePayload,
   OtpRequestResponse,
   SessionResponse,
@@ -75,4 +76,44 @@ export const authApi = {
   requestEmailVerification: () => api.post<{ sent: true }>('auth/email/verify/request', {}),
 
   confirmEmail: (code: string) => api.post<{ verified: true }>('auth/email/verify', { code }),
+
+  /**
+   * Starts a password reset.
+   *
+   * Always resolves, whether or not the address exists — the server refuses to
+   * say, and the screen must not either. Showing "no account with that email"
+   * would turn the form into an account-existence oracle.
+   */
+  forgotPassword: (email: string) =>
+    api.post<{ sent: true }>('auth/email/password/forgot', { email }, { anonymous: true }),
+
+  resetPassword: (input: { email: string; code: string; password: string }) =>
+    api.post<{ reset: true }>('auth/email/password/reset', input, { anonymous: true }),
+
+  /**
+   * Changes the password of a signed-in user.
+   *
+   * `deviceId` is this device, kept signed in. Every other device is signed
+   * out, which is the point of the whole action.
+   */
+  changePassword: (input: { currentPassword: string; newPassword: string; keepDeviceId: string }) =>
+    api.post<{ changed: true }>('auth/password/change', input),
+
+  listSessions: (deviceId: string) =>
+    api.get<{ sessions: ActiveSession[] }>(
+      `auth/sessions?deviceId=${encodeURIComponent(deviceId)}`,
+    ),
+
+  revokeSession: (deviceId: string) =>
+    api.delete<{ revoked: number }>(`auth/sessions/${encodeURIComponent(deviceId)}`),
+
+  /**
+   * Deletes the account.
+   *
+   * Required by Google Play for any app with accounts, and by DPDP Act 2023.
+   * The server anonymises rather than dropping the row — the ledger is
+   * append-only and its entries point at this user.
+   */
+  deleteAccount: (password?: string) =>
+    api.post<{ deleted: true }>('auth/account/delete', password ? { password } : {}),
 };

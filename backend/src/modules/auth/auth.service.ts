@@ -9,13 +9,10 @@ import { getRoles, RoleGrant } from './permissions.js';
 import { verifyOtp } from './otp.service.js';
 import { verifyWidgetAccessToken } from './msg91.widget.js';
 import { issueTokenPair, TokenPair } from './tokens.js';
+import { upsertDevice, type DeviceInfo } from './devices.js';
 
-export interface DeviceInfo {
-  deviceId: string;
-  platform: 'android' | 'ios' | 'web';
-  appVersion?: string;
-  pushToken?: string;
-}
+// Re-exported so the many call sites that import the type from here keep working.
+export type { DeviceInfo };
 
 export interface SessionUser {
   id: string;
@@ -29,25 +26,6 @@ export interface SessionUser {
   /** Display name AND date of birth are both set — the signup flow is finished. */
   profileComplete: boolean;
   roles: RoleGrant[];
-}
-
-async function upsertDevice(client: PoolClient, userId: string, device: DeviceInfo) {
-  await client.query(
-    'INSERT INTO user_devices (id, user_id, device_id, platform, app_version, push_token)' +
-      ' VALUES ($1,$2,$3,$4,$5,$6)' +
-      ' ON CONFLICT (user_id, device_id) DO UPDATE' +
-      '   SET last_seen_at = now(),' +
-      '       app_version = COALESCE(EXCLUDED.app_version, user_devices.app_version),' +
-      '       push_token = COALESCE(EXCLUDED.push_token, user_devices.push_token)',
-    [
-      uuidv7(),
-      userId,
-      device.deviceId,
-      device.platform,
-      device.appVersion ?? null,
-      device.pushToken ?? null,
-    ],
-  );
 }
 
 /**
