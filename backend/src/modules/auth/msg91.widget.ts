@@ -17,11 +17,24 @@
 //     any phone number can be claimed. It must never be served to a client,
 //     logged, or returned in an error.
 //
-// ⚠️ THE REQUEST SHAPE BELOW IS UNCONFIRMED. MSG91's public docs render the
-// endpoint client-side and did not yield a spec; the panel's Server-Side
-// Integration section has the authoritative version. Both the URL and the body
-// are config-driven for that reason. What is NOT left to configuration is the
-// failure behaviour: anything other than an unambiguous success is a rejection.
+// ⚠️ THE REQUEST SHAPE IS PARTLY UNCONFIRMED. What a live probe established:
+//
+//   · The AUTHKEY is valid. Without it MSG91 answers `AuthenticationFailure`;
+//     with it the request gets past authentication and into a handler.
+//   · The base path is right — it comes from the SDK's own api.url.ts.
+//   · The `/verifyAccessToken` LEAF could not be confirmed. An authenticated
+//     request returns an empty 500 for both this path and a deliberately
+//     nonsense one, so the probe cannot tell them apart. A real token from the
+//     widget is the only way to settle it.
+//
+// ‼️ THE FINDING THAT MATTERS MOST: MSG91 RETURNS HTTP 200 WITH ERROR BODIES.
+//
+//     POST .../definitelyNotARoute  ->  200 {"type":"error","code":401}
+//
+// So `response.ok` is TRUE on failure. A status-only check would have treated
+// an authentication failure as proof and signed in anyone who asked. The body's
+// `type` is the real signal, and both are checked below — that is not belt and
+// braces, it is the only thing standing between this and a total bypass.
 
 import { config } from '../../config/index.js';
 import { AppError } from '../../infra/errors.js';
