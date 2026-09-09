@@ -61,7 +61,9 @@
       ],
       "expo-localization",
       "@sentry/react-native",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "@livekit/react-native-expo-plugin",
+      "@config-plugins/react-native-webrtc"
     ],
     "experiments": {
       "typedRoutes": true,

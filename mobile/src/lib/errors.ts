@@ -45,6 +45,15 @@ const codeMessages: Partial<Record<string, MessageKey>> = {
   [ApiErrorCode.NO_PASSWORD]: 'account.noPassword',
   [ApiErrorCode.PHONE_TAKEN]: 'account.phoneTaken',
   [ApiErrorCode.PHONE_UNCHANGED]: 'account.phoneUnchanged',
+
+  [ApiErrorCode.ROOM_ENDED]: 'room.ended',
+  [ApiErrorCode.ROOM_BANNED]: 'room.kicked',
+  [ApiErrorCode.SEAT_TAKEN]: 'room.seatTaken',
+  [ApiErrorCode.SEAT_RESERVED]: 'room.seatReserved',
+  [ApiErrorCode.ALREADY_SEATED]: 'room.alreadySeated',
+  // A media-server outage, not the user getting anything wrong. Same sentence
+  // as any other service being briefly unavailable.
+  [ApiErrorCode.RTC_UNAVAILABLE]: 'errors.serviceUnavailable',
 };
 
 /** The sentence to show. Never the raw `error.message` for an unknown code. */

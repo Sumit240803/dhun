@@ -56,6 +56,26 @@ export const ApiErrorCode = {
   /** The "new" number is the one already on the account. */
   PHONE_UNCHANGED: 'PHONE_UNCHANGED',
   INVALID_PHONE: 'INVALID_PHONE',
+
+  // rooms
+  /** The host already has a live room. Carries `roomId` so the app can open it. */
+  ALREADY_LIVE: 'ALREADY_LIVE',
+  ROOM_NOT_FOUND: 'ROOM_NOT_FOUND',
+  /** 410. The broadcast is over — go back to the feed, not to a retry. */
+  ROOM_ENDED: 'ROOM_ENDED',
+  /** The host kicked you. Rejoining is refused, not merely disconnected. */
+  ROOM_BANNED: 'ROOM_BANNED',
+  NOT_ROOM_HOST: 'NOT_ROOM_HOST',
+  SEAT_TAKEN: 'SEAT_TAKEN',
+  SEAT_RESERVED: 'SEAT_RESERVED',
+  SEAT_OUT_OF_RANGE: 'SEAT_OUT_OF_RANGE',
+  ALREADY_SEATED: 'ALREADY_SEATED',
+  NOT_SEATED: 'NOT_SEATED',
+  NOT_A_PARTY_ROOM: 'NOT_A_PARTY_ROOM',
+  HOST_SEAT_FIXED: 'HOST_SEAT_FIXED',
+  CANNOT_KICK_HOST: 'CANNOT_KICK_HOST',
+  /** The media server is unreachable. A provider outage, not the user's doing. */
+  RTC_UNAVAILABLE: 'RTC_UNAVAILABLE',
   CODE_INVALID: 'CODE_INVALID',
   CODE_NOT_FOUND: 'CODE_NOT_FOUND',
   CODE_ATTEMPTS_EXCEEDED: 'CODE_ATTEMPTS_EXCEEDED',
@@ -194,6 +214,60 @@ export interface FeedRoom {
   seatCapacity: number | null;
   video: boolean;
   trending: boolean;
+}
+
+/**
+ * A credential to join one media room, minted by our server.
+ *
+ * Short-lived on purpose — it is redeemed within seconds of being issued, and
+ * a long-lived one is a standing invitation to a room the user may since have
+ * been banned from. The client refuses to start a join it knows has expired.
+ */
+export interface RtcJoinToken {
+  token: string;
+  /** Served, not bundled, so the media server can move without an app release. */
+  url: string;
+  /** Unix seconds. */
+  expiresAt: number;
+}
+
+export interface LiveRoom {
+  id: string;
+  hostId: string;
+  hostName: string | null;
+  title: string;
+  tag: RoomTag;
+  country: string;
+  coverUrl: string | null;
+  video: boolean;
+  /** Non-null ONLY for a party room. Its presence is what tells the two apart. */
+  seatCapacity: number | null;
+  seatsTaken: number;
+  viewers: number;
+  startedAt: string;
+}
+
+export interface RoomSeat {
+  seatIndex: number;
+  userId: string;
+  displayName: string | null;
+  /** Muted BY THE HOST — not the same as someone muting themselves. */
+  muted: boolean;
+  takenAt: string;
+}
+
+export interface JoinedRoom {
+  room: LiveRoom;
+  seats: RoomSeat[];
+  rtc: RtcJoinToken;
+  /**
+   * Whether this user may speak.
+   *
+   * Decided by the SERVER from the seat table — the client cannot ask for it
+   * and must not infer it. Mirrored inside the token's grants, so a client that
+   * ignored this would still be refused by the media server.
+   */
+  canPublish: boolean;
 }
 
 // --- messages ---------------------------------------------------------------
