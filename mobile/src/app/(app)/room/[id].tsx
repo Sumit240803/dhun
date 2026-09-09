@@ -199,6 +199,11 @@ export default function RoomScreen() {
                   hostLabel={t('room.hostLabel')}
                   onPress={() => {
                     if (!seat) {
+                      // Already holding one. The server refuses with
+                      // ALREADY_SEATED, and surfacing that as an error for a
+                      // tap the UI invited is worse than not inviting it:
+                      // leave your seat first, then take another.
+                      if (mySeat !== undefined) return;
                       haptic.tap();
                       actions.takeSeat.mutate(index);
                       return;

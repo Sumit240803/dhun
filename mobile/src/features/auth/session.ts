@@ -7,6 +7,7 @@
 
 import { api, configureApiClient } from '@/api/client';
 import type { SessionResponse, SessionUser, TokenPair } from '@/api/types';
+import { setAnalyticsUser } from '@/lib/analytics';
 import { sessionStore } from '@/store/session';
 import { tokenStorage } from './storage';
 
@@ -46,6 +47,23 @@ configureApiClient({
     if (__DEV__) console.warn('[session] ended:', reason);
     void signOut();
   },
+});
+
+/**
+ * Keeps analytics told who is acting.
+ *
+ * Subscribed ONCE rather than called from each of the four places the session
+ * changes — sign-in, restore, refresh and sign-out. Those four drifted: none of
+ * them called it, so every event in the taxonomy shipped `user_id: undefined`
+ * and nothing could be attributed to a person. A signup that cannot be tied to
+ * a user is not a funnel, it is a counter.
+ *
+ * Module scope on purpose. It has to be live before the first screen renders,
+ * and there is exactly one session store.
+ */
+sessionStore.subscribe(() => {
+  const user = sessionStore.get().user;
+  setAnalyticsUser({ userId: user?.id });
 });
 
 /**
