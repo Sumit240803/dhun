@@ -1,0 +1,63 @@
+# LiveKit — LOCAL DEVELOPMENT ONLY. Never deploy this file.
+#
+# Run it with:
+#   .\livekit-server.exe --config D:\WorkPlace\rtc-chat-game-app\backend\ops\livekit-dev.yaml
+#
+# The credentials below are committed on purpose: they are worthless outside a
+# laptop on one Wi-Fi network. Production generates its own with
+# `openssl rand -hex 32` and keeps them out of git.
+
+port: 7880
+
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 60000
+
+  # ‼️ FALSE, and this is the setting that decides whether audio works.
+  #
+  # The default is `true`, which makes LiveKit discover the machine's PUBLIC
+  # address over STUN and advertise that to clients. On a home LAN behind
+  # CGNAT that address is unroutable from the phone sitting next to you, so
+  # the connection appears to succeed and then no audio ever arrives — which
+  # is the single most common way a self-hosted setup wastes an evening.
+  use_external_ip: false
+
+  # This machine has TWO network interfaces up: Wi-Fi on 192.168.1.2 and a
+  # Hyper-V virtual adapter for WSL on 172.26.64.1. With auto-detection there
+  # is nothing stopping LiveKit advertising the WSL address, which no phone
+  # can reach. Naming the right one removes the coin flip.
+  #
+  # CHANGE THIS when your LAN address changes — it is the same value as the
+  # host in LIVEKIT_URL and in the app's EXPO_PUBLIC_API_URL.
+  node_ip: 192.168.1.2
+
+# Must match LIVEKIT_API_KEY / LIVEKIT_API_SECRET in backend/.env.
+# The secret is long because LiveKit rejects a short one outside `--dev` mode.
+keys:
+  devkey: devsecret-local-only-not-for-production-32
+
+# Where the media server reports what happened. Without this the app still
+# works — you can go live, join, and take seats — but viewer counts stay at
+# zero and room_sessions never records the host's hours, because both are fed
+# entirely by these events.
+#
+# `api_key` names which key above signs the callback. Our handler verifies that
+# signature against the same secret, so a wrong value here reads as a 401 that
+# looks exactly like a misconfiguration.
+webhook:
+  api_key: devkey
+  urls:
+    - http://192.168.1.2:3000/v1/webhooks/livekit
+
+# Built-in TURN, off. It is for users behind restrictive corporate NATs, and on
+# a home Wi-Fi where the phone and the server are on the same subnet there is
+# nothing for it to relay around.
+turn:
+  enabled: false
+
+logging:
+  level: info
+  # LiveKit's WebRTC layer at anything below `error` is a firehose that hides
+  # the four lines you actually want.
+  pion_level: error
