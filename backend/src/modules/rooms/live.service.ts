@@ -17,6 +17,7 @@ import { pool, withTransaction } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
 import { logger } from '../../infra/logger.js';
 import {
+  announceRoomEnded,
   closeRoom,
   LISTENER_GRANTS,
   mintJoinToken,
@@ -303,6 +304,10 @@ export async function endRoom(input: { roomId: string; hostId: string }): Promis
   if (!ended) return;
 
   logger.info('room ended', { room_id: input.roomId, user_id: input.hostId });
+
+  // So viewers leave the screen rather than sitting in a room that no longer
+  // exists, watching a seat map that will never change again.
+  announceRoomEnded(input.roomId);
 
   // Best effort, deliberately. The room is already closed everywhere that
   // matters; failing the request now would tell the host their room is still

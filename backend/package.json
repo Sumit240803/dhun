@@ -17,7 +17,8 @@
     "docker:up": "docker compose up -d postgres postgres-test redis",
     "docker:down": "docker compose down",
     "worker": "tsx --env-file=.env src/workers/index.ts",
-    "worker:run": "tsx --env-file=.env src/workers/index.ts --run"
+    "worker:run": "tsx --env-file=.env src/workers/index.ts --run",
+    "gateway": "tsx watch --env-file=.env src/gateway/index.ts"
   },
   "dependencies": {
     "express": "^4.19.2",
@@ -27,6 +28,7 @@
     "livekit-server-sdk": "^2.19.0",
     "pg": "^8.12.0",
     "uuidv7": "^1.0.2",
+    "ws": "^8.21.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -34,6 +36,7 @@
     "@types/node": "^22.19.21",
     "@types/pg": "^8.11.6",
     "@types/supertest": "^7.2.1",
+    "@types/ws": "^8.18.1",
     "supertest": "^7.2.2",
     "tsx": "^4.16.0",
     "typescript": "^5.5.0",

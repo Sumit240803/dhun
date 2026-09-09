@@ -8,6 +8,8 @@
 
 export { buildWebhooksRouter } from './webhooks.routes.js';
 
+export { announceRoomEnded, announceSeats } from './announce.js';
+
 export {
   closeRoom,
   isRtcConfigured,

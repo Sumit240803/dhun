@@ -27,6 +27,7 @@ import { pool, withTransaction } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
 import { logger } from '../../infra/logger.js';
 import {
+  announceSeats,
   LISTENER_GRANTS,
   muteParticipant,
   removeParticipant,
@@ -145,6 +146,11 @@ export async function takeSeat(input: {
     user_id: input.userId,
     seat: input.seatIndex,
   });
+
+  // Pushed to everyone looking at the room. Without this the seat map is only
+  // as fresh as the client's next poll, and the person who just took the mic
+  // appears to the room several seconds after they start talking.
+  await announceSeats(input.roomId);
 }
 
 /**
@@ -196,6 +202,8 @@ export async function releaseSeat(input: {
     user_id: input.userId,
     actor_id: input.actorId,
   });
+
+  await announceSeats(input.roomId);
 }
 
 /** The row half of releasing, shared with the rollback path above. */
@@ -258,6 +266,8 @@ export async function setSeatMuted(input: {
     user_id: input.userId,
     muted: input.muted,
   });
+
+  await announceSeats(input.roomId);
 }
 
 /**
@@ -317,4 +327,6 @@ export async function kickFromRoom(input: {
   } catch (err) {
     logger.warn('media disconnect failed after kick', { room_id: input.roomId, err });
   }
+
+  await announceSeats(input.roomId);
 }
