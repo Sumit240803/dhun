@@ -212,7 +212,7 @@ sitting unused in the client since the foundation (day-1 non-negotiable #5).
 **Still M5:** joining a room, seats, presence, chat send, and the realtime gateway.
 All of those need open decision #5 settled.
 
-### M5 · Rooms, realtime & chat (backend + app) — RTC BACKEND DONE
+### M5 · Rooms, realtime & chat (backend + app) — BUILT, UNVERIFIED
 
 **Open decision #5 settled: LiveKit, self-hosted.** The managed vendors cost 20–50% of
 gross revenue at 10K DAU against ₹34–66K self-hosted, LiveKit is the only one that *can*
@@ -237,12 +237,34 @@ Three things worth carrying forward:
   stretch the host was actually live, so a tunnel does not scatter the audience and does
   not get paid as host hours either.
 
-**Still M5:** the realtime gateway as its own process (WS, chat, mic-request queue,
-cross-instance fanout), the Hindi/Hinglish text filter, and the whole app side — live
-feed, room view, go-live, seat UI, chat. None of those depend on the media server.
+**The gateway is built too** (`014_room_chat.sql`, 33 tests). Third process,
+`npm run gateway`: WS protocol with an auth handshake, chat, the mic-request queue,
+pushed seat maps, presence, and cross-instance fanout over Redis. The app side is
+complete — feed, room view, go-live, seat UI and chat — and the 3-second seat poll it
+replaced is deleted.
 
-**Exit:** two devices in one room with working audio · accurate presence · chat delivered
-under 200ms · the API can be redeployed without dropping live rooms.
+**A deliberate divergence from what this file said.** It specified "presence and seat
+maps in Redis". Seats went to **Postgres** instead: a contested seat needs a transaction
+and a uniqueness constraint, and that is what makes two people tapping at once resolve
+to exactly one winner. Redis cannot do that, and a seat map that occasionally seats two
+people is worse than a slower one. Presence stays in process memory, with Redis only as
+the pub/sub bus between instances.
+
+**Seats are requested, not grabbed.** With eight seats and two hundred listeners an open
+grab is won by whoever taps fastest, and the host has no say in who speaks in their own
+room. Tapping an empty seat raises a hand; the host approves from a queue only they see.
+
+**Exit — none of it verified yet:** two devices in one room with working audio (one
+publisher has been proved, not two) · accurate presence · chat delivered under 200ms ·
+the API redeployed without dropping live rooms. That last one is the payoff for the
+process split and should be tested deliberately: restart the API with two phones in a
+room and check audio and chat both survive.
+
+**Still M5:** nothing but that verification.
+
+**Deployment note:** this is now THREE processes, not two. The gateway is the one that
+cannot be rolled without dropping sockets — clients reconnect with backoff, but a deploy
+during peak hours is felt.
 
 ### M6 · Gifting (backend + app)
 

@@ -8,7 +8,12 @@ import {
   consecutiveCleanDays,
   runReconciliation,
 } from '../src/workers/jobs/reconciliation.js';
-import { purgeIdempotencyBodiesJob, reapStuckJobRunsJob } from '../src/workers/jobs/retention.js';
+import {
+  purgeIdempotencyBodiesJob,
+  purgeMicRequestsJob,
+  purgeRoomMessagesJob,
+  reapStuckJobRunsJob,
+} from '../src/workers/jobs/retention.js';
 import { runJobOnce } from '../src/workers/scheduler.js';
 import { setEventPublisher, type OutboxEventRecord } from '../src/workers/publisher.js';
 import { closePool, createUser, resetLedger } from './helpers.js';
@@ -235,6 +240,68 @@ describe('retention', () => {
     // years later. Only the payload is dropped.
     expect(rows[0].idempotency_key).toBe(key);
     expect(rows[0].response_body).toBeNull();
+  });
+
+  it('purges room chat past a fortnight, in batches', async () => {
+    // The fastest-growing table in the system. It was promised a purge in the
+    // migration that created it and did not have one — invisible until the
+    // disk fills.
+    const host = await createUser('active');
+    const roomId = uuidv7();
+    await pool.query(
+      "INSERT INTO rooms (id, host_user_id, title, tag) VALUES ($1,$2,'Old room','chatting')",
+      [roomId, host],
+    );
+
+    // Deliberately more than one batch, so the loop is what is under test
+    // rather than a single statement that happens to work.
+    await pool.query(
+      `INSERT INTO room_messages (id, room_id, user_id, body, created_at)
+       SELECT gen_random_uuid(), $1, $2, 'old chatter', now() - interval '20 days'
+         FROM generate_series(1, 5200)`,
+      [roomId, host],
+    );
+    await pool.query(
+      `INSERT INTO room_messages (id, room_id, user_id, body, created_at)
+            VALUES (gen_random_uuid(), $1, $2, 'said today', now())`,
+      [roomId, host],
+    );
+
+    await runJobOnce(purgeRoomMessagesJob);
+
+    const { rows } = await pool.query<{ body: string }>(
+      'SELECT body FROM room_messages WHERE room_id = $1',
+      [roomId],
+    );
+    expect(rows).toEqual([{ body: 'said today' }]);
+  });
+
+  it('purges resolved mic requests but never a pending one', async () => {
+    // A pending row belongs to a live room and a person watching for an
+    // answer. Deleting it drops them out of the queue with no explanation.
+    const host = await createUser('active');
+    const waiting = await createUser('active');
+    const denied = await createUser('active');
+    const roomId = uuidv7();
+    await pool.query(
+      "INSERT INTO rooms (id, host_user_id, title, tag) VALUES ($1,$2,'Queue room','chatting')",
+      [roomId, host],
+    );
+
+    await pool.query(
+      `INSERT INTO room_mic_requests (room_id, user_id, status, requested_at, resolved_at)
+            VALUES ($1, $2, 'denied', now() - interval '30 days', now() - interval '30 days'),
+                   ($1, $3, 'pending', now() - interval '30 days', NULL)`,
+      [roomId, denied, waiting],
+    );
+
+    await runJobOnce(purgeMicRequestsJob);
+
+    const { rows } = await pool.query<{ user_id: string }>(
+      'SELECT user_id FROM room_mic_requests WHERE room_id = $1',
+      [roomId],
+    );
+    expect(rows).toEqual([{ user_id: waiting }]);
   });
 
   it('marks a job that died mid-run', async () => {

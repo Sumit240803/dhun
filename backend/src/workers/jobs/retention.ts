@@ -83,6 +83,76 @@ export const purgeRefreshTokensJob: Job = {
 };
 
 /**
+ * Clears old room chat.
+ *
+ * This table grows faster than every other one here combined — a busy room is
+ * hundreds of rows an hour, and none of it is interesting after a fortnight.
+ * It was promised a purge in the migration that created it and did not have
+ * one, which is the kind of gap that is invisible until the disk fills.
+ *
+ * Fourteen days, chosen against what actually reads this table:
+ *
+ *   · The join backlog reads the last 40 messages — minutes, not days.
+ *   · A moderation case (M9) is opened from a report, and a report filed a
+ *     fortnight after the message is not one anyone can act on.
+ *   · IT Rules 2021 require a grievance process able to examine what happened.
+ *     Two weeks covers the 15-day acknowledgement window comfortably.
+ *
+ * Deleted in BATCHES rather than one statement. A single DELETE over a month of
+ * a busy room takes a long lock on the table the gateway writes to on every
+ * chat line, and the whole point of running at 05:15 IST is to be invisible.
+ */
+export const purgeRoomMessagesJob: Job = {
+  name: 'purge_room_messages',
+  dailyAtIst: '05:15',
+  run: async () => {
+    const BATCH = 5_000;
+    let deleted = 0;
+
+    for (;;) {
+      const { rowCount } = await pool.query(
+        `DELETE FROM room_messages
+          WHERE id IN (
+            SELECT id FROM room_messages
+             WHERE created_at < now() - interval '14 days'
+             LIMIT $1
+          )`,
+        [BATCH],
+      );
+
+      deleted += rowCount ?? 0;
+      // A short batch means the last one. Stopping here rather than looping
+      // until zero saves a final empty scan of a large table.
+      if ((rowCount ?? 0) < BATCH) break;
+    }
+
+    return deleted ? { deleted } : undefined;
+  },
+};
+
+/**
+ * Clears resolved mic requests.
+ *
+ * Only the terminal ones. A row still `pending` belongs to a live room and a
+ * person watching for an answer — deleting it would drop them out of the
+ * queue with no explanation.
+ *
+ * Seven days rather than fourteen: the signal these carry is "a host keeps
+ * refusing this person", which is a pattern read within days or not at all.
+ */
+export const purgeMicRequestsJob: Job = {
+  name: 'purge_mic_requests',
+  dailyAtIst: '05:30',
+  run: async () => {
+    const { rowCount } = await pool.query(
+      `DELETE FROM room_mic_requests
+        WHERE status <> 'pending' AND resolved_at < now() - interval '7 days'`,
+    );
+    return rowCount ? { deleted: rowCount } : undefined;
+  },
+};
+
+/**
  * Flags jobs that started and never finished.
  *
  * A row left at 'running' means the worker died mid-job. Harmless on its own —

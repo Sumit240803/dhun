@@ -19,8 +19,10 @@ import { outboxShipperJob, shipOutboxBatch } from './jobs/outboxShipper.js';
 import { reconciliationJob } from './jobs/reconciliation.js';
 import {
   purgeIdempotencyBodiesJob,
+  purgeMicRequestsJob,
   purgeOtpChallengesJob,
   purgeRefreshTokensJob,
+  purgeRoomMessagesJob,
   purgeShippedOutboxJob,
   reapStuckJobRunsJob,
 } from './jobs/retention.js';
@@ -31,8 +33,10 @@ export const JOBS: Job[] = [
   reconciliationJob,
   purgeIdempotencyBodiesJob,
   purgeShippedOutboxJob,
+  purgeMicRequestsJob,
   purgeOtpChallengesJob,
   purgeRefreshTokensJob,
+  purgeRoomMessagesJob,
   reapStuckJobRunsJob,
 ];
 
