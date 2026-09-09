@@ -151,6 +151,18 @@
       "value": "+919876500001",
       "type": "default",
       "enabled": true
+    },
+    {
+      "key": "rtcToken",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "rtcUrl",
+      "value": "",
+      "type": "default",
+      "enabled": true
     }
   ],
   "_postman_variable_scope": "environment"

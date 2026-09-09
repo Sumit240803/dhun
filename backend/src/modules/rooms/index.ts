@@ -1,22 +1,21 @@
 // PUBLIC API of the rooms module.
 //
-// The READ side is built: listing live rooms is what the app opens on, what
+// The READ side is the feed: listing live rooms is what the app opens on, what
 // host seeding fills, and none of its shape depends on the RTC vendor.
 //
-// Joining, seats and presence are M5 — they need the realtime gateway and a
-// vendor decision (open decision #5), and writing them now would mean guessing
-// at a token exchange.
+// The WRITE side is going live, joining, seats and host moderation. It decides
+// WHO MAY do something; the realtime module turns that decision into a media
+// credential. Nothing here imports an SDK.
+//
+// Still M5: text chat, the mic-request queue, and the WebSocket gateway that
+// carries them. None of those need the media server, and none are built.
 
 export { buildRoomsRouter } from './rooms.routes.js';
+
 export { listFeed } from './rooms.service.js';
 export type { FeedRoom, FeedCategory } from './rooms.service.js';
 
-export async function joinRoom(/* userId, roomId */): Promise<{ rtcToken: string }> {
-  // M5: add presence, mint an RTC token via the realtime module, return it.
-  throw new Error('not implemented');
-}
+export { endRoom, getRoom, goLive, joinRoom, listSeats } from './live.service.js';
+export type { LiveRoom, RoomSeat, RoomTag } from './live.service.js';
 
-export async function takeSeat(/* userId, roomId, seatIndex */): Promise<void> {
-  // M5.
-  throw new Error('not implemented');
-}
+export { kickFromRoom, releaseSeat, setSeatMuted, takeSeat } from './seats.service.js';

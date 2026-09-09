@@ -212,18 +212,35 @@ sitting unused in the client since the foundation (day-1 non-negotiable #5).
 **Still M5:** joining a room, seats, presence, chat send, and the realtime gateway.
 All of those need open decision #5 settled.
 
-### M5 · Rooms, realtime & chat (backend + app)
+### M5 · Rooms, realtime & chat (backend + app) — RTC BACKEND DONE
 
-Realtime gateway as its **own process**. WS protocol, auth handshake, presence and seat maps
-in Redis, cross-instance fanout via Redis pub/sub. RTC behind a vendor interface.
+**Open decision #5 settled: LiveKit, self-hosted.** The managed vendors cost 20–50% of
+gross revenue at 10K DAU against ₹34–66K self-hosted, LiveKit is the only one that *can*
+be self-hosted, and the only one with an official Expo config plugin.
 
-`rooms`, `room_sessions` (go-live start/end — this feeds host hours and the seeding
-guarantee). Text chat, emoji, mic request queue. Text filter with Hindi/Hinglish
-transliteration.
+**Built** (migration `013_room_seats.sql`, 30 tests): go live · join · mic seats · host
+mute and kick · end room · LiveKit webhooks. Everything vendor-shaped is behind an
+`RtcProvider` interface in `modules/realtime/`, so the decision stays reversible.
 
-App: live feed, room view, go-live, seat UI, chat.
+The authorisation boundary, stated once: **Postgres decides who may do something; LiveKit
+enforces what they can do once connected.** Publish rights come from the seat table and
+there is no way to request them.
 
-**Depends on:** RTC vendor decided.
+Three things worth carrying forward:
+
+- **An omitted LiveKit grant is a granted one.** `canPublish` left out means publish is
+  enabled. Every grant is explicit, including the `false` ones.
+- **Presence is NOT mirrored into Postgres.** It would drift from the media server within
+  seconds of the first dropped connection and the two would disagree in front of a user.
+  Seats, bans and sessions are ours; who is connected is LiveKit's.
+- **A host disconnecting is not the room ending.** `room_sessions` records each unbroken
+  stretch the host was actually live, so a tunnel does not scatter the audience and does
+  not get paid as host hours either.
+
+**Still M5:** the realtime gateway as its own process (WS, chat, mic-request queue,
+cross-instance fanout), the Hindi/Hinglish text filter, and the whole app side — live
+feed, room view, go-live, seat UI, chat. None of those depend on the media server.
+
 **Exit:** two devices in one room with working audio · accurate presence · chat delivered
 under 200ms · the API can be redeployed without dropping live rooms.
 

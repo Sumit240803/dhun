@@ -45,6 +45,31 @@ const schema = z.object({
   GOOGLE_PLAY_PACKAGE_NAME: z.string().optional(),
   GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: z.string().optional(),
 
+  // ── RTC (LiveKit) ────────────────────────────────────────────────────────
+  //
+  // All optional, so a machine without LiveKit still boots and serves every
+  // other endpoint. What is NOT optional is the pair: a URL without the
+  // credentials is a half-configured deploy that would fail at the first join
+  // rather than at startup, which is checked below.
+  //
+  // The SECRET signs join tokens and every admin call. It is the equivalent of
+  // the JWT secret for the media plane: whoever holds it can mint a token to
+  // speak in any room as anyone. It never leaves this process.
+  LIVEKIT_URL: z.string().optional(),
+  LIVEKIT_API_KEY: z.string().optional(),
+  LIVEKIT_API_SECRET: z.string().optional(),
+  // Short by design. A join token is redeemed within seconds of being issued;
+  // a long-lived one is a standing invitation to a room the user may since have
+  // been banned from.
+  LIVEKIT_TOKEN_TTL_MINUTES: z.coerce.number().min(1).max(60).default(10),
+  // Seconds. A slow media server must not hold an API request open — the seat
+  // the user tapped either works quickly or reports a failure they can retry.
+  LIVEKIT_REQUEST_TIMEOUT_SECONDS: z.coerce.number().min(1).max(30).default(8),
+  // How long LiveKit keeps a room alive after the last participant leaves.
+  // A host whose train enters a tunnel should come back to their room, not to
+  // a dead one with the audience gone.
+  LIVEKIT_EMPTY_TIMEOUT_SECONDS: z.coerce.number().min(10).max(1800).default(120),
+
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
 
@@ -108,6 +133,23 @@ export const config = {
     provider: env.IAP_PROVIDER,
     playPackageName: env.GOOGLE_PLAY_PACKAGE_NAME,
     playServiceAccountJson: env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON,
+  },
+
+  livekit: {
+    url: env.LIVEKIT_URL,
+    apiKey: env.LIVEKIT_API_KEY,
+    apiSecret: env.LIVEKIT_API_SECRET,
+    tokenTtlMinutes: env.LIVEKIT_TOKEN_TTL_MINUTES,
+    requestTimeoutSeconds: env.LIVEKIT_REQUEST_TIMEOUT_SECONDS,
+    emptyTimeoutSeconds: env.LIVEKIT_EMPTY_TIMEOUT_SECONDS,
+    /**
+     * All three present. Checked once, here, rather than at every call site —
+     * and it is what lets the rest of the app boot on a machine with no media
+     * server while every RTC endpoint answers a clean 503.
+     */
+    get configured(): boolean {
+      return Boolean(env.LIVEKIT_URL && env.LIVEKIT_API_KEY && env.LIVEKIT_API_SECRET);
+    },
   },
 
   razorpay: {

@@ -21,6 +21,7 @@ import {
 import { useTranslation } from '@/i18n';
 import { track } from '@/lib/analytics';
 import { errorMessage, traceReference } from '@/lib/errors';
+import { reportError } from '@/lib/reporting';
 import { haptic } from '@/lib/haptics';
 import { colors, spacing } from '@/theme';
 import { Banner, Button, Column, Input, Row, Screen, Text } from '@/ui';
@@ -52,25 +53,47 @@ export default function PhoneScreen() {
     mutationFn: async () => {
       const phone = toE164(digits);
 
+      let fellBack = false;
+
       if (isWidgetAvailable(otpWidget)) {
-        const sent = await sendWidgetOtp(otpWidget!, phone);
+        try {
+          const sent = await sendWidgetOtp(otpWidget!, phone);
 
-        // MSG91 can verify without a code — invisible verification, or a
-        // number it has seen before. No SMS is coming, so the code screen
-        // would be a dead end. Sign in directly instead.
-        if (sent.kind === 'verified') {
-          const session = await authApi.verifyWidgetToken({
-            accessToken: sent.accessToken,
-            device: await getDevicePayload(),
+          // MSG91 can verify without a code — invisible verification, or a
+          // number it has seen before. No SMS is coming, so the code screen
+          // would be a dead end. Sign in directly instead.
+          if (sent.kind === 'verified') {
+            const session = await authApi.verifyWidgetToken({
+              accessToken: sent.accessToken,
+              device: await getDevicePayload(),
+            });
+            return { via: 'verified' as const, phone, session };
+          }
+
+          return { via: 'widget' as const, phone, reqId: sent.reqId };
+        } catch (error) {
+          // The widget was AVAILABLE and still failed. That is what an MSG91
+          // outage looks like from here — and, before DLT registration
+          // completes, what every send looks like: their server authenticates
+          // the widget and then returns an empty 500 because there is no
+          // approved template behind it.
+          //
+          // Falling through rather than rethrowing is the whole point of
+          // keeping our own OTP path. Without this the user reaches a dead end
+          // on the first screen of the app, for a reason entirely outside
+          // their control and entirely outside ours.
+          fellBack = true;
+          reportError(error, {
+            code: 'OTP_WIDGET_SEND_FAILED',
+            screen: 'phone',
+            // The number itself is never attached — it is the identifier this
+            // whole flow exists to protect.
           });
-          return { via: 'verified' as const, phone, session };
         }
-
-        return { via: 'widget' as const, phone, reqId: sent.reqId };
       }
 
       const result = await authApi.requestOtp(phone);
-      return { via: 'server' as const, phone, result };
+      return { via: 'server' as const, phone, result, fellBack };
     },
     onSuccess: async (sent) => {
       haptic.success();
@@ -86,6 +109,9 @@ export default function PhoneScreen() {
 
       track('otp_sent', {
         channel: sent.via === 'widget' ? 'widget' : sent.result.channel,
+        // Distinguishes "we chose our own path" from "the widget broke and we
+        // caught it". A rising fallback rate is an MSG91 incident.
+        ...(sent.via === 'server' && sent.fellBack ? { fallback_from: 'widget' } : {}),
       });
 
       router.push({

@@ -1619,7 +1619,492 @@
     {
       "name": "Rooms — M5",
       "description": "Room lifecycle and seats. Live chat and presence run over the WebSocket gateway, not REST.\n\nPlanned: `GET /v1/rooms`, `POST /v1/rooms`, `POST /v1/rooms/{id}/join`, `POST /v1/rooms/{id}/seats/{index}`, `DELETE /v1/rooms/{id}/seats/{index}`, `POST /v1/rooms/{id}/go-live`, `POST /v1/rooms/{id}/end`.",
-      "item": []
+      "item": [
+        {
+          "name": "1 · Feed",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rooms/feed?category=explore&limit=20&offset=0",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rooms",
+                "feed"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "explore",
+                  "description": "explore | party | following"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            },
+            "description": "Live rooms, most watched first. Readable WITHOUT a session — browsing is the top of the funnel and a signed-out user has to see what the app is before being asked for a phone number.\n\n`following` needs a viewer and returns empty without one. `trending` is computed in the same query, so it can never disagree with the ordering."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const rooms = pm.response.json().rooms;",
+                  "if (rooms.length) pm.environment.set('roomId', rooms[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 · Go live",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rooms/live",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rooms",
+                "live"
+              ]
+            },
+            "description": "Starts a broadcast and returns a media token that can SPEAK.\n\nOmit `seatCapacity` for a single-host livestream; include it (2–20) for a party room, where seat 0 is reserved for the host at creation.\n\nRegistered users only — a guest may watch and nothing else. A host may have exactly ONE live room: a second attempt returns 409 ALREADY_LIVE carrying the existing roomId rather than replacing it, because a reconnect storm would otherwise churn through rooms and scatter the audience.\n\nToken minting is local, so going live cannot fail because the media server was briefly slow. 503 RTC_UNAVAILABLE means LIVEKIT_* is not configured.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Evening adda\",\n  \"tag\": \"chatting\",\n  \"isVideo\": false,\n  \"seatCapacity\": 8\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.environment.set('roomId', b.room.id);",
+                  "pm.environment.set('rtcToken', b.rtc.token);",
+                  "pm.environment.set('rtcUrl', b.rtc.url);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 · Room detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rooms/{{roomId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rooms",
+                "{{roomId}}"
+              ]
+            },
+            "description": "The room and its seat map, without joining. What a feed card expands into."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4 · Join",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rooms/{{roomId}}/join",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rooms",
+                "{{roomId}}",
+                "join"
+              ]
+            },
+            "description": "Returns a media token whose PUBLISH grant comes from the seat table and nowhere else — there is deliberately no way to ask for publish rights in the request.\n\nIMPORTANT: a listener token sets `canPublish: false` EXPLICITLY. LiveKit treats an omitted flag as permission to publish, so a token that merely forgot the field would let any listener talk in any room.\n\nSomeone who already holds a seat gets speaking rights back, which is what makes a dropped signal a hiccup rather than losing your place on stage.\n\n403 ROOM_BANNED if the host kicked them; 410 ROOM_ENDED once the room is over.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.environment.set('rtcToken', b.rtc.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5 · Take a mic seat",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rooms/{{roomId}}/seats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rooms",
+                "{{roomId}}",
+                "seats"
+              ]
+            },
+            "description": "The primary key on (room_id, seat_index) settles a contested seat — not a read-then-write, which would let two people both be granted the microphone.\n\nOn success the media permission is raised to publish. If THAT call fails the seat is released again and a 503 is returned, so nobody is left visibly holding a seat they cannot speak from.\n\n409 SEAT_TAKEN · 403 SEAT_RESERVED (seat 0 belongs to the host) · 422 SEAT_OUT_OF_RANGE · 409 NOT_A_PARTY_ROOM.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"seatIndex\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6 · Leave / remove from a seat",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rooms/{{roomId}}/seats/{{targetUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rooms",
+                "{{roomId}}",
+                "seats",
+                "{{targetUserId}}"
+              ]
+            },
+            "description": "One route for two actors: leaving your own seat, or the host removing somebody from theirs. Anyone else gets 403 NOT_ROOM_HOST.\n\nRevoking publish also unpublishes whatever they were sending, so they go quiet rather than merely being unable to start again. The media call is best effort — the seat is already free, and reporting a failure would say the action did not work when it did."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7 · Mute a seat (host)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rooms/{{roomId}}/seats/{{targetUserId}}/mute",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rooms",
+                "{{roomId}}",
+                "seats",
+                "{{targetUserId}}",
+                "mute"
+              ]
+            },
+            "description": "Persisted, because it has to survive the muted person force-quitting the app to escape it — which is exactly what somebody being muted for a reason will do.\n\nNOT best effort, unlike releasing a seat: a mute that never reached the media server has changed nothing anyone can hear, so the row is rolled back and the host is told.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"muted\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8 · Kick from the room (host)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rooms/{{roomId}}/kick/{{targetUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rooms",
+                "{{roomId}}",
+                "kick",
+                "{{targetUserId}}"
+              ]
+            },
+            "description": "The BAN ROW is what does the work. Disconnecting someone from the media server is cosmetic on its own — their SDK reconnects within seconds — so the row is written first and the disconnect is best effort afterwards.\n\nRoom-scoped, and deliberately NOT a platform ban. A host clearing their own room is not a judgement about the account, and letting it become one would hand every host the power to suspend a user.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"abuse\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9 · End the room (host)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rooms/{{roomId}}/end",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rooms",
+                "{{roomId}}",
+                "end"
+              ]
+            },
+            "description": "Our row is closed FIRST, then the media room. If the media call fails the room is already gone from the feed and nobody new can join, and the media server collects the orphan on its empty timeout. The other order would leave a dead card in the feed that users tap repeatedly.\n\nIdempotent — a retry after a dropped response is ordinary. Recorded as `ended_reason = host`, which is what distinguishes it from a broadcast that died (`timeout`) or one a moderator killed.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 · LiveKit webhook (reference only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/webhooks/livekit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "webhooks",
+                "livekit"
+              ]
+            },
+            "description": "NOT callable from Postman — the signature is a JWT over a digest of the raw body, signed with LIVEKIT_API_SECRET. Documented here so the endpoint is discoverable.\n\nMounted BEFORE the JSON body parser: LiveKit signs the RAW BYTES, so a parsed and re-serialised body can never verify, and its `application/webhook+json` content type would be rejected with a 415 first.\n\nHandled: room_started, participant_joined, participant_left, room_finished. Everything else is ignored on purpose — LiveKit adds event types over time and a 500 on one would make it retry forever.\n\nEvery handler is safe to run twice and safe to miss: viewer_count is SET from `room.numParticipants` rather than incremented, so a dropped event self-heals on the next one instead of drifting forever.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"participant_joined\",\n  \"room\": {\n    \"name\": \"dhun-<roomId>\",\n    \"numParticipants\": 12\n  },\n  \"participant\": {\n    \"identity\": \"<userId>\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Signed by LiveKit. Cannot be exercised by hand."
+                ]
+              }
+            }
+          ]
+        }
+      ]
     },
     {
       "name": "Gifting — M6",

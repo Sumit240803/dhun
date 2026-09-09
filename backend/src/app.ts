@@ -12,6 +12,7 @@ import { buildMessagesRouter } from './modules/chat/index.js';
 import { buildConfigRouter } from './modules/config/index.js';
 import { buildCatalogRouter, buildWalletRouter } from './modules/economy/index.js';
 import { buildModerationRouter } from './modules/moderation/index.js';
+import { buildWebhooksRouter } from './modules/realtime/index.js';
 import { buildRoomsRouter } from './modules/rooms/index.js';
 import { buildUsersRouter } from './modules/users/index.js';
 
@@ -29,6 +30,16 @@ export function buildApp() {
   app.use(securityHeaders());
   app.use(cors());
   app.use(globalRateLimit());
+  // BEFORE the JSON parser, and that ordering is load-bearing rather than
+  // stylistic. LiveKit signs the RAW BYTES, so once express.json() has parsed
+  // and re-serialised the body the signature can never verify again — and it
+  // sends `Content-Type: application/webhook+json`, which requireJsonBody()
+  // would reject with a 415 before any handler ran.
+  //
+  // Machine-to-machine and authenticated by signature, so it sits outside the
+  // /v1 module mounts below.
+  app.use('/v1/webhooks', buildWebhooksRouter());
+
   app.use(requireJsonBody());
   app.use(express.json({ limit: config.maxBodyBytes, strict: true }));
 

@@ -39,6 +39,9 @@ export async function resetLedger(): Promise<void> {
     await c.query('DELETE FROM messages');
     await c.query('DELETE FROM thread_participants');
     await c.query('DELETE FROM message_threads');
+    await c.query('DELETE FROM room_seats');
+    await c.query('DELETE FROM room_bans');
+    await c.query('DELETE FROM room_sessions');
     await c.query('DELETE FROM rooms');
 
     await c.query('DELETE FROM user_profiles');

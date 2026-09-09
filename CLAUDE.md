@@ -227,7 +227,10 @@ accrual, commission recalc and moderation callbacks join it in M8/M9.
 `moderation` ingest when ML needs its own runtime. **Never split `economy` + `payments`.**
 
 **Stack:** Node + TypeScript (ESM), Express, Postgres, Redis, zod, vitest. RTC media is
-external (Agora / ZEGO / LiveKit — undecided) and never transits the backend.
+**LiveKit** and never transits the backend — the API mints join tokens and receives
+webhooks, nothing more. Everything LiveKit-shaped stops at `modules/realtime/`, behind
+an `RtcProvider` interface, because the whole argument for LiveKit is being able to
+walk away from a vendor and an SDK spread across four modules cannot walk anywhere.
 
 ### Standing conventions
 
@@ -336,6 +339,7 @@ built; the realtime gateway is M5).
 | **Auth** | Complete except OAuth. Phone OTP behind a provider interface (`console` in dev, `msg91` blocked on DLT) plus the MSG91 **widget** path, email + password, deferred email confirmation, password reset and change, session list and per-device revocation, phone-number change, account deletion. JWT + rotating refresh with replay detection that revokes the device chain, scoped `role_assignments`. |
 | **Wallet / purchases** | Server-driven catalogs, IAP behind a verifier interface (stub in dev), Razorpay signature verification fully implemented, coins→gems conversion. |
 | **Social / chat / moderation** | Follows, profile visits, public profiles, profile summary, message threads, reports and blocks. Bans are enforced on every request, not only at sign-in, and guests are bannable. |
+| **Rooms / RTC** | Go live, join, mic seats, host mute and kick, end. Publish rights come from the SEAT TABLE and nowhere else — there is no way to request them. LiveKit webhooks feed viewer counts and `room_sessions` (host hours). Seats, bans and sessions are in Postgres; presence is not mirrored, because it would drift from the media server within seconds. |
 | **Workers** | `npm run worker`. Outbox shipper (LISTEN/NOTIFY + 2s poll floor), nightly reconciliation at 03:00 IST with 7 checks and zero tolerance, five retention purges. Advisory-lock job locking. |
 | **Security** | Rate limiting by IP/device/user, security headers, CORS allowlist, 18+ gate on every money endpoint, strict validation of body/query/params, sanitised client errors. |
 
@@ -352,7 +356,12 @@ built; the realtime gateway is M5).
 4. **Deleting an account anonymises, it does not delete the row.** The ledger is
    append-only and its entries point at the user. Clearing the identity frees the
    phone and email for reuse, which is what someone signing up again will do.
-5. **MSG91 returns HTTP 200 with error bodies.** `response.ok` is true on
+5. **An omitted LiveKit grant is a GRANTED one.** `canPublish` left out means
+   publish is enabled — so a listener token that forgets the field lets anyone
+   talk in anyone's room. Every grant is written explicitly, including the
+   `false` ones, and `RtcGrants` has no optional publish field so the dangerous
+   default is unreachable.
+6. **MSG91 returns HTTP 200 with error bodies.** `response.ok` is true on
    failure; the body's `type` is the real signal. A status-only check would sign
    in anyone who asked. Two credentials, two trust levels: `tokenAuth` ships in
    the app and is PUBLIC (a leak lets someone spend your SMS balance);
@@ -403,8 +412,8 @@ The gift queue **sheds the cheapest gift when full**, never the newest. Dropping
 
 ### Not built yet
 
-OAuth (Google / Facebook / Instagram) · rooms and the realtime gateway · RTC
-(vendor undecided) · live chat · gifting UI · discover · host tools · payouts ·
+OAuth (Google / Facebook / Instagram) · the room UI · text chat and the WebSocket
+gateway that carries it · the mic-request queue · gifting UI · discover · host tools · payouts ·
 the legal screens' actual text · admin panel · push token registration ·
 analytics pipeline · CI beyond typecheck and tests · Terraform and environments ·
 **a development build** (M2 exit criterion — the MSG91 widget needs one).
@@ -436,7 +445,7 @@ gaming-law written opinion · Hive account.
 | 2 | Equity split + vesting (4yr, 1yr cliff) | Founders | OPEN |
 | 3 | ~~App name~~ | Founders | **DECIDED — Dhun**, company Dhunlive Private Limited. Verification pending: MCA, IP India 9/38/41, Play Store listing title. |
 | 4 | TDS section — 194J (10%, ₹50K threshold) vs 194-O (1%, ₹5L) | CA | OPEN — get it in writing |
-| 5 | RTC vendor — Agora vs ZEGO vs LiveKit, on real pricing | Founder | OPEN — blocks M5. LiveKit has an official Expo config plugin; the other two do not. |
+| 5 | ~~RTC vendor~~ | Founder | **DECIDED — LiveKit**, self-hosted. At 10K DAU the managed vendors cost ₹2.7–6.9L/month (20–50% of gross); self-hosted is ₹34–66K. LiveKit is the only one that CAN be self-hosted, and the only one with an official Expo config plugin. Cloud stays available for the beta — same SDK, same code, different URL. |
 | 6 | Bootstrap runway vs funding timing | Founders | OPEN |
 | 7 | Founder role split (product+tech vs ops+growth+agency) | Founders | OPEN |
 
