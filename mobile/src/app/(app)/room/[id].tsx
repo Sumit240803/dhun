@@ -240,10 +240,21 @@ export default function RoomScreen() {
                     hostLabel={t('room.hostLabel')}
                     onPress={() => {
                       if (!seat) {
-                        // Seats are REQUESTED now, not grabbed — the host
-                        // decides who speaks in their own room. Holding one
-                        // already makes an empty tile inert.
-                        if (mySeat !== undefined || isHost) return;
+                        // The host takes their own seat directly — they do not
+                        // queue for permission in their own room. This is a
+                        // safety net rather than a normal path: seat 0 is
+                        // created with the room and only released when it
+                        // ends, so a host without one means something went
+                        // wrong, and being unable to speak in your own
+                        // broadcast is not a state to be stuck in.
+                        if (isHost) {
+                          haptic.tap();
+                          actions.takeSeat.mutate(index);
+                          return;
+                        }
+                        // Everyone else asks. Holding a seat already makes an
+                        // empty tile inert.
+                        if (mySeat !== undefined) return;
                         askForMic();
                         return;
                       }

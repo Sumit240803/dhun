@@ -129,8 +129,21 @@ async function onParticipantJoined(roomId: string, identity: string): Promise<vo
  */
 async function onParticipantLeft(roomId: string, identity: string): Promise<void> {
   await withTransaction(async (client) => {
+    // NOT the host's seat, ever.
+    //
+    // Reported from a device: the host backed out of their own room, came
+    // back, and was no longer on the mic — because this deleted seat 0 like
+    // any other. That contradicted the rule the REST path already enforces,
+    // where releaseSeat refuses the host's seat outright with HOST_SEAT_FIXED
+    // and tells them to end the room instead. Two paths, one rule, and only
+    // one of them followed it.
+    //
+    // Seat 0 belongs to the host for the life of the room. It is created with
+    // the room and cleared only when the room ends.
     const { rowCount } = await client.query(
-      'DELETE FROM room_seats WHERE room_id = $1 AND user_id = $2',
+      `DELETE FROM room_seats
+        WHERE room_id = $1 AND user_id = $2
+          AND user_id <> (SELECT host_user_id FROM rooms WHERE id = $1)`,
       [roomId, identity],
     );
 

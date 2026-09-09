@@ -629,6 +629,36 @@ describe('webhooks', () => {
     expect(seats.rows).toHaveLength(0);
   });
 
+  it("never takes the host off their own seat when they disconnect", async () => {
+    // Reported from a device: the host backed out of their own room, came
+    // back, and was no longer on the mic. The REST path refuses to release the
+    // host's seat (HOST_SEAT_FIXED); this path was deleting it anyway. Two
+    // paths, one rule, and only one of them followed it.
+    const host = await account();
+    const { room } = await goLive(host);
+
+    const { raw, header } = await signedWebhook({
+      event: 'participant_left',
+      room: { name: `dhun-${room.id}`, numParticipants: 0 },
+      participant: { identity: host.user.id },
+    });
+    await postWebhook(raw, header).expect(200);
+
+    const seats = await pool.query<{ seat_index: number }>(
+      'SELECT seat_index FROM room_seats WHERE room_id = $1 AND user_id = $2',
+      [room.id, host.user.id],
+    );
+    expect(seats.rows).toEqual([{ seat_index: 0 }]);
+
+    // And rejoining puts them straight back on the mic, rather than into a
+    // room they host and cannot speak in.
+    const rejoin = await request(app)
+      .post(`/v1/rooms/${room.id}/join`)
+      .set('Authorization', `Bearer ${host.accessToken}`)
+      .expect(200);
+    expect(rejoin.body.canPublish).toBe(true);
+  });
+
   it('ends the room on room_finished, recorded as a timeout', async () => {
     const host = await account();
     const { room } = await goLive(host);
