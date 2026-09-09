@@ -438,6 +438,11 @@ export const hi: Messages = {
     end: 'रूम खत्म करें',
 
     goLiveTitle: 'लाइव जाएँ',
+    guestTitle: 'लाइव जाने के लिए साइन अप करें',
+    guestBody:
+      'होस्ट करने के लिए अकाउंट चाहिए, ताकि लोग आपको दोबारा ढूँढ सकें और आपको पेमेंट मिल सके। एक मिनट लगेगा।',
+    guestAction: 'अकाउंट बनाएँ',
+    registrationRequired: 'लाइव जाने के लिए अकाउंट बनाएँ',
     goLiveSubtitle: 'रूम को नाम दें ताकि लोग जानें कि क्या उम्मीद करनी है।',
     roomTitle: 'रूम का नाम',
     roomTitlePlaceholder: 'शाम की अड्डेबाज़ी',

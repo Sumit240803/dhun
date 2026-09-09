@@ -12,7 +12,8 @@ import { track } from '@/lib/analytics';
 import { errorMessage, isErrorCode, traceReference } from '@/lib/errors';
 import { haptic } from '@/lib/haptics';
 import { colors, radius, spacing } from '@/theme';
-import { Banner, Button, Card, Chip, Column, Input, Row, Screen, Text } from '@/ui';
+import { useIsRegistered } from '@/store/session';
+import { Banner, Button, Card, Chip, Column, EmptyState, Input, Row, Screen, Text } from '@/ui';
 
 const TAGS: { value: RoomTag; label: MessageKey }[] = [
   { value: 'chatting', label: 'room.tagChatting' },
@@ -37,6 +38,7 @@ const PARTY_SEATS = 8;
 export default function GoLiveScreen() {
   const { t } = useTranslation();
   const goLive = useGoLive();
+  const isRegistered = useIsRegistered();
 
   const [title, setTitle] = useState('');
   const [tag, setTag] = useState<RoomTag>('chatting');
@@ -72,6 +74,42 @@ export default function GoLiveScreen() {
   const existingRoomId = alreadyLive
     ? ((goLive.error as { details?: { roomId?: string } }).details?.roomId ?? null)
     : null;
+
+  // Checked BEFORE the form, not after submitting it.
+  //
+  // The server refuses a guest with REGISTRATION_REQUIRED, which is correct —
+  // but letting someone name a room, pick a tag, choose a type and only THEN
+  // telling them they need an account wastes their effort and reads as a
+  // failure rather than as a step they have not taken yet.
+  if (!isRegistered) {
+    return (
+      <Screen padded>
+        <Row style={styles.guestHeader} gap="md">
+          <Pressable
+            onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.back')}
+            hitSlop={spacing.md}
+          >
+            <Ionicons name="chevron-back" size={26} color={colors.text.primary} />
+          </Pressable>
+        </Row>
+        <View style={styles.centre}>
+          <EmptyState
+            icon="mic-outline"
+            title={t('room.guestTitle')}
+            body={t('room.guestBody')}
+            actionLabel={t('room.guestAction')}
+            onAction={() => {
+              haptic.tap();
+              router.push('/(auth)');
+            }}
+            testID="go-live-signup"
+          />
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <Screen padded={false} edges={['top']}>
@@ -248,6 +286,8 @@ function TypeCard({
 
 const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+  guestHeader: { height: 44, marginLeft: -spacing.xs },
+  centre: { flex: 1, justifyContent: 'center' },
   body: { flex: 1, paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
   intro: { marginBottom: spacing.xl },
   banner: { marginTop: spacing.lg },

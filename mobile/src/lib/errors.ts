@@ -46,6 +46,12 @@ const codeMessages: Partial<Record<string, MessageKey>> = {
   [ApiErrorCode.PHONE_TAKEN]: 'account.phoneTaken',
   [ApiErrorCode.PHONE_UNCHANGED]: 'account.phoneUnchanged',
 
+  // Unmapped, this fell through to the SERVER's sentence — "Verify your phone
+  // number to continue" — which is wrong twice over: email registration works
+  // too, and an unmapped code also prints a support reference, so an ordinary
+  // "you need an account" read as a system failure.
+  [ApiErrorCode.REGISTRATION_REQUIRED]: 'room.registrationRequired',
+
   [ApiErrorCode.ROOM_ENDED]: 'room.ended',
   [ApiErrorCode.ROOM_BANNED]: 'room.kicked',
   [ApiErrorCode.SEAT_TAKEN]: 'room.seatTaken',

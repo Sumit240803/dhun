@@ -452,6 +452,11 @@ export const en = {
     end: 'End room',
 
     goLiveTitle: 'Go live',
+    guestTitle: 'Sign up to go live',
+    guestBody:
+      'Hosting needs an account, so people can find you again and you can be paid. It takes a minute.',
+    guestAction: 'Create an account',
+    registrationRequired: 'Create an account to go live',
     goLiveSubtitle: 'Give your room a name so people know what to expect.',
     roomTitle: 'Room name',
     roomTitlePlaceholder: 'Evening adda',
