@@ -462,6 +462,25 @@ export const hi: Messages = {
     tagGaming: 'गेमिंग',
     tagFriends: 'दोस्त',
     tagEsports: 'ईस्पोर्ट्स',
+
+    chatPlaceholder: 'कुछ कहें',
+    chatSend: 'भेजें',
+    chatEmpty: 'अभी कोई मैसेज नहीं। नमस्ते कहें।',
+    chatOffline: 'फिर से जुड़ रहे हैं — मैसेज नहीं जाएँगे',
+    chatBlocked: 'यह मैसेज नहीं भेजा गया',
+    seatsTab: 'सीटें',
+    chatTab: 'चैट',
+
+    raiseHand: 'माइक माँगें',
+    handRaised: 'होस्ट के जवाब का इंतज़ार',
+    cancelRequest: 'रद्द करें',
+    micDenied: 'होस्ट ने अभी मना किया',
+    micGranted: 'अब आप माइक पर हैं',
+    queueTitle: 'माइक माँग रहे हैं',
+    queueEmpty: 'कोई इंतज़ार में नहीं',
+    queueBadge: '{count} इंतज़ार में',
+    approve: 'बोलने दें',
+    deny: 'अभी नहीं',
   },
 
   legal: {

@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import Animated, {
   FadeIn,
   FadeInDown,
@@ -13,10 +14,13 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useJoinRoom, useRoomActions, useRoomDetail } from '@/api/queries/useRoom';
-import { ApiErrorCode, type JoinedRoom, type RoomSeat } from '@/api/types';
+import { useJoinRoom, useRoomActions } from '@/api/queries/useRoom';
+import { ApiErrorCode, type JoinedRoom } from '@/api/types';
+import { RoomChat } from '@/features/room/RoomChat';
+import type { MicRequest, SeatView } from '@/features/room/gateway';
 import { isLiveKitAvailable } from '@/features/room/livekit';
 import { useLiveRoom } from '@/features/room/useLiveRoom';
+import { useRoomSocket } from '@/features/room/useRoomSocket';
 import { useTranslation } from '@/i18n';
 import { errorMessage, isErrorCode, traceReference } from '@/lib/errors';
 import { haptic } from '@/lib/haptics';
@@ -25,12 +29,12 @@ import { useSession } from '@/store/session';
 import {
   Avatar,
   Badge,
-  Banner,
   Button,
   Column,
   EmptyState,
   Row,
   Screen,
+  SegmentedTabs,
   Sheet,
   Text,
   type SheetHandle,
@@ -42,10 +46,14 @@ import {
  * Full-bleed — `edges={[]}` — because the room is the whole screen and its own
  * chrome insets itself. That is the one case the Screen contract carves out.
  *
- * The seat map is POLLED, not pushed. The WebSocket gateway that would push it
- * is the other half of M5 and is not built; three seconds is fast enough that
- * a seat change feels immediate without twenty people becoming twenty requests
- * a second. This is the first thing the gateway replaces.
+ * ── Three connections, one screen ────────────────────────────────────────────
+ *
+ *   · HTTP joins the room and returns a media credential. Once, on mount.
+ *   · LIVEKIT carries the audio.
+ *   · The GATEWAY carries everything else — the seat map, chat, presence and
+ *     the mic queue — and it PUSHES. This screen used to poll the seat map
+ *     every three seconds; that is gone, and with it twenty requests a minute
+ *     from every viewer.
  */
 export default function RoomScreen() {
   const { t } = useTranslation();
@@ -54,25 +62,29 @@ export default function RoomScreen() {
   const { user } = useSession();
 
   const [joined, setJoined] = useState<JoinedRoom | null>(null);
+  const [tab, setTab] = useState<'seats' | 'chat'>('seats');
   const join = useJoinRoom();
-  const detail = useRoomDetail(id, joined !== null);
   const actions = useRoomActions(id);
 
   const leaveSheet = useRef<SheetHandle>(null);
   const manageSheet = useRef<SheetHandle>(null);
-  const [managing, setManaging] = useState<RoomSeat | null>(null);
+  const queueSheet = useRef<SheetHandle>(null);
+  const [managing, setManaging] = useState<SeatView | null>(null);
 
-  // Joined once, on mount. Deliberately not a query: it mints a short-lived
-  // credential, and a refetch on focus would hand the screen a token that had
-  // already been superseded.
+  // Once, on mount. Not a query: it mints a short-lived credential, and a
+  // refetch on focus would hand the screen a token already superseded.
   useEffect(() => {
     if (!id) return;
     join.mutate(id, { onSuccess: setJoined });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const room = detail.data?.room ?? joined?.room;
-  const seats = detail.data?.seats ?? joined?.seats ?? [];
+  const socket = useRoomSocket(joined ? id : undefined);
+
+  // The gateway is the live source; the join response fills the screen in the
+  // moment before the socket is up.
+  const room = joined?.room;
+  const seats = socket.seats.length > 0 ? socket.seats : (joined?.seats ?? []);
   const isHost = room?.hostId === user?.id;
   const mySeat = seats.find((seat) => seat.userId === user?.id);
 
@@ -82,28 +94,26 @@ export default function RoomScreen() {
     publish: joined?.canPublish ?? false,
   });
 
-  // The server can revoke a seat at any moment — the host takes the mic away
-  // and LiveKit unpublishes the track without asking us. This reconciles our
-  // microphone with whatever grant we actually hold now.
+  // The host can take a mic away at any moment and LiveKit unpublishes the
+  // track without telling this screen. This reconciles our microphone with
+  // whatever grant we actually hold now.
   useEffect(() => {
     if (live.connection !== 'connected') return;
-    const shouldPublish = mySeat !== undefined && !mySeat.muted;
-    void live.syncPublishing(shouldPublish);
+    void live.syncPublishing(mySeat !== undefined && !mySeat.muted);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mySeat?.seatIndex, mySeat?.muted, live.connection]);
 
-  // The host ended it, or a moderator did. Nothing on this screen is usable
-  // any more, so leaving is the only honest thing to do.
+  // The host ended it. Nothing here is usable any more.
   useEffect(() => {
-    if (isErrorCode(detail.error, ApiErrorCode.ROOM_ENDED)) {
-      haptic.error();
-      router.back();
-    }
-  }, [detail.error]);
-
-  function leave() {
-    haptic.selection();
+    if (!socket.ended) return;
+    haptic.error();
     router.back();
+  }, [socket.ended]);
+
+  function askForMic() {
+    haptic.tap();
+    if (socket.micPending) socket.cancelMic();
+    else socket.requestMic();
   }
 
   if (!isLiveKitAvailable()) {
@@ -157,12 +167,31 @@ export default function RoomScreen() {
             <Row gap="xs">
               <Badge label={t('room.live')} tone="danger" />
               <Text variant="micro" tone="secondary">
-                {t('room.viewers', {
-                  count: live.connection === 'connected' ? live.participants : (room?.viewers ?? 0),
-                })}
+                {t('room.viewers', { count: socket.viewers || (room?.viewers ?? 0) })}
               </Text>
             </Row>
           </Column>
+
+          {/* Host only, and only when somebody is waiting. A raised hand
+              nobody sees is the same as no queue at all. */}
+          {isHost && socket.micQueue.length > 0 && (
+            <Pressable
+              onPress={() => {
+                haptic.tap();
+                queueSheet.current?.present();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={t('room.queueBadge', { count: socket.micQueue.length })}
+              hitSlop={spacing.sm}
+              style={styles.queueButton}
+              testID="open-mic-queue"
+            >
+              <Ionicons name="hand-right" size={16} color={colors.text.onBrand} />
+              <Text variant="micro" style={styles.queueCount}>
+                {socket.micQueue.length}
+              </Text>
+            </Pressable>
+          )}
 
           <Pressable
             onPress={() => {
@@ -177,104 +206,122 @@ export default function RoomScreen() {
           </Pressable>
         </Row>
 
-        <ConnectionLine state={live.connection} />
+        <ConnectionLine media={live.connection} socket={socket.status} />
       </LinearGradient>
 
-      <ScrollView
-        contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 96 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {room?.seatCapacity != null ? (
-          <View style={styles.grid}>
-            {Array.from({ length: room.seatCapacity }, (_, index) => {
-              const seat = seats.find((s) => s.seatIndex === index);
-              return (
-                <SeatTile
-                  key={index}
-                  index={index}
-                  seat={seat}
-                  hostId={room.hostId}
-                  speaking={seat !== undefined && live.speaking.includes(seat.userId)}
-                  emptyLabel={t('room.emptySeat')}
-                  hostLabel={t('room.hostLabel')}
-                  onPress={() => {
-                    if (!seat) {
-                      // Already holding one. The server refuses with
-                      // ALREADY_SEATED, and surfacing that as an error for a
-                      // tap the UI invited is worse than not inviting it:
-                      // leave your seat first, then take another.
-                      if (mySeat !== undefined) return;
-                      haptic.tap();
-                      actions.takeSeat.mutate(index);
-                      return;
-                    }
-                    if (isHost && seat.userId !== user?.id) {
-                      haptic.selection();
-                      setManaging(seat);
-                      manageSheet.current?.present();
-                    }
-                  }}
-                />
-              );
-            })}
-          </View>
+      <View style={styles.tabs}>
+        <SegmentedTabs
+          options={[
+            { value: 'seats', label: t('room.seatsTab') },
+            { value: 'chat', label: t('room.chatTab') },
+          ]}
+          value={tab}
+          onChange={(next) => {
+            haptic.selection();
+            setTab(next as 'seats' | 'chat');
+          }}
+        />
+      </View>
+
+      <KeyboardAvoidingView behavior="padding" style={styles.body}>
+        {tab === 'seats' ? (
+          room?.seatCapacity != null ? (
+            <View style={styles.grid}>
+              {Array.from({ length: room.seatCapacity }, (_, index) => {
+                const seat = seats.find((s) => s.seatIndex === index);
+                return (
+                  <SeatTile
+                    key={index}
+                    index={index}
+                    seat={seat}
+                    hostId={room.hostId}
+                    speaking={seat !== undefined && live.speaking.includes(seat.userId)}
+                    emptyLabel={t('room.emptySeat')}
+                    hostLabel={t('room.hostLabel')}
+                    onPress={() => {
+                      if (!seat) {
+                        // Seats are REQUESTED now, not grabbed — the host
+                        // decides who speaks in their own room. Holding one
+                        // already makes an empty tile inert.
+                        if (mySeat !== undefined || isHost) return;
+                        askForMic();
+                        return;
+                      }
+                      if (isHost && seat.userId !== user?.id) {
+                        haptic.selection();
+                        setManaging(seat);
+                        manageSheet.current?.present();
+                      }
+                    }}
+                  />
+                );
+              })}
+            </View>
+          ) : (
+            <Animated.View entering={FadeIn.duration(240)} style={styles.solo}>
+              <Avatar name={room?.hostName ?? '—'} size="xl" />
+              <Text variant="heading">{room?.hostName ?? ''}</Text>
+            </Animated.View>
+          )
         ) : (
-          <Animated.View entering={FadeIn.duration(240)} style={styles.solo}>
-            <Avatar name={room?.hostName ?? '—'} size="xl" />
-            <Text variant="heading">{room?.hostName ?? ''}</Text>
-            <Text variant="caption" tone="secondary">
-              {live.speaking.includes(room?.hostId ?? '') ? t('room.speaking') : ''}
-            </Text>
-          </Animated.View>
+          <RoomChat
+            lines={socket.chat}
+            meId={user?.id}
+            canSend={socket.status === 'live'}
+            onSend={socket.sendChat}
+          />
         )}
+      </KeyboardAvoidingView>
 
-        {actions.takeSeat.error != null && (
-          <View style={styles.banner}>
-            <Banner message={errorMessage(actions.takeSeat.error)} />
-          </View>
-        )}
-      </ScrollView>
-
-      {/* The mic bar. Only ever shown to someone the SERVER put on a seat. */}
-      <View style={[styles.bar, { paddingBottom: insets.bottom + spacing.md }]}>
-        {mySeat !== undefined ? (
-          <Row gap="md">
-            <Button
-              label={live.micOn ? t('room.micOn') : t('room.micOff')}
-              onPress={() => {
-                haptic.tap();
-                void live.setMicOn(!live.micOn);
-              }}
-              // The host's mute is not ours to undo. Showing an enabled button
-              // that silently fails is worse than showing a disabled one.
-              disabled={mySeat.muted || live.connection !== 'connected'}
-              variant={live.micOn ? 'primary' : 'secondary'}
-              size="lg"
-              fullWidth
-              testID="toggle-mic"
-            />
-            {!isHost && (
+      {/* Three states: on a seat, waiting, or able to ask. */}
+      {tab === 'seats' && (
+        <View style={[styles.bar, { paddingBottom: insets.bottom + spacing.md }]}>
+          {mySeat !== undefined ? (
+            <Row gap="md">
               <Button
-                label={t('room.leaveSeat')}
+                label={live.micOn ? t('room.micOn') : t('room.micOff')}
                 onPress={() => {
                   haptic.tap();
-                  actions.releaseSeat.mutate(user!.id);
+                  void live.setMicOn(!live.micOn);
                 }}
-                loading={actions.releaseSeat.isPending}
-                variant="ghost"
+                // The host's mute is not ours to undo. An enabled button that
+                // silently fails is worse than a disabled one.
+                disabled={mySeat.muted || live.connection !== 'connected'}
+                variant={live.micOn ? 'primary' : 'secondary'}
                 size="lg"
-                testID="leave-seat"
+                fullWidth
+                testID="toggle-mic"
               />
-            )}
-          </Row>
-        ) : (
-          room?.seatCapacity != null && (
-            <Text variant="caption" tone="faint" style={styles.hint}>
-              {t('room.takeSeat')}
-            </Text>
-          )
-        )}
-      </View>
+              {!isHost && (
+                <Button
+                  label={t('room.leaveSeat')}
+                  onPress={() => {
+                    haptic.tap();
+                    actions.releaseSeat.mutate(user!.id);
+                  }}
+                  loading={actions.releaseSeat.isPending}
+                  variant="ghost"
+                  size="lg"
+                  testID="leave-seat"
+                />
+              )}
+            </Row>
+          ) : (
+            room?.seatCapacity != null &&
+            !isHost && (
+              <Button
+                label={socket.micPending ? t('room.handRaised') : t('room.raiseHand')}
+                onPress={askForMic}
+                disabled={socket.status !== 'live'}
+                variant={socket.micPending ? 'secondary' : 'primary'}
+                size="lg"
+                fullWidth
+                testID="raise-hand"
+              />
+            )
+          )}
+        </View>
+      )}
 
       <Sheet ref={leaveSheet} title={isHost ? t('room.endTitle') : t('room.leaveTitle')}>
         <Text variant="body" tone="secondary">
@@ -285,10 +332,11 @@ export default function RoomScreen() {
             label={isHost ? t('room.end') : t('room.leave')}
             onPress={() => {
               if (isHost) {
-                actions.endRoom.mutate(undefined, { onSuccess: leave });
+                actions.endRoom.mutate(undefined, { onSuccess: () => router.back() });
                 return;
               }
-              leave();
+              haptic.selection();
+              router.back();
             }}
             loading={actions.endRoom.isPending}
             variant="danger"
@@ -302,6 +350,29 @@ export default function RoomScreen() {
             fullWidth
           />
         </Column>
+      </Sheet>
+
+      <Sheet ref={queueSheet} title={t('room.queueTitle')}>
+        {socket.micQueue.length === 0 ? (
+          <Text variant="body" tone="secondary">
+            {t('room.queueEmpty')}
+          </Text>
+        ) : (
+          <Column gap="md">
+            {socket.micQueue.map((request) => (
+              <QueueRow
+                key={request.userId}
+                request={request}
+                approveLabel={t('room.approve')}
+                denyLabel={t('room.deny')}
+                onResolve={(approve) => {
+                  haptic.tap();
+                  socket.resolveMic(request.userId, approve);
+                }}
+              />
+            ))}
+          </Column>
+        )}
       </Sheet>
 
       <Sheet ref={manageSheet} title={t('room.manageTitle', { name: managing?.displayName ?? '' })}>
@@ -352,28 +423,63 @@ export default function RoomScreen() {
 }
 
 /**
- * The connection state, shown only when it is not `connected`.
+ * One line for two connections.
  *
- * A permanent "connected" badge is noise — the audio itself tells the user
- * that. What they need is a line when something is wrong.
+ * Shown only when something is wrong. A permanent "connected" badge is noise —
+ * working audio and arriving chat already say so. The MEDIA state wins when
+ * both are unhappy, because silence is what a user notices first.
  */
-function ConnectionLine({ state }: { state: ReturnType<typeof useLiveRoom>['connection'] }) {
+function ConnectionLine({
+  media,
+  socket,
+}: {
+  media: ReturnType<typeof useLiveRoom>['connection'];
+  socket: ReturnType<typeof useRoomSocket>['status'];
+}) {
   const { t } = useTranslation();
-  if (state === 'connected' || state === 'idle') return null;
 
   const label =
-    state === 'failed'
+    media === 'failed'
       ? t('room.connectFailed')
-      : state === 'reconnecting'
+      : media === 'reconnecting'
         ? t('room.reconnecting')
-        : t('room.connecting');
+        : media === 'connecting'
+          ? t('room.connecting')
+          : socket !== 'live'
+            ? t('room.chatOffline')
+            : null;
+
+  if (label === null) return null;
 
   return (
     <Animated.View entering={FadeIn.duration(160)} style={styles.connection}>
-      <Text variant="micro" tone={state === 'failed' ? 'danger' : 'secondary'}>
+      <Text variant="micro" tone={media === 'failed' ? 'danger' : 'secondary'}>
         {label}
       </Text>
     </Animated.View>
+  );
+}
+
+function QueueRow({
+  request,
+  approveLabel,
+  denyLabel,
+  onResolve,
+}: {
+  request: MicRequest;
+  approveLabel: string;
+  denyLabel: string;
+  onResolve: (approve: boolean) => void;
+}) {
+  return (
+    <Row gap="md">
+      <Avatar name={request.name ?? '—'} size="sm" />
+      <Text variant="body" numberOfLines={1} style={styles.queueName}>
+        {request.name ?? '—'}
+      </Text>
+      <Button label={denyLabel} onPress={() => onResolve(false)} variant="ghost" size="sm" />
+      <Button label={approveLabel} onPress={() => onResolve(true)} size="sm" />
+    </Row>
   );
 }
 
@@ -387,15 +493,15 @@ function SeatTile({
   onPress,
 }: {
   index: number;
-  seat?: RoomSeat;
+  seat?: SeatView;
   hostId: string;
   speaking: boolean;
   emptyLabel: string;
   hostLabel: string;
   onPress: () => void;
 }) {
-  // The speaking ring. A slow pulse rather than a hard on/off, because audio
-  // levels flicker and a binary indicator would strobe.
+  // A slow pulse rather than a hard on/off: audio levels flicker, and a binary
+  // indicator would strobe.
   const pulse = useSharedValue(0);
   useEffect(() => {
     pulse.value = speaking
@@ -438,8 +544,26 @@ function SeatTile({
 const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, gap: spacing.sm },
   connection: { alignItems: 'center' },
-  body: { paddingHorizontal: spacing.lg, paddingTop: spacing.xl },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg, justifyContent: 'center' },
+  queueButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    backgroundColor: colors.brand.accent,
+  },
+  queueCount: { color: colors.text.onBrand },
+  queueName: { flex: 1 },
+  tabs: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
+  body: { flex: 1 },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.lg,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+  },
   seat: { width: 84 },
   seatPress: { alignItems: 'center', gap: spacing.xs },
   ring: {
@@ -475,7 +599,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   solo: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xxl },
-  banner: { marginTop: spacing.xl },
   bar: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
@@ -483,7 +606,6 @@ const styles = StyleSheet.create({
     borderTopColor: colors.border.subtle,
     backgroundColor: colors.bg.surface,
   },
-  hint: { textAlign: 'center' },
   centre: { flex: 1, justifyContent: 'center' },
   trace: { textAlign: 'center', marginTop: spacing.md },
 });

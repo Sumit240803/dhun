@@ -34,8 +34,22 @@ if (__DEV__ && /^https?:\/\/(localhost|127\.0\.0\.1)/.test(apiUrl)) {
   );
 }
 
+/**
+ * The realtime gateway.
+ *
+ * A separate process on a separate port, so a separate URL — but derived from
+ * the API's by default, because in every environment so far they are the same
+ * host. One variable to set in development rather than two that drift.
+ */
+const gatewayUrl =
+  process.env.EXPO_PUBLIC_GATEWAY_URL?.trim() ||
+  apiUrl.replace(/^http/, 'ws').replace(/:\d+$/, ':3001');
+
 export const env = {
   apiUrl: apiUrl.replace(/\/+$/, ''),
+
+  /** `ws://host:3001`. The client appends `/ws`. */
+  gatewayUrl: gatewayUrl.replace(/\/+$/, ''),
 
   /** Crash reporting. Empty is valid and means reporting is disabled. */
   sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN?.trim() || undefined,

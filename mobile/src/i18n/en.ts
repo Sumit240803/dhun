@@ -476,6 +476,25 @@ export const en = {
     tagGaming: 'Gaming',
     tagFriends: 'Friends',
     tagEsports: 'Esports',
+
+    chatPlaceholder: 'Say something',
+    chatSend: 'Send',
+    chatEmpty: 'No messages yet. Say hello.',
+    chatOffline: 'Reconnecting — messages will not send',
+    chatBlocked: 'That message was not sent',
+    seatsTab: 'Seats',
+    chatTab: 'Chat',
+
+    raiseHand: 'Ask for the mic',
+    handRaised: 'Waiting for the host',
+    cancelRequest: 'Cancel',
+    micDenied: 'The host did not accept',
+    micGranted: 'You are on the mic',
+    queueTitle: 'Asking for the mic',
+    queueEmpty: 'Nobody is waiting',
+    queueBadge: '{count} waiting',
+    approve: 'Let them speak',
+    deny: 'Not now',
   },
 
   legal: {
