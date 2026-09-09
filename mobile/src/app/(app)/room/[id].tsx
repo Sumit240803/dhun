@@ -29,6 +29,7 @@ import { useSession } from '@/store/session';
 import {
   Avatar,
   Badge,
+  Banner,
   Button,
   Column,
   EmptyState,
@@ -36,6 +37,7 @@ import {
   Screen,
   SegmentedTabs,
   Sheet,
+  Skeleton,
   Text,
   type SheetHandle,
 } from '@/ui';
@@ -88,6 +90,12 @@ export default function RoomScreen() {
   const isHost = room?.hostId === user?.id;
   const mySeat = seats.find((seat) => seat.userId === user?.id);
 
+  // A single-host broadcast has NO seats, so `mySeat` is undefined for its
+  // host — and driving the microphone off that alone muted them on connect
+  // and then offered no control to undo it. The host can always speak in
+  // their own room; a seat is how everybody else earns it.
+  const canSpeak = isHost || mySeat !== undefined;
+
   const live = useLiveRoom({
     url: joined?.rtc.url ?? null,
     token: joined?.rtc.token ?? null,
@@ -99,9 +107,9 @@ export default function RoomScreen() {
   // whatever grant we actually hold now.
   useEffect(() => {
     if (live.connection !== 'connected') return;
-    void live.syncPublishing(mySeat !== undefined && !mySeat.muted);
+    void live.syncPublishing(canSpeak && !mySeat?.muted);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mySeat?.seatIndex, mySeat?.muted, live.connection]);
+  }, [canSpeak, mySeat?.seatIndex, mySeat?.muted, live.connection]);
 
   // The host ended it. Nothing here is usable any more.
   useEffect(() => {
@@ -126,6 +134,23 @@ export default function RoomScreen() {
           actionLabel={t('common.back')}
           onAction={() => router.back()}
         />
+      </Screen>
+    );
+  }
+
+  // Joining takes a round trip. Without this the screen renders an empty
+  // header, no seats and "0 watching" — which reads as a broken room rather
+  // than one that has not arrived.
+  if (join.isPending || !joined) {
+    return (
+      <Screen padded>
+        <View style={styles.centre}>
+          <Column gap="lg" align="center">
+            <Skeleton width={96} height={96} rounding="pill" />
+            <Skeleton width={180} height={20} />
+            <Skeleton width={120} height={14} />
+          </Column>
+        </View>
       </Screen>
     );
   }
@@ -209,6 +234,28 @@ export default function RoomScreen() {
         <ConnectionLine media={live.connection} socket={socket.status} />
       </LinearGradient>
 
+      {/*
+        Everything that used to fail silently.
+        · A blocked chat line cleared the composer and said nothing, so the
+          sender assumed it sent and repeated it — the exact behaviour the
+          filter exists to avoid.
+        · A denied mic request flipped the button back with no explanation.
+        · A failed kick, mute or seat change showed nothing at all.
+      */}
+      <MicAnswer answer={socket.micAnswer} onDismiss={socket.clearMicAnswer} />
+
+      <RoomNotice
+        socketError={socket.lastError}
+        actionError={
+          actions.takeSeat.error ??
+          actions.releaseSeat.error ??
+          actions.muteSeat.error ??
+          actions.kick.error ??
+          actions.endRoom.error
+        }
+        onDismiss={socket.clearError}
+      />
+
       <View style={styles.tabs}>
         <SegmentedTabs
           options={[
@@ -287,7 +334,7 @@ export default function RoomScreen() {
       {/* Three states: on a seat, waiting, or able to ask. */}
       {tab === 'seats' && (
         <View style={[styles.bar, { paddingBottom: insets.bottom + spacing.md }]}>
-          {mySeat !== undefined ? (
+          {canSpeak ? (
             <Row gap="md">
               <Button
                 label={live.micOn ? t('room.micOn') : t('room.micOff')}
@@ -297,13 +344,13 @@ export default function RoomScreen() {
                 }}
                 // The host's mute is not ours to undo. An enabled button that
                 // silently fails is worse than a disabled one.
-                disabled={mySeat.muted || live.connection !== 'connected'}
+                disabled={mySeat?.muted === true || live.connection !== 'connected'}
                 variant={live.micOn ? 'primary' : 'secondary'}
                 size="lg"
                 fullWidth
                 testID="toggle-mic"
               />
-              {!isHost && (
+              {!isHost && mySeat !== undefined && (
                 <Button
                   label={t('room.leaveSeat')}
                   onPress={() => {
@@ -434,6 +481,86 @@ export default function RoomScreen() {
 }
 
 /**
+ * The host's answer to a raised hand.
+ *
+ * Both outcomes are announced. Being granted is obvious the moment the seat
+ * appears, but being REFUSED is not — the button simply flipped back, and a
+ * user who was refused and a user whose request never sent saw exactly the
+ * same thing.
+ */
+function MicAnswer({
+  answer,
+  onDismiss,
+}: {
+  answer: 'granted' | 'denied' | null;
+  onDismiss: () => void;
+}) {
+  const { t } = useTranslation();
+
+  useEffect(() => {
+    if (!answer) return;
+    const timer = setTimeout(onDismiss, 4000);
+    return () => clearTimeout(timer);
+  }, [answer, onDismiss]);
+
+  if (!answer) return null;
+
+  return (
+    <Animated.View entering={FadeIn.duration(160)} style={styles.notice}>
+      <Banner
+        message={answer === 'granted' ? t('room.micGranted') : t('room.micDenied')}
+        tone={answer === 'granted' ? 'info' : 'warning'}
+      />
+    </Animated.View>
+  );
+}
+
+/**
+ * The one place a room reports that something did not work.
+ *
+ * Two sources, one slot. Gateway errors arrive over the socket and carry the
+ * same `code` vocabulary as the REST ones, so both go through the shared error
+ * mapper and neither needs its own translation table.
+ *
+ * Auto-dismissed, because these are transient corrections to an action just
+ * taken — not system news, and a banner that has to be tapped away in the
+ * middle of a live room is worse than the silence it replaced.
+ */
+function RoomNotice({
+  socketError,
+  actionError,
+  onDismiss,
+}: {
+  socketError: { code: string; message: string } | null;
+  actionError: unknown;
+  onDismiss: () => void;
+}) {
+  const { t } = useTranslation();
+
+  useEffect(() => {
+    if (!socketError) return;
+    const timer = setTimeout(onDismiss, 4000);
+    return () => clearTimeout(timer);
+  }, [socketError, onDismiss]);
+
+  const message = socketError
+    ? socketError.code === 'MESSAGE_BLOCKED'
+      ? t('room.chatBlocked')
+      : socketError.message
+    : actionError != null
+      ? errorMessage(actionError)
+      : null;
+
+  if (message === null) return null;
+
+  return (
+    <Animated.View entering={FadeIn.duration(160)} style={styles.notice}>
+      <Banner message={message} tone="warning" />
+    </Animated.View>
+  );
+}
+
+/**
  * One line for two connections.
  *
  * Shown only when something is wrong. A permanent "connected" badge is noise —
@@ -555,6 +682,7 @@ function SeatTile({
 const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, gap: spacing.sm },
   connection: { alignItems: 'center' },
+  notice: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   queueButton: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -199,6 +199,42 @@ describe('joining', () => {
     expect(grantsIn(rejoin.body.rtc.token).canPublish).toBe(true);
   });
 
+  it('lets the host of a SOLO room speak, though it has no seats', async () => {
+    // A single-host broadcast creates no seat rows at all, and deriving
+    // publish rights from the seat table alone left its host unable to speak
+    // the moment they rejoined — with no seat to take, because the room has
+    // none. The whole livestream room type was silent, and the party-room
+    // path everyone tests never touches it.
+    const host = await account();
+    const { room } = await goLive(host, { seatCapacity: undefined });
+
+    const seats = await pool.query('SELECT 1 FROM room_seats WHERE room_id = $1', [room.id]);
+    expect(seats.rows).toHaveLength(0);
+
+    const rejoin = await request(app)
+      .post(`/v1/rooms/${room.id}/join`)
+      .set('Authorization', `Bearer ${host.accessToken}`)
+      .expect(200);
+
+    expect(rejoin.body.canPublish).toBe(true);
+    expect(grantsIn(rejoin.body.rtc.token).canPublish).toBe(true);
+  });
+
+  it('still refuses a listener in a solo room', async () => {
+    // The host exception must not widen into "anyone in a seatless room".
+    const host = await account();
+    const viewer = await account();
+    const { room } = await goLive(host, { seatCapacity: undefined });
+
+    const res = await request(app)
+      .post(`/v1/rooms/${room.id}/join`)
+      .set('Authorization', `Bearer ${viewer.accessToken}`)
+      .expect(200);
+
+    expect(res.body.canPublish).toBe(false);
+    expect(grantsIn(res.body.rtc.token).canPublish).toBe(false);
+  });
+
   it('refuses an ended room with 410 rather than 404', async () => {
     const host = await account();
     const viewer = await account();

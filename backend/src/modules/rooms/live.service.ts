@@ -209,7 +209,19 @@ export async function joinRoom(input: {
     input.roomId,
     input.userId,
   ]);
-  const canPublish = seat.rowCount! > 0;
+
+  // The HOST can always speak in their own room, seat or no seat.
+  //
+  // A single-host broadcast has no seats at all — `seat_capacity` is null and
+  // no row is ever created — so deriving this from the seat table alone made
+  // the host of a livestream unable to publish the moment they rejoined, with
+  // no seat to take because the room has none. The whole solo room type was
+  // silent.
+  //
+  // Same rule the seat table already encodes for party rooms, where seat 0 is
+  // created with the room and never released. Stated here so both shapes of
+  // room agree.
+  const canPublish = seat.rowCount! > 0 || row.host_user_id === input.userId;
 
   const profile = await pool.query<{ display_name: string | null }>(
     'SELECT display_name FROM user_profiles WHERE user_id = $1',

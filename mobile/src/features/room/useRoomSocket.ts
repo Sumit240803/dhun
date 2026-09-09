@@ -28,6 +28,14 @@ export interface RoomSocketState {
   micQueue: MicRequest[];
   /** Our own raised hand, cleared when the host answers. */
   micPending: boolean;
+  /**
+   * The host's answer, once.
+   *
+   * Held separately from `micPending` because clearing that flag is silent —
+   * the button flipped back from "waiting" to "ask" and nothing said whether
+   * the host had refused or the request had simply failed to send.
+   */
+  micAnswer: 'granted' | 'denied' | null;
   /** The host ended it. The screen leaves. */
   ended: boolean;
   /** The last rejected action, for a one-line message under the composer. */
@@ -43,6 +51,7 @@ export function useRoomSocket(roomId: string | undefined) {
     chat: [],
     micQueue: [],
     micPending: false,
+    micAnswer: null,
     ended: false,
     lastError: null,
   });
@@ -82,7 +91,11 @@ export function useRoomSocket(roomId: string | undefined) {
               return { ...s, micQueue: message.requests };
 
             case 'mic:resolved':
-              return { ...s, micPending: false };
+              return {
+                ...s,
+                micPending: false,
+                micAnswer: message.approved ? 'granted' : 'denied',
+              };
 
             case 'room:ended':
               return { ...s, ended: true };
@@ -119,7 +132,9 @@ export function useRoomSocket(roomId: string | undefined) {
   const requestMic = useCallback(() => {
     if (!roomId) return;
     if (socketRef.current?.send({ t: 'mic:request', roomId })) {
-      setState((s) => ({ ...s, micPending: true }));
+      // The previous answer goes with the new request — a "not now" from five
+      // minutes ago should not still be on screen while a fresh hand is up.
+      setState((s) => ({ ...s, micPending: true, micAnswer: null }));
     }
   }, [roomId]);
 
@@ -139,6 +154,15 @@ export function useRoomSocket(roomId: string | undefined) {
   );
 
   const clearError = useCallback(() => setState((s) => ({ ...s, lastError: null })), []);
+  const clearMicAnswer = useCallback(() => setState((s) => ({ ...s, micAnswer: null })), []);
 
-  return { ...state, sendChat, requestMic, cancelMic, resolveMic, clearError };
+  return {
+    ...state,
+    sendChat,
+    requestMic,
+    cancelMic,
+    resolveMic,
+    clearError,
+    clearMicAnswer,
+  };
 }
