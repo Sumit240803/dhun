@@ -60,6 +60,8 @@ export type ServerMessage =
   /** Somebody sent a gift. Drives the strips and animations; the ledger has already settled. */
   | { t: 'gift'; roomId: string; gift: GiftView }
   | { t: 'entry'; roomId: string; user: EntryView }
+  /** Coins for watching, to the watcher only. */
+  | { t: 'reward'; kind: 'watch'; coins: number; earnedToday: number; dailyCap: number }
   | { t: 'room:ended'; roomId: string }
   | { t: 'error'; code: string; message: string }
   | { t: 'pong' };

@@ -41,7 +41,11 @@ export function RoomCard({ room, onPress, onPressHost, tagLabel, testID }: RoomC
       onLongPress={onPressHost}
       testID={testID}
       accessibilityRole="button"
-      accessibilityLabel={`${room.hostName}. ${tagLabel}. ${formatCompact(room.viewers)} watching`}
+      accessibilityLabel={
+        room.viewers === null
+          ? `${room.hostName}. ${tagLabel}`
+          : `${room.hostName}. ${tagLabel}. ${formatCompact(room.viewers)} watching`
+      }
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
       {room.coverUrl === null ? (
@@ -111,12 +115,16 @@ export function RoomCard({ room, onPress, onPressHost, tagLabel, testID }: RoomC
           </Text>
         </View>
 
-        <View style={styles.viewers}>
-          <Ionicons name="cellular" size={11} color={colors.text.onMedia} />
-          <Text variant="micro" tone="onMedia">
-            {formatCompact(room.viewers)}
-          </Text>
-        </View>
+        {/* Hidden while cold start hides counts. "3 watching" is what makes a
+            new app look empty; the Live badge alone does not. */}
+        {room.viewers !== null && (
+          <View style={styles.viewers}>
+            <Ionicons name="cellular" size={11} color={colors.text.onMedia} />
+            <Text variant="micro" tone="onMedia">
+              {formatCompact(room.viewers)}
+            </Text>
+          </View>
+        )}
       </View>
     </Pressable>
   );

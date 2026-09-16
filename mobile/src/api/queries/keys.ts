@@ -30,6 +30,16 @@ export const queryKeys = {
     cosmetics: () => [...queryKeys.catalog.all, 'cosmetics'] as const,
   },
 
+  rewards: {
+    all: ['rewards'] as const,
+    status: () => [...queryKeys.rewards.all, 'status'] as const,
+  },
+
+  discover: {
+    all: ['discover'] as const,
+    search: (query: string) => [...queryKeys.discover.all, 'search', query] as const,
+  },
+
   cosmetics: {
     all: ['cosmetics'] as const,
     mine: () => [...queryKeys.cosmetics.all, 'mine'] as const,

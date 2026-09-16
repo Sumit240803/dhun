@@ -66,6 +66,13 @@ const codeMessages: Partial<Record<string, MessageKey>> = {
   // it in its own words.
   [ApiErrorCode.GIFT_PRICE_CHANGED]: 'gifting.priceChanged',
   [ApiErrorCode.COSMETIC_PRICE_CHANGED]: 'cosmeticErrors.priceChanged',
+  [ApiErrorCode.WELCOME_ALREADY_USED_ON_DEVICE]: 'rewardErrors.welcomeUsedOnDevice',
+  [ApiErrorCode.REWARD_UNAVAILABLE]: 'rewardErrors.unavailable',
+  [ApiErrorCode.REFERRAL_SELF]: 'rewardErrors.referralSelf',
+  [ApiErrorCode.REFERRAL_ALREADY_SET]: 'rewardErrors.referralAlreadySet',
+  [ApiErrorCode.REFERRAL_WINDOW_CLOSED]: 'rewardErrors.referralWindowClosed',
+  [ApiErrorCode.REFERRAL_NOT_ALLOWED]: 'rewardErrors.referralNotAllowed',
+  [ApiErrorCode.REFERRAL_CODE_INVALID]: 'rewards.codeInvalid',
   [ApiErrorCode.COSMETIC_NOT_FOUND]: 'cosmeticErrors.unavailable',
   [ApiErrorCode.COSMETIC_NOT_OWNED]: 'cosmeticErrors.notOwned',
   [ApiErrorCode.COSMETIC_EXPIRED]: 'cosmeticErrors.expired',

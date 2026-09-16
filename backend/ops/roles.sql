@@ -53,6 +53,7 @@ REVOKE DELETE ON ledger_txns FROM :"app_role";
 -- is held to the same rule: appended, never edited.
 REVOKE UPDATE, DELETE ON gift_sends FROM :"app_role";
 REVOKE UPDATE, DELETE ON cosmetic_purchases FROM :"app_role";
+REVOKE UPDATE, DELETE ON reward_claims FROM :"app_role";
 
 -- Reference data. Changing a gift price or a rate is an ADMIN action through a
 -- reviewed path, never something an API request can do.

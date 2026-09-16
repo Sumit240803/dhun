@@ -9,6 +9,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useProfileSummary } from '@/api/queries/useFeed';
+import { useRewards } from '@/api/queries/useGrowth';
 import { useWallet } from '@/api/queries/useWallet';
 import { signOut } from '@/features/auth/session';
 import { useTranslation, type LocaleCode, type MessageKey } from '@/i18n';
@@ -53,6 +54,11 @@ export default function MeTab() {
   const queryClient = useQueryClient();
   const summary = useProfileSummary();
   const wallet = useWallet();
+  const rewards = useRewards(user?.status === 'active');
+  // Something is waiting to be claimed — the dot is what brings a user in.
+  const rewardWaiting =
+    rewards.data !== undefined &&
+    (!rewards.data.checkin.claimedToday || rewards.data.welcome.available);
 
   const signOutSheet = useRef<SheetHandle>(null);
   const [signingOut, setSigningOut] = useState(false);
@@ -209,6 +215,23 @@ export default function MeTab() {
                 router.push('/(app)/visitors');
               }}
               testID="visitors-row"
+            />
+            <Divider />
+            <ListItem
+              title={t('rewards.title')}
+              subtitle={rewardWaiting ? t('rewards.meWaiting') : t('rewards.meSubtitle')}
+              left={<Ionicons name="gift-outline" size={20} color={colors.currency.coin} />}
+              right={
+                <Row gap="sm">
+                  {rewardWaiting && <View style={styles.dot} />}
+                  <Ionicons name="chevron-forward" size={18} color={colors.text.faint} />
+                </Row>
+              }
+              onPress={() => {
+                haptic.selection();
+                router.push('/(app)/rewards');
+              }}
+              testID="rewards-row"
             />
             <Divider />
             <ListItem
@@ -442,6 +465,12 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 const styles = StyleSheet.create({
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: radius.pill,
+    backgroundColor: colors.status.live,
+  },
   scroll: { paddingBottom: spacing.xxl },
   hero: { paddingBottom: spacing.xl },
   heroContent: { alignItems: 'center', gap: spacing.sm },

@@ -6,6 +6,8 @@ import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { useBanners, useRoomFeed } from '@/api/queries/useFeed';
+import { useAppConfig } from '@/features/config/useAppConfig';
+import { peakWindow } from '@/features/rewards/schedule';
 import { useTranslation, type MessageKey } from '@/i18n';
 import { track } from '@/lib/analytics';
 import { errorMessage } from '@/lib/errors';
@@ -61,6 +63,11 @@ export function RoomFeed({ sections, action }: RoomFeedProps) {
 
   const feed = useRoomFeed(category);
   const banners = useBanners();
+
+  // An empty feed outside peak hours says when to come back. "Nothing here"
+  // at 3pm is the moment a new user decides the app is dead.
+  const { coldStart } = useAppConfig();
+  const peak = coldStart ? peakWindow(coldStart) : null;
 
   // Swipe between sections, the way every app in this category does. The
   // gesture is on the list only — putting it on the whole Screen would fight
@@ -167,9 +174,23 @@ export function RoomFeed({ sections, action }: RoomFeedProps) {
                 />
               ) : (
                 <EmptyState
-                  icon="videocam-outline"
-                  title={t('feed.emptyTitle')}
-                  body={t('feed.emptyBody')}
+                  icon={peak && !peak.live ? 'moon-outline' : 'videocam-outline'}
+                  title={
+                    peak && !peak.live && coldStart
+                      ? t('feed.peakTitle', {
+                          start: coldStart.peakStartIst,
+                          end: coldStart.peakEndIst,
+                        })
+                      : t('feed.emptyTitle')
+                  }
+                  body={
+                    peak && !peak.live
+                      ? t('feed.peakBody', {
+                          hours: Math.floor(peak.startsInMinutes / 60),
+                          minutes: peak.startsInMinutes % 60,
+                        })
+                      : t('feed.emptyBody')
+                  }
                   testID="feed-empty"
                 />
               )

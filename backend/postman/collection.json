@@ -417,7 +417,7 @@
                 "profile"
               ]
             },
-            "description": "Sets the profile. **A date of birth is required before any money endpoint will work** — hard rule #5 is enforced where money moves, not just as an optional field, so it cannot be bypassed by skipping the question.\n\nEvery session response now carries `user.profileComplete` — display name AND date of birth both set. The client cannot work this out alone because it never sees the date of birth, and without it someone who quit mid-signup came back authenticated and was never asked again.\n\nAn under-18 date returns 403 UNDERAGE. Without one, purchases return 403 DOB_REQUIRED so the app knows to open the date picker.\n\nAge is evaluated against the calendar date in IST, so someone turning 18 today passes from 00:00 IST. A date that matches the YYYY-MM-DD shape but is not a real date (`2000-02-31`), or one in the future, returns 422 INVALID_DOB — not UNDERAGE, because a typo must not send a user into an age-appeal flow.",
+            "description": "Sets the profile. **A date of birth is required before any money endpoint will work** — hard rule #5 is enforced where money moves, not just as an optional field, so it cannot be bypassed by skipping the question.\n\nEvery session response now carries `user.profileComplete` — display name AND date of birth both set. The client cannot work this out alone because it never sees the date of birth, and without it someone who quit mid-signup came back authenticated and was never asked again.\n\nAn under-18 date returns 403 UNDERAGE. Without one, purchases return 403 DOB_REQUIRED so the app knows to open the date picker.\n\nAge is evaluated against the calendar date in IST, so someone turning 18 today passes from 00:00 IST. A date that matches the YYYY-MM-DD shape but is not a real date (`2000-02-31`), or one in the future, returns 422 INVALID_DOB — not UNDERAGE, because a typo must not send a user into an age-appeal flow.\n\n`locale` (`en-IN` | `hi-IN`) is the app's language, so text the server writes — a push notification — matches it. The app sends it whenever the language changes.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"displayName\": \"Rahul\",\n  \"dateOfBirth\": \"1998-04-12\",\n  \"gender\": \"male\"\n}",
@@ -3115,6 +3115,357 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200,202,204]));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Rewards — M10",
+      "description": "Free coins: ordinary coins, giftable at the full payout rate (CLAUDE.md supersedes the 20%/expiring bonus design). Amounts and caps are `app_config.free_coins`. No Idempotency-Key header: the ledger key is DERIVED FROM THE CLAIM (`checkin:{user}:{IST date}` …), so repeating a claim can never pay twice. Registered accounts only. Kill switch: `ledger_txn_types.free_coin_grant`. Decisions: ledger-decisions § C5b, C5c.\n\nThe watch reward has no endpoint — the realtime gateway measures time in a room and pays it, pushing `{t:'reward'}` to the watcher.",
+      "item": [
+        {
+          "name": "1 — Rewards status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rewards",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rewards"
+              ]
+            },
+            "description": "Welcome bonus (claimed / available — unavailable when another account on the same phone took it), today's check-in (ladder, claimedToday, streakDay), watch progress, and referral stats with the caller's invite code (their public ID)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 — Claim the welcome bonus",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rewards/welcome",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rewards",
+                "welcome"
+              ]
+            },
+            "description": "500 coins, once per account and once per device. A repeat returns `alreadyClaimed: true`.\n\n**Errors:** `WELCOME_ALREADY_USED_ON_DEVICE` 409 · `REWARD_UNAVAILABLE` 409 · `TXN_TYPE_INACTIVE` 503 · `REGISTRATION_REQUIRED` 403."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 — Daily check-in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rewards/checkin",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rewards",
+                "checkin"
+              ]
+            },
+            "description": "Ladder 20, 30, 40, 60, 80, 100, 150 on consecutive IST days, wrapping after day 7; a missed day resets to day 1. One claim per IST day — a repeat returns `alreadyClaimed: true`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('a ladder day', () => pm.expect(pm.response.json().streakDay).to.be.within(1, 7));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4 — Enter an invite code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rewards/referral",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rewards",
+                "referral"
+              ]
+            },
+            "description": "The referrer's public ID. Within 7 days of signup, once, never your own, never from an account on the same phone. The referrer is paid 2,000 coins when this account's first purchase of at least ₹99 is credited — by the workers' outbox consumer, not here.\n\n**Errors:** `REFERRAL_CODE_INVALID` 404 · `REFERRAL_SELF` 422 · `REFERRAL_NOT_ALLOWED` 422 · `REFERRAL_ALREADY_SET` 409 · `REFERRAL_WINDOW_CLOSED` 409.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"10000001\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Discover — M10",
+      "description": "Search and the cold-start helpers. Readable without a session.",
+      "item": [
+        {
+          "name": "1 — Search",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/discover/search?q=pri",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "discover",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "pri"
+                }
+              ]
+            },
+            "description": "People by name PREFIX (case-insensitive) or exact public ID; live rooms by title or host name. Blocks hide in both directions. People carry `look` and `liveRoomId`. Viewer counts are null while cold start hides them."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 — Fullest room",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rooms/fullest",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rooms",
+                "fullest"
+              ]
+            },
+            "description": "Where a brand-new user is dropped on first open (growth-plan-v1). Never the caller's own room, never across a block. `room: null` when nothing is live or `cold_start.dropNewUsersIntoRoom` is off."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Notifications — M10",
+      "description": "Expo push tokens. The followed-host-is-live push is sent by the workers when `room_started` is consumed: once per follower per room, once per host per cooldown, a daily cap per person, never across a block, never for a room that has already ended. A token registered by a new account is removed from any other account holding it. Copy is written server-side in the follower's `locale`.",
+      "item": [
+        {
+          "name": "1 — Register a push token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/notifications/token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "notifications",
+                "token"
+              ]
+            },
+            "description": "For the device this session signed in on. **Errors:** `DEVICE_NOT_FOUND` 404 · `VALIDATION_FAILED` 422 (not an Expo token).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{deviceId}}\",\n  \"token\": \"ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 — Remove the push token",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/notifications/token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "notifications",
+                "token"
+              ]
+            },
+            "description": "Signing out, or turning notifications off.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"deviceId\": \"{{deviceId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
                 ]
               }
             }

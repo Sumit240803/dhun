@@ -26,6 +26,7 @@ export {
   listCosmetics,
   getCosmeticForSale,
   getConfigNumber,
+  getConfigValue,
   levelFor,
   invalidateCatalogCache,
 } from './catalog.service.js';

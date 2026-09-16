@@ -159,6 +159,11 @@ export type ServerMessage =
   | { t: 'mic:queue'; roomId: string; requests: MicRequest[] }
   /** A gift was sent in this room. Drives the strips. */
   | { t: 'gift'; roomId: string; gift: GiftView }
+  /**
+   * Coins earned for watching. To the watcher only, so the app can say so the
+   * moment it happens rather than leaving it to be discovered in the wallet.
+   */
+  | { t: 'reward'; kind: 'watch'; coins: number; earnedToday: number; dailyCap: number }
   /** An entrance worth announcing — the arriving user wears an entry effect. */
   | { t: 'entry'; roomId: string; user: EntryView }
   /** Requester only — the answer to their own raised hand. */

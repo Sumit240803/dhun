@@ -12,7 +12,7 @@
 
 export { buildRoomsRouter } from './rooms.routes.js';
 
-export { listFeed } from './rooms.service.js';
+export { fullestRoom, listFeed } from './rooms.service.js';
 export type { FeedRoom, FeedCategory } from './rooms.service.js';
 
 export { endRoom, getRoom, goLive, joinRoom, listSeats } from './live.service.js';

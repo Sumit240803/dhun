@@ -4,7 +4,7 @@ import { authGuard, optionalAuth, requireRegistered } from '../../middleware/aut
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { validate } from '../../middleware/validate.js';
 import { endRoom, getRoom, goLive, joinRoom } from './live.service.js';
-import { listFeed } from './rooms.service.js';
+import { fullestRoom, listFeed } from './rooms.service.js';
 import { kickFromRoom, releaseSeat, setSeatMuted, takeSeat } from './seats.service.js';
 
 export function buildRoomsRouter(): Router {
@@ -100,6 +100,16 @@ export function buildRoomsRouter(): Router {
       }
     },
   );
+
+  // Where a brand-new user is dropped on first open. Declared BEFORE `/:id`,
+  // which would otherwise read "fullest" as a room id and refuse it.
+  router.get('/fullest', async (req, res, next) => {
+    try {
+      res.json({ room: await fullestRoom(req.userId) });
+    } catch (err) {
+      next(err);
+    }
+  });
 
   // The room and its seat map, without joining. What a feed card expands into,
   // and readable without a session for the same reason the feed is.

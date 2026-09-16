@@ -239,6 +239,19 @@ export async function getCosmeticForSale(id: string): Promise<Cosmetic> {
   return cosmetic;
 }
 
+/**
+ * A structured dial from app_config, unparsed. The caller validates it — a
+ * config row is typed by hand, and a typo in one must degrade to a default
+ * rather than reach a money calculation.
+ */
+export async function getConfigValue(key: string): Promise<unknown> {
+  const all = await cached('config', async () => {
+    const { rows } = await pool.query('SELECT key, value FROM app_config');
+    return Object.fromEntries(rows.map((r) => [r.key, r.value])) as Record<string, unknown>;
+  });
+  return all[key];
+}
+
 /** A dial from app_config. Falls back to the compiled default if the row is missing. */
 export async function getConfigNumber(key: string, fallback: number): Promise<number> {
   const all = await cached('config', async () => {

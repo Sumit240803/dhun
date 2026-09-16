@@ -14,10 +14,14 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useQueryClient } from '@tanstack/react-query';
+
+import { queryKeys } from '@/api/queries/keys';
 import { useJoinRoom, useRoomActions } from '@/api/queries/useRoom';
 import { useGiftCatalog } from '@/api/queries/useWallet';
 import { ApiErrorCode, type GiftView, type JoinedRoom } from '@/api/types';
 import { useFlag } from '@/config/flags';
+import { useAppConfig } from '@/features/config/useAppConfig';
 import { deliverGift } from '@/features/gifting/deliver';
 import { GiftSheet } from '@/features/gifting/GiftSheet';
 import { giftRecipients } from '@/features/gifting/recipients';
@@ -120,10 +124,36 @@ export default function RoomScreen() {
   // else. Owned here and read by its layer, like the gifts.
   const [entries] = useState(() => new EntryEffects());
 
+  // Coins earned for watching, said out loud the moment they land. A reward
+  // discovered later in a wallet teaches nothing; one seen while watching
+  // teaches that watching pays.
+  const queryClient = useQueryClient();
+  const [watchReward, setWatchReward] = useState<{
+    coins: number;
+    earnedToday: number;
+    dailyCap: number;
+  } | null>(null);
+
   const socket = useRoomSocket(joined ? id : undefined, {
     onGift: receive,
     onEntry: (user) => entries.push(user),
+    onReward: (reward) => {
+      haptic.success();
+      setWatchReward(reward);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.wallet.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.rewards.all });
+    },
   });
+
+  useEffect(() => {
+    if (!watchReward) return;
+    const timer = setTimeout(() => setWatchReward(null), 4_000);
+    return () => clearTimeout(timer);
+  }, [watchReward]);
+
+  // Cold start hides small counts everywhere, the room header included.
+  const { coldStart } = useAppConfig();
+  const showViewers = coldStart?.hideViewerCounts !== true;
 
   // Loaded on entering the room, not on opening the sheet: the sheet is the
   // moment money is spent, and a spinner there costs the gift. Icons and the
@@ -261,9 +291,11 @@ export default function RoomScreen() {
             </Text>
             <Row gap="xs">
               <Badge label={t('room.live')} tone="danger" />
-              <Text variant="micro" tone="secondary">
-                {t('room.viewers', { count: socket.viewers || (room?.viewers ?? 0) })}
-              </Text>
+              {showViewers && (
+                <Text variant="micro" tone="secondary">
+                  {t('room.viewers', { count: socket.viewers || (room?.viewers ?? 0) })}
+                </Text>
+              )}
             </Row>
           </Column>
 
@@ -350,6 +382,19 @@ export default function RoomScreen() {
         · A failed kick, mute or seat change showed nothing at all.
       */}
       <MicAnswer answer={socket.micAnswer} onDismiss={socket.clearMicAnswer} />
+
+      {watchReward && (
+        <Animated.View entering={FadeIn.duration(160)} style={styles.notice}>
+          <Banner
+            tone="info"
+            message={t('room.watchReward', {
+              coins: watchReward.coins,
+              earned: watchReward.earnedToday,
+              cap: watchReward.dailyCap,
+            })}
+          />
+        </Animated.View>
+      )}
 
       <RoomNotice
         socketError={socket.lastError}

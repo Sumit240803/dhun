@@ -385,7 +385,12 @@ Evidence preservation in restricted storage.
 **Exit:** L1 detection to action under 30 seconds, verified by drill · appeal reaches a
 second reviewer · Grievance Officer contact published in-app and on web.
 
-### M10 · Discovery & daily hooks (backend + app)
+### M10 · Discovery & daily hooks (backend + app) — BUILT, UNVERIFIED
+
+**Re-sequenced by agreement, 2026-09-16:** M10 is built before M8 and M9. M8's core is blocked
+on the CA's TDS decision and a RazorpayX account, M9's detection core on a Hive account, and
+nothing in M10 depends on either. M8 and M9 are NOT skipped — the Phase 0 exit still needs
+both.
 
 Live feed, category tabs, following tab, search. Follow + live notification. Daily check-in
 with streak, watch reward, push notifications. Referral with `free_coin_grant`.
@@ -393,7 +398,58 @@ with streak, watch reward, push notifications. Referral with `free_coin_grant`.
 Cold-start handling from the growth plan: consolidate rooms (show 4, not 10), enforce peak
 hours, hide absolute viewer counts, drop new users into the fullest room.
 
-**Exit:** the Phase 0 feature list is complete.
+**Decisions settled first** (`backend/docs/ledger-decisions.md` § C5b, C5c): free-coin amounts
+and caps from economy-design-v1 § 6 in `app_config.free_coins`; the check-in ladder the doc
+gives only as 20 → 150 fixed at 20, 30, 40, 60, 80, 100, 150; ledger keys derived from the
+claim, never a client header; referral paid only on a first purchase of at least ₹99.
+
+**Built** (migration `017_discovery_rewards.sql`, 36 tests):
+
+- **Free coins**, all ordinary giftable coins, all once-only by construction (a
+  `reward_claims` row per credit, keyed like the ledger txn), all per IST day, all behind the
+  `free_coin_grant` kill switch: the **welcome bonus** (500, once per account and per
+  device), the **daily check-in** (7-day ladder, wraps, resets on a missed day), the **watch
+  reward** (30 per 5 minutes, 10 a day — measured by the GATEWAY, which alone knows a socket
+  sat in a room; the host is never paid for their own room, and a stalled process cannot pay a
+  whole interval on waking), and **referrals** (2,000 on the friend's first ₹99+ purchase,
+  paid by the workers' outbox consumer; entered within 7 days, never your own, never across a
+  shared phone).
+- **Push**: Expo push tokens behind a provider interface (console in development), cleared on
+  sign-out and moved to whoever signs in on a phone last. The **followed-host-is-live**
+  notification is driven by a `room_started` outbox event written in the same transaction as
+  the room: once per follower per room, once per host per 2-hour cooldown, 5 a day, never
+  across a block, never for a room already over, written in the follower's language (the
+  profile now carries `locale`, synced from the app).
+- **Search**: people by name prefix or exact public ID, live rooms by title or host;
+  blocks hide both ways.
+- **Cold start** (`app_config.cold_start`): the feed shows the fullest 4 rooms (Following is
+  exempt), viewer counts are hidden, an empty feed outside 8–11 PM IST says when rooms fill
+  up, and a new user lands in the fullest room straight after profile setup.
+- **Workers consumers**: the outbox now drives consequences as well as analytics, at least
+  once, each consumer idempotent on its own key.
+
+App: the Discover tab (search as you type, a live person opens into their room), a Daily
+rewards screen (welcome, check-in ladder, watch progress, invite code with share and code
+entry), a once-a-day check-in prompt, a rewards row on Me with a dot when something is
+waiting, the "+30 coins for watching" notice in rooms, the push permission asked right after
+a follow, notification taps opening the room, hidden counts on cards and the room header,
+and the peak-hours empty state.
+
+**Interpretation recorded:** "enforce peak hours" is built as TELLING users when rooms are
+full, not as refusing to let hosts go live outside the slot. Refusing a host who wants to
+broadcast would cost supply, which the growth plan names as the real risk. Concentrating
+hosts into the slot remains an operational job for host seeding.
+
+**Not in M10, deliberately:**
+- **Follow and share rewards** (economy doc § 6): not in this milestone's list, and a share
+  cannot be verified.
+- **The D0 "2 hours later: Priya is live" push** and the host's "Welcome Rahul!" signal:
+  growth ideas, not build-plan items.
+- **Push delivery on Android** needs Firebase credentials uploaded to the Expo project and a
+  development build that includes them. Until then registration fails quietly and is reported.
+
+**Exit — not met yet:** the Phase 0 feature list is complete only once M8 (payouts) and M9
+(trust & safety) are built, and M5–M7 and M10 are verified on devices.
 
 ### M11 · Beta hardening
 

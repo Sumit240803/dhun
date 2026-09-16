@@ -128,6 +128,9 @@ export const hi: Messages = {
   },
 
   feed: {
+    peakTitle: 'रूम {start}–{end} के बीच सबसे ज़्यादा भरे रहते हैं',
+    peakBody:
+      'अगला व्यस्त समय {hours} घंटे {minutes} मिनट में शुरू होगा। तब आएँ, या खुद लाइव जाएँ।',
     following: 'फ़ॉलोइंग',
     explore: 'एक्सप्लोर',
     party: 'पार्टी',
@@ -515,6 +518,7 @@ export const hi: Messages = {
     stripSentTo: '{name} को {gift} भेजा',
     entered: '{name} रूम में आए',
     enteredCaption: 'आ गए हैं',
+    watchReward: 'देखने के लिए +{coins} कॉइन · आज {cap} में से {earned}',
     devSimulateGift: 'गिफ़्ट सिम्युलेट करें (डेवलपमेंट)',
   },
 
@@ -569,6 +573,70 @@ export const hi: Messages = {
     unavailable: 'यह आइटम अब नहीं बिकता।',
     notOwned: 'यह आइटम आपका नहीं है।',
     expired: 'इस आइटम का समय खत्म हो गया है। फिर से पहनने के लिए इसे रिन्यू करें।',
+  },
+
+  rewards: {
+    title: 'डेली रिवॉर्ड्स',
+    meSubtitle: 'मुफ़्त कॉइन के लिए चेक-इन करें, देखें और बुलाएँ',
+    meWaiting: 'आज आपके लिए कॉइन इंतज़ार कर रहे हैं',
+    guestTitle: 'मुफ़्त कॉइन के लिए साइन अप करें',
+    guestBody: 'डेली चेक-इन, वॉच रिवॉर्ड और इनवाइट बोनस अकाउंट वालों के लिए हैं। बस एक मिनट लगेगा।',
+    promptTitle: 'आज के कॉइन',
+    seeAll: 'सारे रिवॉर्ड देखें',
+
+    welcomeTitle: '{coins} वेलकम कॉइन',
+    welcomeBody: 'पहले गिफ़्ट के लिए काफ़ी। किसी पसंदीदा होस्ट को भेजें।',
+    claim: 'लें',
+
+    checkinTitle: 'डेली चेक-इन',
+    checkinBody: 'रोज़ आएँ। सातवें दिन सबसे ज़्यादा मिलता है — एक दिन छूटा तो स्ट्रीक फिर से शुरू।',
+    checkinDone: 'दिन {day} पूरा। स्ट्रीक बनाए रखने के लिए कल आएँ।',
+    claimCoins: '{coins} कॉइन लें',
+    comeBackTomorrow: 'कल फिर आएँ',
+    earned: '+{coins} कॉइन',
+    dayShort: 'दिन {day}',
+    dayLabel: 'दिन {day}, {coins} कॉइन',
+
+    watchTitle: 'लाइव रूम देखें',
+    watchBody: 'लाइव रूम में हर {minutes} मिनट पर +{coins} कॉइन।',
+    watchProgress: 'आज {cap} में से {earned} मिले',
+    watchDone: 'आज के सारे वॉच कॉइन मिल गए। कल और मिलेंगे।',
+    watchAction: 'रूम ढूँढें',
+
+    inviteTitle: 'दोस्तों को बुलाएँ',
+    inviteBody:
+      'आपका बुलाया दोस्त जब {amount} या उससे ज़्यादा की पहली खरीदारी करेगा, आपको {coins} कॉइन मिलेंगे।',
+    yourCode: 'आपका इनवाइट कोड',
+    copy: 'कॉपी',
+    copied: 'कॉपी हो गया',
+    share: 'इनवाइट भेजें',
+    shareMessage:
+      'Dhun पर मेरे साथ जुड़ें — लाइव रूम, म्यूज़िक और दोस्त। साइन अप करते समय मेरा इनवाइट कोड {code} डालें।',
+    inviteStats: '{invited} आपके कोड से जुड़े · {rewarded} का रिवॉर्ड मिला',
+    invitedBy: 'आपको {name} ने बुलाया था।',
+    enterCodeLabel: 'इनवाइट कोड है?',
+    applyCode: 'कोड लगाएँ',
+    codeInvalid: 'यह इनवाइट कोड मौजूद नहीं है।',
+  },
+
+  rewardErrors: {
+    welcomeUsedOnDevice: 'इस फ़ोन पर वेलकम कॉइन पहले ही लिए जा चुके हैं।',
+    unavailable: 'यह रिवॉर्ड अभी उपलब्ध नहीं है।',
+    referralSelf: 'आप अपना खुद का इनवाइट कोड नहीं लगा सकते।',
+    referralAlreadySet: 'आप पहले ही एक इनवाइट कोड लगा चुके हैं।',
+    referralWindowClosed: 'इनवाइट कोड सिर्फ़ पहले हफ़्ते में लगाया जा सकता है।',
+    referralNotAllowed: 'इस फ़ोन के किसी दूसरे अकाउंट से इनवाइट नहीं हो सकता।',
+  },
+
+  discover: {
+    title: 'खोजें',
+    placeholder: 'नाम या ID से खोजें',
+    idleTitle: 'किसी को ढूँढें',
+    idleBody: 'नाम लिखें, या वह ID जो होस्ट अपनी स्ट्रीम पर बताते हैं।',
+    noneTitle: '“{query}” के लिए कोई नहीं मिला',
+    noneBody: 'स्पेलिंग जाँचें, या उनकी ID से खोजें।',
+    liveRooms: 'लाइव रूम',
+    people: 'लोग',
   },
 
   legal: {

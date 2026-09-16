@@ -11,6 +11,7 @@ import { usersApi } from '@/api/endpoints/feed';
 import { queryKeys } from '@/api/queries/keys';
 import { recordVisit } from '@/api/queries/useSocial';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
+import { registerForPush } from '@/features/notifications/push';
 import { useTranslation } from '@/i18n';
 import { track } from '@/lib/analytics';
 import { errorMessage } from '@/lib/errors';
@@ -98,6 +99,10 @@ export default function UserProfileScreen() {
     },
     onSuccess: () => {
       track(profile.data?.isFollowing ? 'host_unfollowed' : 'host_followed', { host_id: targetId });
+      // `profile.data` is this render's value, from BEFORE the toggle — so not
+      // following then means a follow just happened. That is the moment a
+      // permission prompt explains itself: "tell me when they go live".
+      if (!profile.data?.isFollowing) void registerForPush({ ask: true });
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.profile.all });

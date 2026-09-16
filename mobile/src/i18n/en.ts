@@ -141,6 +141,9 @@ export const en = {
   },
 
   feed: {
+    peakTitle: 'Rooms are busiest {start}–{end}',
+    peakBody:
+      'The next busy hours start in {hours}h {minutes}m. Check back then, or go live yourself.',
     following: 'Following',
     explore: 'Explore',
     party: 'Party',
@@ -529,6 +532,7 @@ export const en = {
     stripSentTo: 'sent {gift} to {name}',
     entered: '{name} entered the room',
     enteredCaption: 'has entered',
+    watchReward: '+{coins} coins for watching · {earned} of {cap} today',
     devSimulateGift: 'Simulate a gift (development)',
   },
 
@@ -583,6 +587,72 @@ export const en = {
     unavailable: 'This item is no longer sold.',
     notOwned: 'You do not own this item.',
     expired: 'This item has expired. Renew it to wear it again.',
+  },
+
+  rewards: {
+    title: 'Daily rewards',
+    meSubtitle: 'Check in, watch and invite for free coins',
+    meWaiting: 'Coins are waiting for you today',
+    guestTitle: 'Sign up for free coins',
+    guestBody:
+      'Daily check-ins, watch rewards and invite bonuses are for accounts. It takes a minute.',
+    promptTitle: 'Your daily coins',
+    seeAll: 'See all rewards',
+
+    welcomeTitle: '{coins} welcome coins',
+    welcomeBody: 'Enough for your first gifts. Send one to a host you like.',
+    claim: 'Claim',
+
+    checkinTitle: 'Daily check-in',
+    checkinBody:
+      'Come back every day. Day 7 pays the most — miss a day and the streak starts over.',
+    checkinDone: 'Day {day} done. Come back tomorrow to keep the streak.',
+    claimCoins: 'Claim {coins} coins',
+    comeBackTomorrow: 'Come back tomorrow',
+    earned: '+{coins} coins',
+    dayShort: 'Day {day}',
+    dayLabel: 'Day {day}, {coins} coins',
+
+    watchTitle: 'Watch live rooms',
+    watchBody: '+{coins} coins for every {minutes} minutes you spend in a live room.',
+    watchProgress: '{earned} of {cap} earned today',
+    watchDone: 'All watch coins earned today. More tomorrow.',
+    watchAction: 'Find a room',
+
+    inviteTitle: 'Invite friends',
+    inviteBody:
+      'You get {coins} coins when a friend you invite makes their first purchase of {amount} or more.',
+    yourCode: 'Your invite code',
+    copy: 'Copy',
+    copied: 'Copied',
+    share: 'Share invite',
+    shareMessage:
+      'Join me on Dhun — live rooms, music and friends. Use my invite code {code} when you sign up.',
+    inviteStats: '{invited} joined with your code · {rewarded} paid out',
+    invitedBy: 'You were invited by {name}.',
+    enterCodeLabel: 'Got an invite code?',
+    applyCode: 'Use code',
+    codeInvalid: 'That invite code does not exist.',
+  },
+
+  rewardErrors: {
+    welcomeUsedOnDevice: 'The welcome coins have already been claimed on this phone.',
+    unavailable: 'This reward is not available right now.',
+    referralSelf: 'You cannot use your own invite code.',
+    referralAlreadySet: 'You have already used an invite code.',
+    referralWindowClosed: 'Invite codes can only be used in your first week.',
+    referralNotAllowed: 'Invites cannot come from another account on this phone.',
+  },
+
+  discover: {
+    title: 'Discover',
+    placeholder: 'Search by name or ID',
+    idleTitle: 'Find someone',
+    idleBody: 'Type a name, or the ID a host shares on their stream.',
+    noneTitle: 'No one found for “{query}”',
+    noneBody: 'Check the spelling, or search by their ID instead.',
+    liveRooms: 'Live rooms',
+    people: 'People',
   },
 
   legal: {

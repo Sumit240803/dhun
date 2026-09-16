@@ -70,6 +70,16 @@ const schema = z.object({
   // a dead one with the audience gone.
   LIVEKIT_EMPTY_TIMEOUT_SECONDS: z.coerce.number().min(10).max(1800).default(120),
 
+  // ── Push ─────────────────────────────────────────────────────────────────
+  //
+  // console = log each notification (development and tests).
+  // expo    = Expo's push service, which fronts FCM and APNs. Android delivery
+  //           additionally needs FCM credentials uploaded to the Expo project.
+  PUSH_PROVIDER: z.enum(['console', 'expo']).default('console'),
+  // Optional. Required only once "enhanced push security" is turned on for the
+  // Expo project; without it anyone holding a token could push to that phone.
+  EXPO_ACCESS_TOKEN: z.string().optional(),
+
   RAZORPAY_KEY_ID: z.string().optional(),
   RAZORPAY_KEY_SECRET: z.string().optional(),
 
@@ -133,6 +143,11 @@ export const config = {
     provider: env.IAP_PROVIDER,
     playPackageName: env.GOOGLE_PLAY_PACKAGE_NAME,
     playServiceAccountJson: env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON,
+  },
+
+  push: {
+    provider: env.PUSH_PROVIDER,
+    expoAccessToken: env.EXPO_ACCESS_TOKEN,
   },
 
   livekit: {

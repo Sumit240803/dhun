@@ -7,6 +7,7 @@
 
 import type { PoolClient } from 'pg';
 import { uuidv7 } from 'uuidv7';
+import { pool } from '../../infra/db.js';
 
 export interface DeviceInfo {
   deviceId: string;
@@ -42,5 +43,18 @@ export async function upsertDevice(
       device.appVersion ?? null,
       device.pushToken ?? null,
     ],
+  );
+}
+
+/**
+ * Stops push notifications to the devices a sign-out covers.
+ *
+ * The phone is no longer this account's. Leaving the token in place would keep
+ * delivering "your host is live" to whoever picks the phone up next.
+ */
+export async function clearPushTokens(userId: string, deviceId?: string): Promise<void> {
+  await pool.query(
+    'UPDATE user_devices SET push_token = NULL WHERE user_id = $1 AND ($2::text IS NULL OR device_id = $2)',
+    [userId, deviceId ?? null],
   );
 }

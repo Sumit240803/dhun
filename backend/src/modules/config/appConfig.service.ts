@@ -1,4 +1,5 @@
-import { getConfigNumber } from '../economy/index.js';
+import { z } from 'zod';
+import { getConfigNumber, getConfigValue } from '../economy/index.js';
 import { pool } from '../../infra/db.js';
 
 export interface OtpWidgetConfig {
@@ -21,6 +22,38 @@ export interface ClientConfig {
   /** Below this, the app offers an update the user can decline. */
   latestVersion: string;
   storeUrl: string;
+  /** growth-plan-v1's cold-start rules, as the app needs them. */
+  coldStart: ColdStartConfig;
+}
+
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+const coldStartSchema = z.object({
+  /** Null lifts the cap. */
+  maxFeedRooms: z.number().int().min(1).max(100).nullable(),
+  hideViewerCounts: z.boolean(),
+  peakStartIst: z.string().regex(HHMM),
+  peakEndIst: z.string().regex(HHMM),
+  dropNewUsersIntoRoom: z.boolean(),
+});
+
+export type ColdStartConfig = z.infer<typeof coldStartSchema>;
+
+/**
+ * Off, when the row is missing or malformed. The cold-start rules HIDE things
+ * — rooms, counts — and a typo must never be able to hide the whole feed.
+ */
+const COLD_START_OFF: ColdStartConfig = {
+  maxFeedRooms: null,
+  hideViewerCounts: false,
+  peakStartIst: '20:00',
+  peakEndIst: '23:00',
+  dropNewUsersIntoRoom: false,
+};
+
+export async function coldStartConfig(): Promise<ColdStartConfig> {
+  const parsed = coldStartSchema.safeParse(await getConfigValue('cold_start'));
+  return parsed.success ? parsed.data : COLD_START_OFF;
 }
 
 /**
@@ -72,6 +105,7 @@ export async function getClientConfig(): Promise<ClientConfig> {
     minSupportedVersion: asString(byKey.min_supported_app_version, '1.0.0'),
     latestVersion: asString(byKey.latest_app_version, '1.0.0'),
     storeUrl: asString(byKey.store_url_android, ''),
+    coldStart: await coldStartConfig(),
   };
 }
 

@@ -103,6 +103,15 @@ export const ApiErrorCode = {
   REQUEST_IN_PROGRESS: 'REQUEST_IN_PROGRESS',
   TXN_TYPE_INACTIVE: 'TXN_TYPE_INACTIVE',
 
+  // rewards
+  WELCOME_ALREADY_USED_ON_DEVICE: 'WELCOME_ALREADY_USED_ON_DEVICE',
+  REWARD_UNAVAILABLE: 'REWARD_UNAVAILABLE',
+  REFERRAL_CODE_INVALID: 'REFERRAL_CODE_INVALID',
+  REFERRAL_SELF: 'REFERRAL_SELF',
+  REFERRAL_ALREADY_SET: 'REFERRAL_ALREADY_SET',
+  REFERRAL_WINDOW_CLOSED: 'REFERRAL_WINDOW_CLOSED',
+  REFERRAL_NOT_ALLOWED: 'REFERRAL_NOT_ALLOWED',
+
   // cosmetics
   COSMETIC_NOT_FOUND: 'COSMETIC_NOT_FOUND',
   /** Repriced while the store was open. Refetch; nothing was charged. */
@@ -223,7 +232,8 @@ export interface FeedRoom {
   tag: RoomTag;
   /** ISO 3166-1 alpha-2, rendered as a flag. */
   country: string;
-  viewers: number;
+  /** Null while cold start hides counts — the card then shows "Live" alone. */
+  viewers: number | null;
   coverUrl: string | null;
   /** Non-null ONLY for a party room. Its presence is what tells the two apart. */
   seatCount: number | null;
@@ -397,6 +407,62 @@ export interface ClientConfig {
   /** Below this the app offers an update the user may decline. */
   latestVersion: string;
   storeUrl: string;
+  coldStart: ColdStartConfig;
+}
+
+/** growth-plan-v1's cold-start rules, as the server has them switched. */
+export interface ColdStartConfig {
+  maxFeedRooms: number | null;
+  hideViewerCounts: boolean;
+  /** 'HH:MM', IST. */
+  peakStartIst: string;
+  peakEndIst: string;
+  dropNewUsersIntoRoom: boolean;
+}
+
+// --- rewards -----------------------------------------------------------------
+
+export interface RewardsStatus {
+  welcome: { coins: number; claimed: boolean; available: boolean };
+  checkin: {
+    ladder: number[];
+    claimedToday: boolean;
+    /** Today's ladder day if claimed, otherwise the day a claim now would be. */
+    streakDay: number;
+  };
+  watch: { coins: number; minutes: number; dailyCap: number; earnedToday: number };
+  referral: {
+    /** The caller's public ID — what a friend types. */
+    code: string;
+    coins: number;
+    minPurchasePaise: number;
+    invited: number;
+    rewarded: number;
+    canEnterCode: boolean;
+    referredBy: string | null;
+  };
+}
+
+// --- discover ----------------------------------------------------------------
+
+export interface PersonResult {
+  userId: string;
+  publicId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  userLevel: number;
+  liveRoomId: string | null;
+  isFollowing: boolean;
+  look: UserLook;
+}
+
+export interface RoomResult {
+  id: string;
+  title: string;
+  hostId: string;
+  hostName: string;
+  viewers: number | null;
+  party: boolean;
 }
 
 export interface AppBanner {

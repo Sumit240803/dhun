@@ -16,6 +16,7 @@ import { uuidv7 } from 'uuidv7';
 import { pool, withTransaction } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
 import { logger } from '../../infra/logger.js';
+import { enqueueEvent } from '../../infra/outbox.js';
 import { EMPTY_LOOK, looksFor, type UserLook } from '../cosmetics/index.js';
 import {
   announceRoomEnded,
@@ -158,6 +159,19 @@ export async function goLive(input: {
       );
       await client.query('UPDATE rooms SET seats_taken = 1 WHERE id = $1', [roomId]);
     }
+
+    // In the same transaction as the room. This is what tells followers the host
+    // is live, and a room that started without it would be one nobody hears of.
+    await enqueueEvent(client, {
+      eventType: 'room_started',
+      partitionKey: roomId,
+      payload: {
+        room_id: roomId,
+        host_id: input.hostId,
+        title: input.title,
+        party: input.seatCapacity !== undefined,
+      },
+    });
 
     const { rows } = await client.query<RoomRow>(`${ROOM_SELECT} WHERE r.id = $1`, [roomId]);
     return toLiveRoom(rows[0]!);

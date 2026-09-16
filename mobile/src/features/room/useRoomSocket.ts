@@ -56,6 +56,8 @@ interface Options {
   onGift?: (gift: GiftView) => void;
   /** An entrance to announce. An event too, for the same reason as a gift. */
   onEntry?: (user: EntryView) => void;
+  /** Coins just earned for watching. */
+  onReward?: (reward: { coins: number; earnedToday: number; dailyCap: number }) => void;
 }
 
 export function useRoomSocket(roomId: string | undefined, options: Options = {}) {
@@ -65,9 +67,11 @@ export function useRoomSocket(roomId: string | undefined, options: Options = {})
   // Without this, an inline arrow at the call site reconnects on every render.
   const onGiftRef = useRef(options.onGift);
   const onEntryRef = useRef(options.onEntry);
+  const onRewardRef = useRef(options.onReward);
   useEffect(() => {
     onGiftRef.current = options.onGift;
     onEntryRef.current = options.onEntry;
+    onRewardRef.current = options.onReward;
   });
   const [state, setState] = useState<RoomSocketState>({
     status: 'connecting',
@@ -95,6 +99,10 @@ export function useRoomSocket(roomId: string | undefined, options: Options = {})
         }
         if (message.t === 'entry') {
           onEntryRef.current?.(message.user);
+          return;
+        }
+        if (message.t === 'reward') {
+          onRewardRef.current?.(message);
           return;
         }
         setState((s) => {

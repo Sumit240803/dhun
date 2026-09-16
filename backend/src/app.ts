@@ -11,10 +11,13 @@ import { buildAuthRouter } from './modules/auth/index.js';
 import { buildMessagesRouter } from './modules/chat/index.js';
 import { buildConfigRouter } from './modules/config/index.js';
 import { buildCosmeticsRouter } from './modules/cosmetics/index.js';
+import { buildDiscoverRouter } from './modules/discover/index.js';
 import { buildCatalogRouter, buildWalletRouter } from './modules/economy/index.js';
 import { buildGiftsRouter } from './modules/gifting/index.js';
 import { buildModerationRouter } from './modules/moderation/index.js';
+import { buildNotificationsRouter } from './modules/notifications/index.js';
 import { buildWebhooksRouter } from './modules/realtime/index.js';
+import { buildRewardsRouter } from './modules/rewards/index.js';
 import { buildRoomsRouter } from './modules/rooms/index.js';
 import { buildUsersRouter } from './modules/users/index.js';
 
@@ -71,6 +74,9 @@ export function buildApp() {
   app.use('/v1/moderation', buildModerationRouter());
   app.use('/v1/gifts', buildGiftsRouter());
   app.use('/v1/cosmetics', buildCosmeticsRouter());
+  app.use('/v1/rewards', buildRewardsRouter());
+  app.use('/v1/discover', buildDiscoverRouter());
+  app.use('/v1/notifications', buildNotificationsRouter());
 
   app.use(notFoundHandler());
   app.use(errorHandler());

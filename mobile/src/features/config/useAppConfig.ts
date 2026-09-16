@@ -10,7 +10,7 @@ import { useEffect } from 'react';
 
 import { configApi } from '@/api/endpoints/feed';
 import { queryKeys } from '@/api/queries/keys';
-import type { OtpWidgetConfig } from '@/api/types';
+import type { ColdStartConfig, OtpWidgetConfig } from '@/api/types';
 import { applyRemoteFlags, type Flags } from '@/config/flags';
 import { isOlderThan } from '@/lib/version';
 
@@ -27,6 +27,8 @@ export function useAppConfig(): {
   update: UpdateState;
   storeUrl: string;
   otpWidget?: OtpWidgetConfig;
+  /** Undefined until config arrives — callers treat that as "rules off". */
+  coldStart?: ColdStartConfig;
 } {
   const query = useQuery({
     queryKey: queryKeys.config.app(),
@@ -55,5 +57,6 @@ export function useAppConfig(): {
         ? 'available'
         : 'none',
     storeUrl: config.storeUrl,
+    coldStart: config.coldStart,
   };
 }

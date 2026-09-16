@@ -328,10 +328,11 @@ walk away from a vendor and an SDK spread across four modules cannot walk anywhe
 One repo, pushed to `git@github.com:Sumit240803/dhun.git` (`main`).
 Verify everything with **`npm run check`** from the root.
 
-### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5, M6 and M7 built, unverified. 324 tests.
+### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5, M6, M7 and M10 built, unverified. 360 tests.
 
-Sixteen migrations, 60 routes, and all three processes built: API, workers, and the
-realtime gateway.
+Seventeen migrations, 68 routes, and all three processes built: API, workers, and the
+realtime gateway. **M10 was built before M8 and M9, by agreement** — both are blocked on
+external accounts (CA + RazorpayX, Hive) and neither is skipped.
 
 | Area | State |
 |---|---|
@@ -342,7 +343,8 @@ realtime gateway.
 | **Rooms / RTC** | Go live, join, mic seats, host mute and kick, end. Publish rights come from the SEAT TABLE and nowhere else — there is no way to request them. LiveKit webhooks feed viewer counts and `room_sessions` (host hours). Seats, bans and sessions are in Postgres; presence is not mirrored, because it would drift from the media server within seconds. |
 | **Gifting** | `POST /v1/gifts/send`: one ledger transaction per tap whatever the combo, registered 18+ only, `Idempotency-Key` required. Recipient is the host or anyone seated; self-gifts, off-stage recipients, blocks, bans, ended rooms and a price the user never saw are refused. Published to the room on commit. Each send writes a `gift_sends` row inside the ledger's own transaction, which the room leaderboard reads. |
 | **Cosmetics** | Frames, chat bubbles, nickname colours and entry effects, bought with GEMS only. Time stacks onto an active item; buying equips; one worn per kind; expiry evaluated on read. Ownership and a purchase record are written inside the ledger's transaction. A `look` rides on seats, chat lines, gift senders and profiles; entry effects are announced over the gateway. Styles are validated light/dark data. |
-| **Workers** | `npm run worker`. Outbox shipper (LISTEN/NOTIFY + 2s poll floor), nightly reconciliation at 03:00 IST with 10 checks and zero tolerance, the daily `spend_mix` measure at 03:30, five retention purges. Advisory-lock job locking. |
+| **Discovery & daily hooks** | Welcome bonus, 7-day check-in ladder, watch reward measured by the gateway, referrals paid on a friend's first ₹99+ purchase — all ordinary coins, all once-only by a claim-derived ledger key, all in `app_config.free_coins`. Search by name prefix or public ID. Followed-host-is-live push via Expo, driven by a `room_started` outbox event, capped and cooled down. Cold-start dials in `app_config.cold_start`. |
+| **Workers** | `npm run worker`. Outbox shipper (LISTEN/NOTIFY + 2s poll floor) that also runs consumers (referral payouts, live notifications), nightly reconciliation at 03:00 IST with 10 checks and zero tolerance, the daily `spend_mix` measure at 03:30, five retention purges. Advisory-lock job locking. |
 | **Security** | Rate limiting by IP/device/user, security headers, CORS allowlist, 18+ gate on every money endpoint, strict validation of body/query/params, sanitised client errors. |
 
 **Invariants worth never breaking:**
@@ -379,11 +381,15 @@ realtime gateway.
    A cosmetic that fell back to coins when gems ran short would quietly move money
    onto the payout path — and there is a test that gives a user 100,000 coins and
    no gems and expects the purchase to fail.
+9. **A free-coin claim's ledger key is derived from the claim, never a client header.**
+   `checkin:{user}:{IST date}`, `watch:{user}:{date}:{slot}`, `referral:{referred user}`.
+   The same reasoning as purchases keying on the receipt: the claim IS the money event, so
+   one claim can only ever be one credit, however it is retried or raced.
 
 ### `mobile/` — 31 routes, 23 of them built.
 
 Expo SDK 57 · React Native 0.86 · React 19.2 · expo-router. EAS project
-`@sumitsumit/dhun` (`c7c547aa-86e2-4d02-befa-b5e643fde400`). 107 tests.
+`@sumitsumit/dhun` (`c7c547aa-86e2-4d02-befa-b5e643fde400`). 114 tests.
 
 Read **`mobile/ARCHITECTURE.md`** before adding a file. The essentials:
 
@@ -425,14 +431,15 @@ The gift queue **sheds the cheapest gift when full**, never the newest. Dropping
 
 ### Not built yet
 
-OAuth (Google / Facebook / Instagram) · free cosmetic unlocks by level · super messages
-and VIP · the Tier 5 all-rooms gift broadcast · stand-in art files · discover · host tools · payouts · the legal screens'
-actual text · admin panel · push token registration · analytics pipeline · CI beyond
-typecheck and tests · Terraform and environments.
+OAuth (Google / Facebook / Instagram) · host tools and payouts (M8) · trust & safety (M9) ·
+free cosmetic unlocks by level · super messages and VIP · the Tier 5 all-rooms gift broadcast ·
+stand-in art files · Firebase credentials for Android push · the legal screens' actual text ·
+admin panel · analytics pipeline · CI beyond typecheck and tests · Terraform and environments.
 
 Built but **unverified on devices**: M5 (two phones, live audio, chat under 200ms, an API
 redeploy with a room live), M6 (a real gift between two accounts, animation under 500ms)
-and M7 (a real purchase, its frame visible to someone else in a room).
+M7 (a real purchase, its frame visible to someone else in a room) and M10 (a check-in, five
+minutes watched paying out, a follow's live notification arriving).
 
 Honest read: the foundation is stronger than the budget suggests, the product does
 not exist yet, and the things most likely to kill this are people problems —

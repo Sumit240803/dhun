@@ -27,6 +27,8 @@ import {
   purgeShippedOutboxJob,
   reapStuckJobRunsJob,
 } from './jobs/retention.js';
+import { withConsumers } from './consumers.js';
+import { getEventPublisher, setEventPublisher } from './publisher.js';
 import { Job, Scheduler, runJobOnce } from './scheduler.js';
 
 export const JOBS: Job[] = [
@@ -67,6 +69,10 @@ async function listenForOutbox(onWake: () => void): Promise<pg.Client> {
 
 async function main() {
   await pool.query('SELECT 1');
+
+  // Shipping an event and acting on it are one step here: an event whose
+  // consumer failed stays unpublished and is retried with it.
+  setEventPublisher(withConsumers(getEventPublisher()));
   logger.info('workers starting', { env: config.nodeEnv, jobs: JOBS.map((j) => j.name) });
 
   const scheduler = new Scheduler();
@@ -125,6 +131,8 @@ export async function runOnce(jobName: string): Promise<void> {
   const job = JOBS.find((j) => j.name === jobName);
   if (!job) throw new Error(`Unknown job "${jobName}". Known: ${JOBS.map((j) => j.name).join(', ')}`);
 
+  // A manual shipper run must act on events exactly as the scheduled one does.
+  setEventPublisher(withConsumers(getEventPublisher()));
   await runJobOnce(job);
   await pool.end();
 }

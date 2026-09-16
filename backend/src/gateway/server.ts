@@ -21,6 +21,7 @@ import { logger } from '../infra/logger.js';
 import { AppError } from '../infra/errors.js';
 import { verifyAccessToken } from '../modules/auth/tokens.js';
 import { filterText } from '../modules/moderation/textFilter.js';
+import { freeCoinsConfig, grantWatchReward, istDate } from '../modules/rewards/index.js';
 import { takeSeat } from '../modules/rooms/index.js';
 import { broadcast, join, leave, localRoomSize, send, startFanout, stopFanout, type Client } from './hub.js';
 import { decode, type ClientMessage } from './protocol.js';
@@ -69,12 +70,88 @@ export function buildGateway(): { server: Server; wss: WebSocketServer } {
     }
   }, HEARTBEAT_MS);
 
-  wss.on('close', () => clearInterval(heartbeat));
+  // The watch reward. Accrued here because only the gateway knows a socket
+  // genuinely sat in a room — a client-reported timer pays whoever scripts one.
+  const watching = setInterval(() => {
+    void tickWatchRewards(Date.now()).catch((err) =>
+      logger.warn('watch reward tick failed', { err }),
+    );
+  }, WATCH_TICK_MS);
+
+  wss.on('close', () => {
+    clearInterval(heartbeat);
+    clearInterval(watching);
+  });
   return { server, wss };
 }
 
+const WATCH_TICK_MS = 30_000;
+/**
+ * The most a single tick may add. A process that stalled, or a machine that
+ * slept, must not hand every socket a whole interval the moment it wakes.
+ */
+const MAX_TICK_ACCRUAL_MS = 2 * WATCH_TICK_MS;
+
+/**
+ * Brings every watcher's clock up to date and pays whoever crossed an interval.
+ *
+ * Exported for tests, which drive it with an explicit clock rather than waiting
+ * five real minutes.
+ */
+export async function tickWatchRewards(now: number): Promise<void> {
+  const rewards = await freeCoinsConfig();
+  const intervalMs = rewards.watch.minutes * 60_000;
+  const today = istDate(new Date(now));
+
+  for (const client of clients) {
+    const clock = client.watch;
+    if (!clock || client.roomId !== clock.roomId || client.status !== 'active') continue;
+    // A socket not answering pings is not a person watching.
+    if (client.missedHeartbeats >= 2 || client.socket.readyState !== 1) continue;
+    if (clock.cappedOn === today) continue;
+
+    clock.accruedMs += Math.min(Math.max(0, now - clock.lastAt), MAX_TICK_ACCRUAL_MS);
+    clock.lastAt = now;
+    if (clock.accruedMs < intervalMs) continue;
+
+    clock.accruedMs -= intervalMs;
+    let reward: Awaited<ReturnType<typeof grantWatchReward>>;
+    try {
+      reward = await grantWatchReward(client.userId, today);
+    } catch (err) {
+      // One watcher's failure must not stop the loop for everyone else. The
+      // interval is given back, so the next tick tries again.
+      clock.accruedMs += intervalMs;
+      logger.warn('watch reward grant failed', { err, user_id: client.userId });
+      continue;
+    }
+    if (!reward) {
+      // Capped, or not eligible. Stop counting for the rest of the day rather
+      // than asking the database every tick.
+      clock.cappedOn = today;
+      clock.accruedMs = 0;
+      continue;
+    }
+
+    send(client, {
+      t: 'reward',
+      kind: 'watch',
+      coins: reward.coins,
+      earnedToday: reward.earnedToday,
+      dailyCap: reward.dailyCap,
+    });
+  }
+}
+
 function handleConnection(socket: WebSocket): void {
-  const client: Client = { socket, userId: '', status: '', roomId: null, missedHeartbeats: 0 };
+  const client: Client = {
+    socket,
+    userId: '',
+    status: '',
+    roomId: null,
+    missedHeartbeats: 0,
+    watch: null,
+  };
   let authenticated = false;
   let recentMessages = 0;
   let windowStartedAt = Date.now();
@@ -173,6 +250,14 @@ async function handle(client: Client, message: ClientMessage): Promise<void> {
       join(client, message.roomId);
 
       const isHost = snapshot.hostUserId === client.userId;
+      // A fresh clock per room. Rejoining the SAME room — the reconnect after
+      // a tunnel — keeps what was accrued, or every dropped connection would
+      // cost the viewer their progress towards the next reward.
+      if (isHost) {
+        client.watch = null;
+      } else if (client.watch?.roomId !== message.roomId) {
+        client.watch = { roomId: message.roomId, accruedMs: 0, lastAt: Date.now(), cappedOn: null };
+      }
       send(client, {
         t: 'joined',
         roomId: message.roomId,

@@ -38,6 +38,21 @@ export interface Client {
   roomId: string | null;
   /** Cleared by the pong handler; a client that misses two is dropped. */
   missedHeartbeats: number;
+  /**
+   * Time spent in the current room, for the watch reward. Null outside a room
+   * and for the room's own host — hosting is not watching.
+   */
+  watch: WatchClock | null;
+}
+
+export interface WatchClock {
+  roomId: string;
+  /** Milliseconds accrued towards the next reward interval. */
+  accruedMs: number;
+  /** When accrual was last brought up to date. */
+  lastAt: number;
+  /** The IST day this socket hit the daily cap. No more accrual until it changes. */
+  cappedOn: string | null;
 }
 
 const INSTANCE_ID = randomUUID();

@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
+import { discoverApi } from '@/api/endpoints/growth';
 import { authApi } from '@/api/endpoints/auth';
 import { ApiErrorCode } from '@/api/types';
 import {
@@ -52,13 +53,23 @@ export default function ProfileSetupScreen() {
         dateOfBirth: toApiDate(dob!),
         ...(gender !== null ? { gender } : {}),
       }),
-    onSuccess: ({ user }) => {
+    onSuccess: async ({ user }) => {
       haptic.success();
       track('signup_completed', { has_gender: gender !== null });
       // The session store is what the router guard reads, so updating it here
       // is what makes the next render see a named, registered user.
       sessionStore.signIn(user);
       router.replace('/(app)/(tabs)');
+
+      // growth-plan-v1: put a new user straight into the fullest room rather
+      // than a feed. The tabs go underneath first, so Back lands somewhere.
+      // The server decides whether the rule is on; a failure simply leaves
+      // them on the feed.
+      const fullest = await discoverApi.fullestRoom().catch(() => null);
+      if (fullest?.room) {
+        track('room_card_tapped', { room_id: fullest.room.id, category: 'first_open' });
+        router.push({ pathname: '/(app)/room/[id]', params: { id: fullest.room.id } });
+      }
     },
     onError: () => haptic.error(),
   });

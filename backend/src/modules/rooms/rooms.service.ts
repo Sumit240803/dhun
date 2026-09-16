@@ -1,4 +1,5 @@
 import { pool } from '../../infra/db.js';
+import { coldStartConfig } from '../config/index.js';
 
 /**
  * A room as the feed shows it.
@@ -14,7 +15,11 @@ export interface FeedRoom {
   title: string;
   tag: string;
   country: string;
-  viewers: number;
+  /**
+   * Null while the cold-start rules hide counts. "3 watching" on every card is
+   * what makes a new app look empty; a Live badge alone does not.
+   */
+  viewers: number | null;
   coverUrl: string | null;
   seatCount: number | null;
   seatCapacity: number | null;
@@ -58,6 +63,42 @@ export async function listFeed(input: {
   limit: number;
   offset: number;
 }): Promise<FeedRoom[]> {
+  const coldStart = await coldStartConfig();
+
+  // Consolidation: show a few full rooms rather than many thin ones, so each
+  // one a user opens has people in it. Following is exempt — someone who chose
+  // to follow a host should always find their room.
+  let limit = input.limit;
+  if (coldStart.maxFeedRooms !== null && input.category !== 'following') {
+    limit = Math.min(limit, Math.max(0, coldStart.maxFeedRooms - input.offset));
+    if (limit === 0) return [];
+  }
+
+  const rows = await queryRooms({ ...input, limit });
+  return rows.map((row) => toFeedRoom(row, coldStart.hideViewerCounts));
+}
+
+/**
+ * The fullest live room — where a brand-new user is dropped on their first
+ * open (growth-plan-v1: "naye user ko turant sabse bhare room mein daalo").
+ *
+ * Never a room the viewer hosts, never one across a block. Null when nothing
+ * is live, or when the dial is off.
+ */
+export async function fullestRoom(viewerId: string | undefined): Promise<FeedRoom | null> {
+  const coldStart = await coldStartConfig();
+  if (!coldStart.dropNewUsersIntoRoom) return null;
+
+  const rows = await queryRooms({ category: 'any', viewerId, limit: 1, offset: 0 });
+  return rows[0] ? toFeedRoom(rows[0], coldStart.hideViewerCounts) : null;
+}
+
+async function queryRooms(input: {
+  category: FeedCategory | 'any';
+  viewerId?: string;
+  limit: number;
+  offset: number;
+}): Promise<Row[]> {
   const filters: string[] = ['r.ended_at IS NULL'];
   const params: unknown[] = [];
 
@@ -72,7 +113,10 @@ export async function listFeed(input: {
     );
   }
 
-  if (input.category === 'party') {
+  if (input.category === 'any') {
+    // Not a room of your own, which you cannot be "dropped into".
+    if (input.viewerId) filters.push(`r.host_user_id <> $1::uuid`);
+  } else if (input.category === 'party') {
     filters.push('r.seat_capacity IS NOT NULL');
   } else if (input.category === 'explore') {
     filters.push('r.seat_capacity IS NULL');
@@ -110,8 +154,11 @@ export async function listFeed(input: {
       LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params,
   );
+  return rows;
+}
 
-  return rows.map((row) => ({
+function toFeedRoom(row: Row, hideViewerCounts: boolean): FeedRoom {
+  return {
     id: row.id,
     hostId: row.host_user_id,
     // A host with no display name yet is still a real room. Falling back keeps
@@ -120,11 +167,11 @@ export async function listFeed(input: {
     title: row.title,
     tag: row.tag,
     country: row.country,
-    viewers: row.viewer_count,
+    viewers: hideViewerCounts ? null : row.viewer_count,
     coverUrl: row.cover_url,
     seatCount: row.seat_capacity === null ? null : row.seats_taken,
     seatCapacity: row.seat_capacity,
     video: row.is_video,
     trending: Number(row.rank) <= TRENDING_COUNT,
-  }));
+  };
 }

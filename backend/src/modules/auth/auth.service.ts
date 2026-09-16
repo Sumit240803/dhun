@@ -289,7 +289,15 @@ function ageInYears(dob: CalendarDate, today: CalendarDate): number {
 
 export async function updateProfile(
   userId: string,
-  patch: { displayName?: string; avatarUrl?: string; bio?: string; gender?: string; dateOfBirth?: string },
+  patch: {
+    displayName?: string;
+    avatarUrl?: string;
+    bio?: string;
+    gender?: string;
+    dateOfBirth?: string;
+    /** The app's language, so text the SERVER writes — a push — matches it. */
+    locale?: string;
+  },
 ): Promise<SessionUser> {
   if (patch.dateOfBirth) {
     const dob = parseCalendarDate(patch.dateOfBirth);
@@ -317,7 +325,8 @@ export async function updateProfile(
         '  avatar_url    = COALESCE($3, avatar_url),' +
         '  bio           = COALESCE($4, bio),' +
         '  gender        = COALESCE($5, gender),' +
-        '  date_of_birth = COALESCE($6::date, date_of_birth)' +
+        '  date_of_birth = COALESCE($6::date, date_of_birth),' +
+        '  locale        = COALESCE($7, locale)' +
         ' WHERE user_id = $1',
       [
         userId,
@@ -326,6 +335,7 @@ export async function updateProfile(
         patch.bio ?? null,
         patch.gender ?? null,
         patch.dateOfBirth ?? null,
+        patch.locale ?? null,
       ],
     );
     return loadSessionUser(client, userId);

@@ -11,6 +11,7 @@ import {
   verifyPhoneAndSignIn,
 } from './auth.service.js';
 import { deleteAccount, listSessions, revokeSession } from './account.service.js';
+import { clearPushTokens } from './devices.js';
 import {
   changePassword,
   confirmEmail,
@@ -484,10 +485,9 @@ export function buildAuthRouter(): Router {
     validate(z.object({ deviceId: z.string().optional(), allDevices: z.boolean().default(false) })),
     async (req, res, next) => {
       try {
-        const revoked = await revokeRefreshTokens(
-          req.userId!,
-          req.body.allDevices ? undefined : req.body.deviceId,
-        );
+        const scope = req.body.allDevices ? undefined : req.body.deviceId;
+        const revoked = await revokeRefreshTokens(req.userId!, scope);
+        await clearPushTokens(req.userId!, scope);
         res.json({ revoked });
       } catch (err) {
         next(err);
@@ -513,6 +513,9 @@ export function buildAuthRouter(): Router {
         bio: z.string().max(280).optional(),
         gender: z.enum(['male', 'female', 'other', 'undisclosed']).optional(),
         dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        // The two languages the app ships. Anything else would reach a push
+        // template that has no copy for it.
+        locale: z.enum(['en-IN', 'hi-IN']).optional(),
       }),
     ),
     async (req, res, next) => {

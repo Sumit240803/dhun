@@ -3,6 +3,7 @@ import request from 'supertest';
 import { uuidv7 } from 'uuidv7';
 import { buildApp } from '../src/app.js';
 import { pool } from '../src/infra/db.js';
+import { invalidateCatalogCache } from '../src/modules/economy/index.js';
 import { closePool } from './helpers.js';
 import { resetRateLimits } from '../src/middleware/rateLimit.js';
 
@@ -60,9 +61,26 @@ beforeEach(async () => {
   await pool.query('DELETE FROM banners');
 });
 
-afterAll(closePool);
+afterAll(async () => {
+  await setColdStart({ maxFeedRooms: 4, hideViewerCounts: true });
+  await closePool();
+});
+
+/**
+ * The feed as it behaves once the app has outgrown cold start. The cold-start
+ * dials — fewer rooms, hidden counts — are tested on their own in
+ * discovery.test.ts; here they are lifted so ordering and counts can be seen.
+ */
+async function setColdStart(patch: Record<string, unknown>): Promise<void> {
+  await pool.query(`UPDATE app_config SET value = value || $1::jsonb WHERE key = 'cold_start'`, [
+    JSON.stringify(patch),
+  ]);
+  invalidateCatalogCache();
+}
 
 describe('room feed', () => {
+  beforeEach(() => setColdStart({ maxFeedRooms: null, hideViewerCounts: false }));
+
   it('is readable without a session, because browsing is the top of the funnel', async () => {
     await liveHost({ viewers: 500 });
 
