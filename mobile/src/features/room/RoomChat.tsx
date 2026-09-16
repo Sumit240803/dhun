@@ -15,6 +15,7 @@ import { useTranslation } from '@/i18n';
 import { haptic } from '@/lib/haptics';
 import { colors, radius, spacing } from '@/theme';
 import { EmptyState, Input, Row, Text } from '@/ui';
+import { themed } from '@/visuals/look';
 
 interface Props {
   lines: ChatLine[];
@@ -118,13 +119,42 @@ export function RoomChat({ lines, meId, canSend, onSend, onGift }: Props) {
   );
 }
 
+/**
+ * One line of chat, as its sender chose to appear.
+ *
+ * A bought name colour replaces the default tint — including your own brand
+ * tint, because you paid to be seen in that colour. A bought bubble wraps the
+ * message; without one, the message sits bare, which is what keeps a bubble
+ * worth buying.
+ */
 function Line({ line, mine }: { line: ChatLine; mine: boolean }) {
+  const nameColor = line.look?.nameColor ? themed(line.look.nameColor).color : undefined;
+  const bubble = line.look?.bubble ? themed(line.look.bubble) : null;
+
   return (
     <Animated.View entering={FadeIn.duration(160)} style={styles.line}>
-      <Text variant="micro" tone={mine ? 'brand' : 'faint'} numberOfLines={1}>
+      <Text
+        variant="micro"
+        tone={mine ? 'brand' : 'faint'}
+        numberOfLines={1}
+        style={nameColor ? { color: nameColor } : undefined}
+      >
         {line.name ?? '—'}
       </Text>
-      <Text variant="caption">{line.body}</Text>
+      {bubble ? (
+        <View
+          style={[
+            styles.bubble,
+            { backgroundColor: bubble.background, borderColor: bubble.border },
+          ]}
+        >
+          <Text variant="caption" style={{ color: bubble.text }}>
+            {line.body}
+          </Text>
+        </View>
+      ) : (
+        <Text variant="caption">{line.body}</Text>
+      )}
     </Animated.View>
   );
 }
@@ -133,6 +163,15 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   list: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   line: { gap: 2, marginBottom: spacing.md },
+  bubble: {
+    alignSelf: 'flex-start',
+    maxWidth: '90%',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.lg,
+    borderTopLeftRadius: radius.sm,
+    borderWidth: 1.5,
+  },
   offline: { alignItems: 'center', paddingBottom: spacing.xs },
   composer: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
   field: { flex: 1 },

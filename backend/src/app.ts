@@ -10,6 +10,7 @@ import { cors, requireJsonBody, securityHeaders } from './middleware/security.js
 import { buildAuthRouter } from './modules/auth/index.js';
 import { buildMessagesRouter } from './modules/chat/index.js';
 import { buildConfigRouter } from './modules/config/index.js';
+import { buildCosmeticsRouter } from './modules/cosmetics/index.js';
 import { buildCatalogRouter, buildWalletRouter } from './modules/economy/index.js';
 import { buildGiftsRouter } from './modules/gifting/index.js';
 import { buildModerationRouter } from './modules/moderation/index.js';
@@ -69,6 +70,7 @@ export function buildApp() {
   app.use('/v1/users', buildUsersRouter());
   app.use('/v1/moderation', buildModerationRouter());
   app.use('/v1/gifts', buildGiftsRouter());
+  app.use('/v1/cosmetics', buildCosmeticsRouter());
 
   app.use(notFoundHandler());
   app.use(errorHandler());

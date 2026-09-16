@@ -189,6 +189,13 @@ async function handle(client: Client, message: ClientMessage): Promise<void> {
         roomId: message.roomId,
         viewers: localRoomSize(message.roomId),
       });
+
+      // A courtesy to the room, after the join has already succeeded. A failure
+      // here must not come back to the person joining as an error about a join
+      // that worked.
+      await announceEntrance(message.roomId, client.userId).catch((err) =>
+        logger.warn('entrance announcement failed', { err, room_id: message.roomId }),
+      );
       return;
     }
 
@@ -298,6 +305,42 @@ async function handle(client: Client, message: ClientMessage): Promise<void> {
       return;
     }
   }
+}
+
+/**
+ * How long one person's entrance is announced at most once, per room.
+ *
+ * A phone reconnects constantly — a tunnel, a lift, Wi-Fi to mobile data — and
+ * every reconnect is a fresh `join`. Without this, walking through a building
+ * with an entry effect would replay it to the whole room at every doorway.
+ */
+const ENTRANCE_COOLDOWN_MS = 5 * 60_000;
+const lastEntrance = new Map<string, number>();
+
+async function announceEntrance(roomId: string, userId: string): Promise<void> {
+  const key = `${roomId}:${userId}`;
+  const now = Date.now();
+  const previous = lastEntrance.get(key);
+  if (previous !== undefined && now - previous < ENTRANCE_COOLDOWN_MS) return;
+
+  // Pruned as it grows rather than on a timer — the map only ever holds
+  // entrances from the last few minutes that matter.
+  if (lastEntrance.size > 10_000) {
+    for (const [entry, at] of lastEntrance) {
+      if (now - at >= ENTRANCE_COOLDOWN_MS) lastEntrance.delete(entry);
+    }
+  }
+
+  const user = await state.entrance(userId);
+  if (!user) return;
+
+  lastEntrance.set(key, now);
+  broadcast(roomId, { t: 'entry', roomId, user });
+}
+
+/** Test seam: entrances are otherwise remembered for five minutes. */
+export function resetEntranceCooldowns(): void {
+  lastEntrance.clear();
 }
 
 /** The queue, to the host and nobody else. */

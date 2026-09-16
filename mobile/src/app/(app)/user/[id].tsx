@@ -18,7 +18,6 @@ import { haptic } from '@/lib/haptics';
 import { colors, spacing } from '@/theme';
 import { useSession } from '@/store/session';
 import {
-  Avatar,
   Badge,
   Banner,
   Button,
@@ -31,6 +30,8 @@ import {
   Text,
   type SheetHandle,
 } from '@/ui';
+import { themed } from '@/visuals/look';
+import { LookAvatar } from '@/visuals/LookAvatar';
 
 /**
  * Someone else's profile.
@@ -171,10 +172,21 @@ export default function UserProfileScreen() {
             {data === undefined ? (
               <Skeleton width={96} height={96} rounding="pill" />
             ) : (
-              <Avatar uri={data.avatarUrl} name={data.displayName} size="xl" />
+              <LookAvatar
+                uri={data.avatarUrl}
+                name={data.displayName}
+                size="xl"
+                frame={data.look?.frame}
+              />
             )}
 
-            <Text variant="title" numberOfLines={1}>
+            <Text
+              variant="title"
+              numberOfLines={1}
+              style={
+                data?.look?.nameColor ? { color: themed(data.look.nameColor).color } : undefined
+              }
+            >
               {data?.displayName ?? ''}
             </Text>
 

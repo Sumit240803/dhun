@@ -19,9 +19,9 @@ import { scheduleOnRN } from 'react-native-worklets';
 
 import { useTranslation } from '@/i18n';
 import { colors, duration, radius, spacing, type TierKey } from '@/theme';
-import { Avatar, Text } from '@/ui';
-import { assetUrl } from './assets';
+import { Text } from '@/ui';
 import { GiftIcon } from './GiftIcon';
+import { LookAvatar } from './LookAvatar';
 import type { GiftStrip as GiftStripModel } from './giftStrips';
 
 /** Fixed, so the layer can place lanes without measuring each strip. */
@@ -121,11 +121,11 @@ function GiftStripView({ strip, hostId, onExited }: Props) {
       accessibilityLiveRegion="polite"
     >
       <View style={styles.avatar}>
-        <Avatar
+        <LookAvatar
           uri={event.senderAvatar}
           name={event.senderName}
           size="sm"
-          frameUri={assetUrl(event.senderFrame)}
+          frame={event.senderFrame}
         />
       </View>
 

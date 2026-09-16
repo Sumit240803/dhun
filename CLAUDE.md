@@ -328,9 +328,9 @@ walk away from a vendor and an SDK spread across four modules cannot walk anywhe
 One repo, pushed to `git@github.com:Sumit240803/dhun.git` (`main`).
 Verify everything with **`npm run check`** from the root.
 
-### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5 and M6 built, unverified. 299 tests.
+### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5, M6 and M7 built, unverified. 324 tests.
 
-Fifteen migrations, 56 routes, and all three processes built: API, workers, and the
+Sixteen migrations, 60 routes, and all three processes built: API, workers, and the
 realtime gateway.
 
 | Area | State |
@@ -341,7 +341,8 @@ realtime gateway.
 | **Social / chat / moderation** | Follows, profile visits, public profiles, profile summary, message threads, reports and blocks. Bans are enforced on every request, not only at sign-in, and guests are bannable. |
 | **Rooms / RTC** | Go live, join, mic seats, host mute and kick, end. Publish rights come from the SEAT TABLE and nowhere else — there is no way to request them. LiveKit webhooks feed viewer counts and `room_sessions` (host hours). Seats, bans and sessions are in Postgres; presence is not mirrored, because it would drift from the media server within seconds. |
 | **Gifting** | `POST /v1/gifts/send`: one ledger transaction per tap whatever the combo, registered 18+ only, `Idempotency-Key` required. Recipient is the host or anyone seated; self-gifts, off-stage recipients, blocks, bans, ended rooms and a price the user never saw are refused. Published to the room on commit. Each send writes a `gift_sends` row inside the ledger's own transaction, which the room leaderboard reads. |
-| **Workers** | `npm run worker`. Outbox shipper (LISTEN/NOTIFY + 2s poll floor), nightly reconciliation at 03:00 IST with 9 checks and zero tolerance, five retention purges. Advisory-lock job locking. |
+| **Cosmetics** | Frames, chat bubbles, nickname colours and entry effects, bought with GEMS only. Time stacks onto an active item; buying equips; one worn per kind; expiry evaluated on read. Ownership and a purchase record are written inside the ledger's transaction. A `look` rides on seats, chat lines, gift senders and profiles; entry effects are announced over the gateway. Styles are validated light/dark data. |
+| **Workers** | `npm run worker`. Outbox shipper (LISTEN/NOTIFY + 2s poll floor), nightly reconciliation at 03:00 IST with 10 checks and zero tolerance, the daily `spend_mix` measure at 03:30, five retention purges. Advisory-lock job locking. |
 | **Security** | Rate limiting by IP/device/user, security headers, CORS allowlist, 18+ gate on every money endpoint, strict validation of body/query/params, sanitised client errors. |
 
 **Invariants worth never breaking:**
@@ -373,11 +374,16 @@ realtime gateway.
    gift the leaderboard shows can never be missing from the ledger, or the
    reverse. The gift id every client dedupes on IS the ledger transaction id.
    Moving that insert out "for cleanliness" reopens the gap it closes.
+   Cosmetic ownership (`user_cosmetics`, `cosmetic_purchases`) follows the same rule.
+8. **Cosmetics spend gems and nothing else.** Coins pay hosts 30%; gems pay nothing.
+   A cosmetic that fell back to coins when gems ran short would quietly move money
+   onto the payout path — and there is a test that gives a user 100,000 coins and
+   no gems and expects the purchase to fail.
 
 ### `mobile/` — 31 routes, 23 of them built.
 
 Expo SDK 57 · React Native 0.86 · React 19.2 · expo-router. EAS project
-`@sumitsumit/dhun` (`c7c547aa-86e2-4d02-befa-b5e643fde400`). 97 tests.
+`@sumitsumit/dhun` (`c7c547aa-86e2-4d02-befa-b5e643fde400`). 107 tests.
 
 Read **`mobile/ARCHITECTURE.md`** before adding a file. The essentials:
 
@@ -419,13 +425,14 @@ The gift queue **sheds the cheapest gift when full**, never the newest. Dropping
 
 ### Not built yet
 
-OAuth (Google / Facebook / Instagram) · cosmetics (M7) · the Tier 5 all-rooms gift
-broadcast · stand-in art files · discover · host tools · payouts · the legal screens'
+OAuth (Google / Facebook / Instagram) · free cosmetic unlocks by level · super messages
+and VIP · the Tier 5 all-rooms gift broadcast · stand-in art files · discover · host tools · payouts · the legal screens'
 actual text · admin panel · push token registration · analytics pipeline · CI beyond
 typecheck and tests · Terraform and environments.
 
 Built but **unverified on devices**: M5 (two phones, live audio, chat under 200ms, an API
-redeploy with a room live) and M6 (a real gift between two accounts, animation under 500ms).
+redeploy with a room live), M6 (a real gift between two accounts, animation under 500ms)
+and M7 (a real purchase, its frame visible to someone else in a room).
 
 Honest read: the foundation is stronger than the budget suggests, the product does
 not exist yet, and the things most likely to kill this are people problems —

@@ -15,6 +15,7 @@
 
 import { pool } from '../../infra/db.js';
 import { publishToRoom } from '../../infra/roomBus.js';
+import { EMPTY_LOOK, looksFor } from '../cosmetics/index.js';
 
 /** The seat map, to everyone in the room. Replaces the client's polling. */
 export async function announceSeats(roomId: string): Promise<void> {
@@ -32,6 +33,7 @@ export async function announceSeats(roomId: string): Promise<void> {
     [roomId],
   );
 
+  const looks = await looksFor(rows.map((r) => r.user_id));
   publishToRoom(roomId, {
     t: 'seats',
     roomId,
@@ -40,6 +42,7 @@ export async function announceSeats(roomId: string): Promise<void> {
       userId: r.user_id,
       displayName: r.display_name,
       muted: r.muted,
+      look: looks.get(r.user_id) ?? EMPTY_LOOK,
     })),
   });
 }

@@ -103,6 +103,14 @@ export const ApiErrorCode = {
   REQUEST_IN_PROGRESS: 'REQUEST_IN_PROGRESS',
   TXN_TYPE_INACTIVE: 'TXN_TYPE_INACTIVE',
 
+  // cosmetics
+  COSMETIC_NOT_FOUND: 'COSMETIC_NOT_FOUND',
+  /** Repriced while the store was open. Refetch; nothing was charged. */
+  COSMETIC_PRICE_CHANGED: 'COSMETIC_PRICE_CHANGED',
+  COSMETIC_NOT_OWNED: 'COSMETIC_NOT_OWNED',
+  /** 410. Owned, but lapsed — offer the renewal. */
+  COSMETIC_EXPIRED: 'COSMETIC_EXPIRED',
+
   // gifting
   GIFT_TO_SELF: 'GIFT_TO_SELF',
   GIFT_NOT_FOUND: 'GIFT_NOT_FOUND',
@@ -262,6 +270,7 @@ export interface RoomSeat {
   /** Muted BY THE HOST — not the same as someone muting themselves. */
   muted: boolean;
   takenAt: string;
+  look: UserLook;
 }
 
 export interface JoinedRoom {
@@ -310,6 +319,8 @@ export interface ProfileSummary {
   points: number;
   /** PHONE verified. Payout KYC — PAN plus face — is a stricter, separate check. */
   verified: boolean;
+  /** What the owner is wearing, so the Me screen draws them as others see them. */
+  look: UserLook;
 }
 
 export const REPORT_REASONS = [
@@ -341,6 +352,7 @@ export interface PublicProfile {
   isFollowing: boolean;
   /** Their live room, if broadcasting right now. */
   liveRoomId: string | null;
+  look: UserLook;
 }
 
 export interface Visitor {
@@ -446,7 +458,7 @@ export interface GiftView {
   senderId: string;
   senderName: string;
   senderAvatar: string | null;
-  senderFrame: string | null;
+  senderFrame: UserLook['frame'];
   recipientId: string;
   recipientName: string | null;
   giftId: string;
@@ -475,13 +487,89 @@ export interface LeaderboardEntry {
   coins: number;
 }
 
-export interface Cosmetic {
+// --- cosmetics ---------------------------------------------------------------
+
+/** The four kinds M7 sells. VIP and super message are not worn and not sold yet. */
+export type CosmeticKind = 'frame' | 'chat_bubble' | 'nickname_color' | 'entry_effect';
+
+/** Server style data carries both palettes; the app draws whichever `MODE` names. */
+export interface Themed<T> {
+  light: T;
+  dark: T;
+}
+
+export interface FrameStyle {
+  /** The ring drawn in code while the art loads, or instead of it. */
+  ring: string;
+}
+export interface BubbleStyle {
+  background: string;
+  border: string;
+  text: string;
+}
+export interface NameColorStyle {
+  color: string;
+}
+export interface EntryStyle {
+  accent: string;
+}
+
+/**
+ * How someone appears: what they are wearing right now. Mirrors `UserLook` in
+ * backend/src/shared/cosmeticStyle.ts. Every part is independently null.
+ */
+export interface UserLook {
+  frame: { asset: string | null; style: Themed<FrameStyle> } | null;
+  bubble: Themed<BubbleStyle> | null;
+  nameColor: Themed<NameColorStyle> | null;
+  entry: { asset: string | null; style: Themed<EntryStyle> } | null;
+}
+
+export const EMPTY_LOOK: UserLook = { frame: null, bubble: null, nameColor: null, entry: null };
+
+/** Someone wearing an entry effect arrived in a room. Nobody else is announced. */
+export interface EntryView {
+  userId: string;
+  name: string | null;
+  avatarUrl: string | null;
+  look: UserLook;
+}
+
+export type Cosmetic = {
   id: string;
   name: string;
-  kind: string;
   gemPrice: number;
   durationDays: number | null;
   freeAtUserLevel: number | null;
+  asset: string | null;
+} & (
+  | { kind: 'frame'; style: Themed<FrameStyle> }
+  | { kind: 'chat_bubble'; style: Themed<BubbleStyle> }
+  | { kind: 'nickname_color'; style: Themed<NameColorStyle> }
+  | { kind: 'entry_effect'; style: Themed<EntryStyle> }
+);
+
+export interface CosmeticCatalog {
+  cosmetics: Cosmetic[];
+  /** The live coins→gems terms. Never guessed on the client. */
+  conversion: { coinToGemRateBp: number; minimumCoins: number };
+}
+
+export interface OwnedCosmetic {
+  cosmeticId: string;
+  kind: CosmeticKind;
+  name: string;
+  expiresAt: string;
+  /** Still within its time. A lapsed item stays listed so it can be renewed. */
+  active: boolean;
+  equipped: boolean;
+}
+
+export interface CosmeticPurchaseResult {
+  item: OwnedCosmetic;
+  gemsSpent: number;
+  balance: { gems: number };
+  replayed: boolean;
 }
 
 export interface WalletTransaction {

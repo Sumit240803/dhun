@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { optionalAuth } from '../../middleware/authGuard.js';
-import { listCosmetics, listGifts } from './catalog.service.js';
+import { getConfigNumber, listCosmetics, listGifts } from './catalog.service.js';
+import { ECONOMY } from './rates.js';
 
 /**
  * The server-driven catalogs.
@@ -22,7 +23,15 @@ export function buildCatalogRouter(): Router {
 
   router.get('/cosmetics', async (_req, res, next) => {
     try {
-      res.json({ cosmetics: await listCosmetics() });
+      const [cosmetics, rateBp, minimumCoins] = await Promise.all([
+        listCosmetics(),
+        getConfigNumber('coin_to_gem_rate_bp', ECONOMY.coinToGemRateBp),
+        getConfigNumber('min_conversion_coins', 100),
+      ]);
+      // The conversion terms travel with the store, because the store is where
+      // someone short of gems decides whether to convert — and a client that
+      // guessed the rate would show a number the server then contradicts.
+      res.json({ cosmetics, conversion: { coinToGemRateBp: rateBp, minimumCoins } });
     } catch (err) {
       next(err);
     }

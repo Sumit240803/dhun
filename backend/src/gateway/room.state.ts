@@ -13,7 +13,8 @@
 import { uuidv7 } from 'uuidv7';
 import { pool } from '../infra/db.js';
 import { AppError } from '../infra/errors.js';
-import type { ChatLine, MicRequest, SeatView } from './protocol.js';
+import { EMPTY_LOOK, lookFor, looksFor } from '../modules/cosmetics/index.js';
+import type { ChatLine, EntryView, MicRequest, SeatView } from './protocol.js';
 
 /** How much backlog a late arrival gets. Enough to look busy, not a transcript. */
 const HISTORY_SIZE = 40;
@@ -60,11 +61,13 @@ export async function listSeats(roomId: string): Promise<SeatView[]> {
     [roomId],
   );
 
+  const looks = await looksFor(rows.map((r) => r.user_id));
   return rows.map((r) => ({
     seatIndex: r.seat_index,
     userId: r.user_id,
     displayName: r.display_name,
     muted: r.muted,
+    look: looks.get(r.user_id) ?? EMPTY_LOOK,
   }));
 }
 
@@ -95,6 +98,8 @@ export async function recentMessages(roomId: string): Promise<ChatLine[]> {
     [roomId, HISTORY_SIZE],
   );
 
+  // One query for the whole backlog's senders, not one per line.
+  const looks = await looksFor(rows.map((r) => r.user_id));
   return rows
     .map((r) => ({
       id: r.id,
@@ -102,6 +107,7 @@ export async function recentMessages(roomId: string): Promise<ChatLine[]> {
       name: r.display_name,
       body: r.body,
       at: r.created_at.toISOString(),
+      look: looks.get(r.user_id) ?? EMPTY_LOOK,
     }))
     .reverse();
 }
@@ -139,6 +145,30 @@ export async function recordMessage(input: {
     name: rows[0].display_name,
     body: input.body,
     at: rows[0].created_at.toISOString(),
+    look: await lookFor(input.userId),
+  };
+}
+
+/**
+ * Who just walked in, when they are worth announcing — or null.
+ *
+ * Only someone wearing an entry effect is announced. Announcing every arrival
+ * would put a banner on screen for each of a busy room's comings and goings,
+ * and the effect would stop meaning anything to the person who paid for it.
+ */
+export async function entrance(userId: string): Promise<EntryView | null> {
+  const look = await lookFor(userId);
+  if (!look.entry) return null;
+
+  const { rows } = await pool.query<{ display_name: string | null; avatar_url: string | null }>(
+    'SELECT display_name, avatar_url FROM user_profiles WHERE user_id = $1',
+    [userId],
+  );
+  return {
+    userId,
+    name: rows[0]?.display_name ?? null,
+    avatarUrl: rows[0]?.avatar_url ?? null,
+    look,
   };
 }
 

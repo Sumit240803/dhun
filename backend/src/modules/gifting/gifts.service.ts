@@ -25,6 +25,7 @@ import { pool } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
 import { logger } from '../../infra/logger.js';
 import { publishToRoom } from '../../infra/roomBus.js';
+import { lookFor, type UserLook } from '../cosmetics/index.js';
 import {
   ECONOMY,
   findCompletedTransaction,
@@ -52,8 +53,8 @@ export interface GiftView {
   senderId: string;
   senderName: string;
   senderAvatar: string | null;
-  /** Equipped avatar frame. Always null until cosmetics can be equipped (M7). */
-  senderFrame: string | null;
+  /** The sender's equipped avatar frame — its art and the ring drawn without it. */
+  senderFrame: UserLook['frame'];
   recipientId: string;
   recipientName: string | null;
   giftId: string;
@@ -171,7 +172,10 @@ export async function sendGift(input: {
     });
   }
 
-  const room = await loadParticipants(input);
+  const [room, senderLook] = await Promise.all([
+    loadParticipants(input),
+    lookFor(input.senderId),
+  ]);
 
   if (room.ended_at !== null) throw new AppError('ROOM_ENDED', 'This room has ended', 410);
   if (room.sender_banned) {
@@ -200,7 +204,7 @@ export async function sendGift(input: {
     senderId: input.senderId,
     senderName: room.sender_name ?? '',
     senderAvatar: room.sender_avatar,
-    senderFrame: null,
+    senderFrame: senderLook.frame,
     recipientId: input.recipientId,
     recipientName: room.recipient_name,
     giftId: gift.id,

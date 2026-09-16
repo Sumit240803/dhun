@@ -103,6 +103,38 @@ export async function findCompletedTransaction(
   return seen ? replayOrThrow(seen, idempotencyKey) : null;
 }
 
+/**
+ * A prior use of this key for this kind of transaction, with the identity it
+ * was bound to — for callers whose identity depends on catalog data that may
+ * have changed since (a cosmetic's duration). The caller decides whether the
+ * stored identity is the same operation; a mismatch then fails in
+ * `postTransaction` as a reused key, exactly as it should.
+ */
+export async function findTransactionByKey(
+  idempotencyKey: string,
+  txnType: string,
+): Promise<{
+  identity: Record<string, unknown>;
+  actorUserId: string | null;
+  result: PostTxnResult;
+} | null> {
+  const { rows } = await withTransaction((c) =>
+    c.query<ExistingTxn & { identity: Record<string, unknown>; actor_user_id: string | null }>(
+      'SELECT id, status, response_body, identity, actor_user_id, true AS identity_matches' +
+        ' FROM ledger_txns WHERE idempotency_key = $1 AND txn_type = $2',
+      [idempotencyKey, txnType],
+    ),
+  );
+  const existing = rows[0];
+  return existing
+    ? {
+        identity: existing.identity,
+        actorUserId: existing.actor_user_id,
+        result: replayOrThrow(existing, idempotencyKey),
+      }
+    : null;
+}
+
 export async function postTransaction(input: PostTxnInput): Promise<PostTxnResult> {
   assertBalanced(input.legs);
 

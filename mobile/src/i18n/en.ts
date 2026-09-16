@@ -527,7 +527,62 @@ export const en = {
 
     stripSent: 'sent {gift}',
     stripSentTo: 'sent {gift} to {name}',
+    entered: '{name} entered the room',
+    enteredCaption: 'has entered',
     devSimulateGift: 'Simulate a gift (development)',
+  },
+
+  store: {
+    title: 'Store',
+    meSubtitle: '{gems} gems to spend',
+    frames: 'Frames',
+    bubbles: 'Chat bubbles',
+    nameColours: 'Name colours',
+    entries: 'Entrances',
+    shelfEmpty: 'Nothing here yet.',
+    sampleMessage: 'Namaste!',
+    entryPreviewNote: 'Plays when you walk into a room.',
+
+    getGems: 'Get gems',
+    getGemsFor: 'Get gems · {gems} needed',
+    buyFor: 'Buy · {gems} gems',
+    renewFor: 'Renew · {gems} gems',
+    wear: 'Wear',
+    takeOff: 'Take off',
+    extend: 'Extend',
+    signUp: 'Sign up to shop',
+
+    forDay: '{count} day',
+    forDays: '{count} days',
+    wearingDay: 'Wearing · {count} day left',
+    wearingDays: 'Wearing · {count} days left',
+    ownedDay: 'Owned · {count} day left',
+    ownedDays: 'Owned · {count} days left',
+    expired: 'Expired',
+
+    gemsAmount: '{gems} gems',
+    startsNowDay: 'Yours for {count} day from now.',
+    startsNowDays: 'Yours for {count} days from now.',
+    extendNoteDay: 'Adds {count} day on top of the time you have left.',
+    extendNoteDays: 'Adds {count} days on top of the time you have left.',
+    balanceAfter: 'You will have {gems} gems left.',
+    confirmBuy: 'Buy for {gems} gems',
+    notEnoughGems: 'You do not have enough gems for this.',
+
+    convertTitle: 'Get gems',
+    convertOneWay:
+      'Coins become gems with a {bonus}% bonus. This is one way — gems cannot turn back into coins.',
+    convertResult: '{coins} coins → {gems} gems',
+    convertAction: 'Convert',
+    convertDone: 'Done. {gems} gems added.',
+    convertNoCoins: 'You need at least {coins} coins to convert.',
+  },
+
+  cosmeticErrors: {
+    priceChanged: 'The price of this item just changed. Check it and try again.',
+    unavailable: 'This item is no longer sold.',
+    notOwned: 'You do not own this item.',
+    expired: 'This item has expired. Renew it to wear it again.',
   },
 
   legal: {

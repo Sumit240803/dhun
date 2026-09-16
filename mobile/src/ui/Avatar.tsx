@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { colors, radius } from '@/theme';
@@ -32,6 +33,12 @@ export interface AvatarProps {
    * leave room for that.
    */
   frameUri?: string | null;
+  /**
+   * A ring drawn in code for the same frame — shown while its art loads, and
+   * instead of it when the art cannot load at all. Without it, a frame someone
+   * paid for is simply invisible on a bad connection.
+   */
+  frameRing?: string | null;
   testID?: string;
 }
 
@@ -49,9 +56,24 @@ export const FRAME_SCALE = 1.36;
  * Most users never set a photo, so the fallback is the common case rather than
  * the edge case — an empty grey circle across a whole feed looks broken.
  */
-export function Avatar({ uri, name, size = 'md', live = false, frameUri, testID }: AvatarProps) {
+export function Avatar({
+  uri,
+  name,
+  size = 'md',
+  live = false,
+  frameUri,
+  frameRing,
+  testID,
+}: AvatarProps) {
   const px = sizes[size];
   const initial = name.trim().charAt(0).toUpperCase() || '?';
+
+  // Keyed on the uri, so a different frame starts fresh rather than inheriting
+  // the last one's failure.
+  const [loadedFrame, setLoadedFrame] = useState<string | null>(null);
+  const [failedFrame, setFailedFrame] = useState<string | null>(null);
+  const frameShowing = !!frameUri && loadedFrame === frameUri && failedFrame !== frameUri;
+  const ringWidth = Math.max(2, Math.round(px * 0.06));
 
   return (
     <View
@@ -82,7 +104,25 @@ export function Avatar({ uri, name, size = 'md', live = false, frameUri, testID 
         </View>
       )}
 
-      {frameUri ? (
+      {frameRing && !frameShowing ? (
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no"
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            left: -ringWidth,
+            top: -ringWidth,
+            width: px + ringWidth * 2,
+            height: px + ringWidth * 2,
+            borderRadius: radius.pill,
+            borderWidth: ringWidth,
+            borderColor: frameRing,
+          }}
+        />
+      ) : null}
+
+      {frameUri && failedFrame !== frameUri ? (
         <Image
           source={{ uri: frameUri }}
           // Not announced separately — it is decoration on an avatar that is
@@ -99,6 +139,8 @@ export function Avatar({ uri, name, size = 'md', live = false, frameUri, testID 
           }}
           contentFit="contain"
           cachePolicy="memory-disk"
+          onLoad={() => setLoadedFrame(frameUri)}
+          onError={() => setFailedFrame(frameUri)}
         />
       ) : null}
     </View>

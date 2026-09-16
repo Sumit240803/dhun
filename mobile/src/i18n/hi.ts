@@ -513,7 +513,62 @@ export const hi: Messages = {
 
     stripSent: '{gift} भेजा',
     stripSentTo: '{name} को {gift} भेजा',
+    entered: '{name} रूम में आए',
+    enteredCaption: 'आ गए हैं',
     devSimulateGift: 'गिफ़्ट सिम्युलेट करें (डेवलपमेंट)',
+  },
+
+  store: {
+    title: 'स्टोर',
+    meSubtitle: 'खर्च करने के लिए {gems} जेम्स',
+    frames: 'फ़्रेम',
+    bubbles: 'चैट बबल',
+    nameColours: 'नाम के रंग',
+    entries: 'एंट्री',
+    shelfEmpty: 'यहाँ अभी कुछ नहीं है।',
+    sampleMessage: 'नमस्ते!',
+    entryPreviewNote: 'जब आप किसी रूम में आते हैं, तब चलता है।',
+
+    getGems: 'जेम्स लें',
+    getGemsFor: 'जेम्स लें · {gems} चाहिए',
+    buyFor: 'खरीदें · {gems} जेम्स',
+    renewFor: 'फिर से लें · {gems} जेम्स',
+    wear: 'पहनें',
+    takeOff: 'उतारें',
+    extend: 'बढ़ाएँ',
+    signUp: 'खरीदारी के लिए साइन अप करें',
+
+    forDay: '{count} दिन',
+    forDays: '{count} दिन',
+    wearingDay: 'पहना हुआ · {count} दिन बाकी',
+    wearingDays: 'पहना हुआ · {count} दिन बाकी',
+    ownedDay: 'आपका · {count} दिन बाकी',
+    ownedDays: 'आपका · {count} दिन बाकी',
+    expired: 'समय खत्म',
+
+    gemsAmount: '{gems} जेम्स',
+    startsNowDay: 'अभी से {count} दिन के लिए आपका।',
+    startsNowDays: 'अभी से {count} दिन के लिए आपका।',
+    extendNoteDay: 'बचे हुए समय में {count} दिन और जुड़ेंगे।',
+    extendNoteDays: 'बचे हुए समय में {count} दिन और जुड़ेंगे।',
+    balanceAfter: 'आपके पास {gems} जेम्स बचेंगे।',
+    confirmBuy: '{gems} जेम्स में खरीदें',
+    notEnoughGems: 'इसके लिए आपके पास पर्याप्त जेम्स नहीं हैं।',
+
+    convertTitle: 'जेम्स लें',
+    convertOneWay:
+      'कॉइन {bonus}% बोनस के साथ जेम्स बनते हैं। यह एकतरफ़ा है — जेम्स वापस कॉइन नहीं बन सकते।',
+    convertResult: '{coins} कॉइन → {gems} जेम्स',
+    convertAction: 'बदलें',
+    convertDone: 'हो गया। {gems} जेम्स जुड़ गए।',
+    convertNoCoins: 'बदलने के लिए कम से कम {coins} कॉइन चाहिए।',
+  },
+
+  cosmeticErrors: {
+    priceChanged: 'इस आइटम की कीमत अभी बदली है। देखकर फिर से कोशिश करें।',
+    unavailable: 'यह आइटम अब नहीं बिकता।',
+    notOwned: 'यह आइटम आपका नहीं है।',
+    expired: 'इस आइटम का समय खत्म हो गया है। फिर से पहनने के लिए इसे रिन्यू करें।',
   },
 
   legal: {

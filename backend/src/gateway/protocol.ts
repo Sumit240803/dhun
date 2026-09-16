@@ -17,6 +17,7 @@
 // state — only intent.
 
 import { z } from 'zod';
+import type { UserLook } from '../shared/cosmeticStyle.js';
 
 /** Room ids are uuids everywhere. A malformed one never reaches a query. */
 const roomId = z.string().uuid();
@@ -67,6 +68,8 @@ export interface ChatLine {
   name: string | null;
   body: string;
   at: string;
+  /** The sender's bubble and name colour, as they are NOW — not when they wrote it. */
+  look: UserLook;
 }
 
 export interface MicRequest {
@@ -92,8 +95,8 @@ export interface GiftView {
   senderId: string;
   senderName: string;
   senderAvatar: string | null;
-  /** The sender's equipped avatar frame asset path, when they have one. */
-  senderFrame: string | null;
+  /** The sender's equipped avatar frame — the art, and the ring drawn without it. */
+  senderFrame: UserLook['frame'];
   recipientId: string;
   recipientName: string | null;
   giftId: string;
@@ -117,6 +120,15 @@ export interface SeatView {
   userId: string;
   displayName: string | null;
   muted: boolean;
+  look: UserLook;
+}
+
+/** Someone wearing an entry effect arrived. Only they are announced — see server.ts. */
+export interface EntryView {
+  userId: string;
+  name: string | null;
+  avatarUrl: string | null;
+  look: UserLook;
 }
 
 /**
@@ -147,6 +159,8 @@ export type ServerMessage =
   | { t: 'mic:queue'; roomId: string; requests: MicRequest[] }
   /** A gift was sent in this room. Drives the strips. */
   | { t: 'gift'; roomId: string; gift: GiftView }
+  /** An entrance worth announcing — the arriving user wears an entry effect. */
+  | { t: 'entry'; roomId: string; user: EntryView }
   /** Requester only — the answer to their own raised hand. */
   | { t: 'mic:resolved'; roomId: string; approved: boolean }
   /** The host ended it, or a moderator did. The client leaves the screen. */

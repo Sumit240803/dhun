@@ -288,6 +288,8 @@ any consumer actually needs. Shipper wakes on `LISTEN`/`NOTIFY` rather than tigh
 | C10 | Combo gift x10/x99/x520/x999 — one txn with quantity, or N txns | **[D]** one txn, `coins = unit_price × quantity`. Quantity is one of 1/10/99/520/999 and nothing else. N transactions would be N row locks, N outbox rows and N animations for one tap. |
 | C11 | Cosmetic purchase — gems → revenue, **zero points**, no host leg | **[D]** see A4 worked example |
 | C11b | **Coins → Gems conversion** (+20%, one-way, config-driven) | **[D]** see A4 worked example |
+| C11c | **Buying a cosmetic you already hold** | **[D]** One `cosmetic_purchase` txn per purchase, always the full price. Time is ADDED to the current expiry when the item is still active (`GREATEST(expires_at, now()) + duration`), so extending early never loses days already paid for. An expired item starts again from now. |
+| C11d | **Where ownership lives** | **[D]** `user_cosmetics` holds one row per user per item with `expires_at`; `cosmetic_purchases` logs each purchase. Both are written by `postTransaction`'s in-transaction hook, like `gift_sends`, so an item cannot be owned without the gems having moved. Expiry is evaluated on READ (`expires_at > now()`) — nothing is deleted or swept, and a lapsed item simply stops being drawn. A cosmetic withdrawn from sale keeps working for whoever already bought it, until it expires. |
 | C12 | VIP subscription purchase and monthly renewal — priced in gems; is renewal a fresh txn or a scheduled deduction? | [?] |
 
 ### Points

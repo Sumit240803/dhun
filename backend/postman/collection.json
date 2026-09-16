@@ -1276,7 +1276,7 @@
                 "cosmetics"
               ]
             },
-            "description": "Priced in GEMS. Zero host payout — this is the margin path.\n\nVIP tiers are seeded but inactive (Phase 1), so they do not appear here.",
+            "description": "Priced in GEMS, zero host payout — the margin path. Only the four wearable kinds sell in M7 (frame, chat_bubble, nickname_color, entry_effect); VIP and super message are hidden.\n\nEach item carries `asset` (frame WebP / entry Lottie, null for pure style data) and `style` — validated light/dark style data, see docs/asset-contract.md § 6. An item whose style does not validate is withheld from the catalog rather than sold as a blank.\n\n`conversion` carries the live coins→gems terms (`coinToGemRateBp`, `minimumCoins`) so the store never guesses them.",
             "auth": {
               "type": "noauth"
             }
@@ -1288,7 +1288,9 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));"
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('conversion terms travel with the store', () => pm.expect(b.conversion.coinToGemRateBp).to.be.a('number'));"
                 ]
               }
             }
@@ -2215,8 +2217,198 @@
     },
     {
       "name": "Cosmetics — M7",
-      "description": "Priced in gems only. Zero host payout — this is the margin path.\n\nPlanned: `GET /v1/cosmetics/catalog`, `POST /v1/cosmetics/purchase`, `GET /v1/cosmetics/owned`, `POST /v1/cosmetics/equip`.",
-      "item": []
+      "description": "Buying, owning and wearing cosmetics. Purchases are money endpoints — registered, 18+, `Idempotency-Key` required.\n\nOwnership rules (ledger-decisions § C11c/C11d): every purchase is one full-price transaction; time is ADDED to the current expiry while an item is active and restarts from now once it has lapsed; buying equips; one equipped item per kind; expiry is evaluated on read and nothing is swept.\n\nWorn items appear as `look` on room seats, chat lines, gift senders (`senderFrame`), public profiles and the owner's summary. Someone wearing an entry effect is announced to a room over the gateway (`t: 'entry'`), at most once per room per 5 minutes.",
+      "item": [
+        {
+          "name": "1 — My cosmetics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/cosmetics/mine",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "cosmetics",
+                "mine"
+              ]
+            },
+            "description": "Everything the caller holds, newest expiry first. Lapsed items stay listed with `active: false` so they can be renewed; an expired item is never reported as equipped."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 — Buy a cosmetic",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/cosmetics/purchase",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "cosmetics",
+                "purchase"
+              ]
+            },
+            "description": "Spends gems only — never coins, whatever the coin balance. `expectedGemPrice` is the price the store displayed; a repriced item is refused, not charged. A retry with the same key replays the original purchase, even after a reprice; a key reused for another item or by another account is `IDEMPOTENCY_KEY_REUSED`.\n\n**Errors:** `INSUFFICIENT_BALANCE` 402 · `COSMETIC_PRICE_CHANGED` 409 (details.gemPrice) · `COSMETIC_NOT_FOUND` 404 (also VIP and super message, not sold in M7) · `IDEMPOTENCY_KEY_REUSED` 422 · `REQUEST_IN_PROGRESS` 409 · `TXN_TYPE_INACTIVE` 503 · `REGISTRATION_REQUIRED` / `DOB_REQUIRED` / `CONTACT_UNVERIFIED` 403.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cosmeticId\": \"frame_basic\",\n  \"expectedGemPrice\": 3250\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('worn straight away', () => pm.expect(b.item.equipped).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 — Equip",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/cosmetics/equip",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "cosmetics",
+                "equip"
+              ]
+            },
+            "description": "Wears an owned, active item and takes off whatever else of its kind was worn. Moves no money, so no Idempotency-Key.\n\n**Errors:** `COSMETIC_NOT_OWNED` 404 · `COSMETIC_EXPIRED` 410.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cosmeticId\": \"frame_basic\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4 — Unequip a kind",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/cosmetics/unequip",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "cosmetics",
+                "unequip"
+              ]
+            },
+            "description": "Takes off whatever of this kind is worn. `kind` is one of frame, chat_bubble, nickname_color, entry_effect. Taking off nothing is not an error.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"frame\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     },
     {
       "name": "Host & Payouts — M8",

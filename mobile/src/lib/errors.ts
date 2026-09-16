@@ -65,6 +65,10 @@ const codeMessages: Partial<Record<string, MessageKey>> = {
   // "not enough coins for this gift" would be wrong there. The gift sheet says
   // it in its own words.
   [ApiErrorCode.GIFT_PRICE_CHANGED]: 'gifting.priceChanged',
+  [ApiErrorCode.COSMETIC_PRICE_CHANGED]: 'cosmeticErrors.priceChanged',
+  [ApiErrorCode.COSMETIC_NOT_FOUND]: 'cosmeticErrors.unavailable',
+  [ApiErrorCode.COSMETIC_NOT_OWNED]: 'cosmeticErrors.notOwned',
+  [ApiErrorCode.COSMETIC_EXPIRED]: 'cosmeticErrors.expired',
   [ApiErrorCode.GIFT_NOT_FOUND]: 'gifting.giftUnavailable',
   [ApiErrorCode.RECIPIENT_NOT_IN_ROOM]: 'gifting.recipientGone',
 };
@@ -107,4 +111,19 @@ export function traceReference(error: unknown): string | undefined {
   if (!(error instanceof ApiError) || !error.traceId) return undefined;
   if (error.status < 500 && codeMessages[error.code]) return undefined;
   return t('errors.reference', { traceId: error.traceId });
+}
+
+/**
+ * Whether a failed money request might nonetheless have gone through.
+ *
+ * A 4xx is the server saying no, and nothing moved. No response at all, a
+ * timeout, a 5xx or a still-in-flight 409 all leave the question open — and
+ * the retry of such a request must reuse its idempotency key, or it may charge
+ * twice. Shared by every screen that spends: gifts, cosmetics, conversion.
+ */
+export function outcomeUnknown(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return true;
+  if (error.code === ApiErrorCode.NETWORK_ERROR || error.code === ApiErrorCode.TIMEOUT) return true;
+  if (error.code === ApiErrorCode.REQUEST_IN_PROGRESS) return true;
+  return error.status >= 500;
 }

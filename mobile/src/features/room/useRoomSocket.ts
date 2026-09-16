@@ -12,6 +12,7 @@ import { tokenStorage } from '@/features/auth/storage';
 import {
   RoomSocket,
   type ChatLine,
+  type EntryView,
   type MicRequest,
   type SeatView,
   type SocketStatus,
@@ -53,6 +54,8 @@ interface Options {
    * re-render of the entire room on every single send.
    */
   onGift?: (gift: GiftView) => void;
+  /** An entrance to announce. An event too, for the same reason as a gift. */
+  onEntry?: (user: EntryView) => void;
 }
 
 export function useRoomSocket(roomId: string | undefined, options: Options = {}) {
@@ -61,8 +64,10 @@ export function useRoomSocket(roomId: string | undefined, options: Options = {})
   // Held in a ref so a new callback identity does not tear down the socket.
   // Without this, an inline arrow at the call site reconnects on every render.
   const onGiftRef = useRef(options.onGift);
+  const onEntryRef = useRef(options.onEntry);
   useEffect(() => {
     onGiftRef.current = options.onGift;
+    onEntryRef.current = options.onEntry;
   });
   const [state, setState] = useState<RoomSocketState>({
     status: 'connecting',
@@ -86,6 +91,10 @@ export function useRoomSocket(roomId: string | undefined, options: Options = {})
       onMessage: (message) => {
         if (message.t === 'gift') {
           onGiftRef.current?.(message.gift);
+          return;
+        }
+        if (message.t === 'entry') {
+          onEntryRef.current?.(message.user);
           return;
         }
         setState((s) => {

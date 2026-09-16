@@ -7,7 +7,7 @@
 import { api } from '@/api/client';
 import type {
   CoinPack,
-  Cosmetic,
+  CosmeticCatalog,
   Gift,
   PurchaseResult,
   Wallet,
@@ -45,5 +45,5 @@ export const walletApi = {
 
 export const catalogApi = {
   gifts: () => api.get<{ gifts: Gift[] }>('catalog/gifts'),
-  cosmetics: () => api.get<{ cosmetics: Cosmetic[] }>('catalog/cosmetics'),
+  cosmetics: () => api.get<CosmeticCatalog>('catalog/cosmetics'),
 };

@@ -4,7 +4,12 @@
 // touches them — every other module moves money by calling postTransaction()
 // with an idempotency key and a set of balanced legs.
 
-export { postTransaction, findCompletedTransaction, getBalance } from './ledger.service.js';
+export {
+  postTransaction,
+  findCompletedTransaction,
+  findTransactionByKey,
+  getBalance,
+} from './ledger.service.js';
 
 export { buildWalletRouter } from './wallet.routes.js';
 export { buildCatalogRouter } from './catalog.routes.js';
@@ -19,6 +24,7 @@ export {
   getGift,
   getGiftForSend,
   listCosmetics,
+  getCosmeticForSale,
   getConfigNumber,
   levelFor,
   invalidateCatalogCache,

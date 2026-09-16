@@ -577,8 +577,9 @@ describe('reconciliation', () => {
   it('counts the seeded placeholder art the production guard would refuse', async () => {
     const client = await pool.connect();
     try {
-      // Rows, not files: all 20 gifts are on stand-in art until real art lands.
-      expect(await countLivePlaceholderAssets(client)).toBe(20);
+      // Rows, not files: all 20 gifts, 3 frames and 2 entry effects are on
+      // stand-in art until real art lands.
+      expect(await countLivePlaceholderAssets(client)).toBe(25);
     } finally {
       client.release();
     }

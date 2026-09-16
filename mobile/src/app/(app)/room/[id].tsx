@@ -34,10 +34,13 @@ import { haptic } from '@/lib/haptics';
 import { colors, duration, radius, spacing } from '@/theme';
 import { useSession } from '@/store/session';
 import { preloadGiftAssets, preloadImages } from '@/visuals/assets';
+import { EntryEffectLayer } from '@/visuals/EntryEffectLayer';
+import { EntryEffects } from '@/visuals/entryEffects';
 import { GiftAnimationLayer } from '@/visuals/GiftAnimationLayer';
 import { GiftQueue } from '@/visuals/giftQueue';
 import { GiftStripLayer } from '@/visuals/GiftStripLayer';
 import { GiftStripLanes } from '@/visuals/giftStrips';
+import { LookAvatar } from '@/visuals/LookAvatar';
 import {
   Avatar,
   Badge,
@@ -113,7 +116,14 @@ export default function RoomScreen() {
   // connection line and any notice showing under it.
   const [stageTop, setStageTop] = useState(0);
 
-  const socket = useRoomSocket(joined ? id : undefined, { onGift: receive });
+  // Entrances by people wearing an entry effect — the server announces no one
+  // else. Owned here and read by its layer, like the gifts.
+  const [entries] = useState(() => new EntryEffects());
+
+  const socket = useRoomSocket(joined ? id : undefined, {
+    onGift: receive,
+    onEntry: (user) => entries.push(user),
+  });
 
   // Loaded on entering the room, not on opening the sheet: the sheet is the
   // moment money is spent, and a spinner there costs the gift. Icons and the
@@ -518,6 +528,9 @@ export default function RoomScreen() {
           sits above them; the layer itself ignores touches. */}
       <GiftStripLayer lanes={strips} top={stageTop} hostId={room?.hostId} />
 
+      {/* Above the bottom bar, where arrivals are announced. */}
+      <EntryEffectLayer effects={entries} bottom={insets.bottom + ENTRY_CLEARANCE} />
+
       {/* Above the strips and every piece of room chrome, below the sheets. */}
       <GiftAnimationLayer queue={animations} />
 
@@ -806,7 +819,7 @@ function SeatTile({
         <View>
           {speaking && <Animated.View style={[styles.ring, ring]} />}
           {seat ? (
-            <Avatar name={seat.displayName ?? '—'} size="lg" />
+            <LookAvatar name={seat.displayName ?? '—'} size="lg" frame={seat.look?.frame} />
           ) : (
             <View style={styles.empty}>
               <Ionicons name="add" size={22} color={colors.text.faint} />
@@ -826,6 +839,12 @@ function SeatTile({
     </Animated.View>
   );
 }
+
+/**
+ * How far above the bottom edge entrances are announced: clear of the seat bar
+ * (a 56pt button and its padding) and the chat composer alike.
+ */
+const ENTRY_CLEARANCE = 96;
 
 const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, gap: spacing.sm },

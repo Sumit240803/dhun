@@ -152,24 +152,36 @@ The banner that announces a user entering a room.
 
 ## 6 · Style data, not images
 
-Three cosmetics are **data**, never artwork.
+Every worn cosmetic carries **style data** in `cosmetics.style` — for chat bubbles and
+nickname colours it is the whole item, and for frames and entry effects it is the drawn
+fallback shown while the art loads, or instead of it when the art cannot load. A frame
+someone paid for is never simply invisible on a bad connection.
 
-**Chat bubbles.** React Native's nine-slice stretching (`capInsets`) is **iOS-only**, so a
-stretchable bubble image cannot work on Android — Android-first is the launch plan. A
-bubble is a style instead:
+**Rules for all style data** (enforced by `backend/src/shared/cosmeticStyle.ts`):
+
+- Colours are `#RRGGBB` only. No names, no alpha, no `rgb()`.
+- **Both palettes, always** — a `light` and a `dark` variant. A colour chosen for a white
+  background is often unreadable on a dark one. The app draws the variant its palette names,
+  and over media (the room stage, a scrim) it always draws `dark`.
+- An item whose style does not validate is **withheld from the catalog** rather than sold,
+  and an already-owned item with a broken style draws nothing rather than crashing a room.
+
+| Kind | Style | Notes |
+|---|---|---|
+| **Chat bubble** | `{"light": {"background", "border", "text"}, "dark": {…}}` | React Native's nine-slice stretching (`capInsets`) is **iOS-only**, so a stretchable bubble image cannot work on Android — Android-first is the launch plan. A bubble is a style. Check `text` against `background` for contrast in both variants. |
+| **Nickname colour** | `{"light": {"color"}, "dark": {"color"}}` | A **solid** colour today. Gradient names need masked text, which the app does not ship yet; stops can be added to the schema when it does. |
+| **Frame** | `{"light": {"ring"}, "dark": {"ring"}}` | The ring drawn around the avatar in code until the §4 art loads. Pick the frame art's dominant colour. |
+| **Entry effect** | `{"light": {"accent"}, "dark": {"accent"}}` | Tints the banner drawn in code until the §5 Lottie loads. |
+
+Example — a bubble:
 
 ```json
-{ "background": ["#FFD86B", "#F59E0B"], "border": "#B45309", "borderWidth": 1.5,
-  "text": "#1C1917", "cornerOrnament": "badges/bubble-crown.v1.webp" }
+{ "light": { "background": "#FEF3C7", "border": "#F59E0B", "text": "#78350F" },
+  "dark":  { "background": "#78350F", "border": "#FBBF24", "text": "#FEF3C7" } }
 ```
 
-`cornerOrnament` is optional: a small static WebP pinned to a corner, **≤ 72 × 72 px**,
-≤ 15 KB — never stretched.
-
-**Nickname colours.** Two to three gradient stops. No asset.
-
-**Super messages.** A style record like a chat bubble, plus an optional entry Lottie
-following §5.
+**Super messages** are not sold in M7. When they ship they will be a style record like a
+chat bubble, plus an optional entry Lottie following §5.
 
 ---
 
@@ -229,10 +241,11 @@ asset arrives.
 | Gap | State |
 |---|---|
 | **`icon_asset` on the gift catalog** | ✅ Done in M6 — migration `015`, the catalog API, the client type, and `visuals/GiftIcon.tsx` with its fallback. |
-| **Cosmetics API returns `asset`** | Open — M7. The `cosmetics.asset` column exists but `listCosmetics` never selects it. |
+| **Cosmetics API returns `asset`** | ✅ Done in M7 — with validated `style` beside it. |
 | **Tier 1–2 `animation_asset`** | ✅ Done in M6 — set to `NULL`, and a CHECK constraint keeps `basic` gifts from ever getting one. |
 | **Mount `GiftAnimationLayer` in the room** | ✅ Done in M6. |
-| **Versioned paths** | ✅ Done in M6 for gifts: `placeholder/gifts/{id}/icon.v1.webp` and `anim.v1.json`. |
-| **Placeholder guard** | ✅ Done in M6 — reconciliation check `no_placeholder_assets_live`, production only. |
+| **Versioned paths** | ✅ Done — gifts in M6; frames (`placeholder/frames/{id}.v1.webp`) and entry effects (`placeholder/entry/{id}.v1.json`) in M7. |
+| **Placeholder guard** | ✅ Done in M6 — reconciliation check `no_placeholder_assets_live`, production only; it covers cosmetics too. |
 | **Stand-in files uploaded** | Open. The paths exist; the Fluent and Noto files behind them do not, so the app shows its fallbacks. |
-| **Entry effects, chat-bubble styles, VIP badges** | Open — M7. |
+| **Entry effects, chat bubbles, nickname colours, frames** | ✅ Done in M7 — drawn in rooms, chat, gift strips, profiles and the store, each with its code-drawn fallback. |
+| **VIP badges** | Open — VIP is Phase 1. |

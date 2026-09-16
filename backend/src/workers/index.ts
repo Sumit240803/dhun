@@ -16,6 +16,7 @@ import { config } from '../config/index.js';
 import { pool } from '../infra/db.js';
 import { logger } from '../infra/logger.js';
 import { outboxShipperJob, shipOutboxBatch } from './jobs/outboxShipper.js';
+import { spendMixJob } from './jobs/metrics.js';
 import { reconciliationJob } from './jobs/reconciliation.js';
 import {
   purgeIdempotencyBodiesJob,
@@ -31,6 +32,7 @@ import { Job, Scheduler, runJobOnce } from './scheduler.js';
 export const JOBS: Job[] = [
   outboxShipperJob,
   reconciliationJob,
+  spendMixJob,
   purgeIdempotencyBodiesJob,
   purgeShippedOutboxJob,
   purgeMicRequestsJob,

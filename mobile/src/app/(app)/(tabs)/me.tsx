@@ -12,13 +12,12 @@ import { useProfileSummary } from '@/api/queries/useFeed';
 import { useWallet } from '@/api/queries/useWallet';
 import { signOut } from '@/features/auth/session';
 import { useTranslation, type LocaleCode, type MessageKey } from '@/i18n';
-import { formatCoins, formatPoints } from '@/lib/money';
-import { coins, points } from '@/lib/units';
+import { formatCoins, formatGems, formatPoints } from '@/lib/money';
+import { coins, gems, points } from '@/lib/units';
 import { haptic } from '@/lib/haptics';
 import { colors, radius, spacing } from '@/theme';
 import { useSession } from '@/store/session';
 import {
-  Avatar,
   Badge,
   Button,
   Card,
@@ -33,6 +32,8 @@ import {
   Text,
   type SheetHandle,
 } from '@/ui';
+import { themed } from '@/visuals/look';
+import { LookAvatar } from '@/visuals/LookAvatar';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -87,9 +88,18 @@ export default function MeTab() {
           style={[styles.hero, { paddingTop: insets.top + spacing.xl }]}
         >
           <Animated.View entering={FadeInDown.duration(280)} style={styles.heroContent}>
-            <Avatar name={name} size="xl" />
+            {/* As everyone else sees them — their frame and name colour. */}
+            <LookAvatar name={name} size="xl" frame={summary.data?.look.frame} />
             <Row gap="sm">
-              <Text variant="title" numberOfLines={1}>
+              <Text
+                variant="title"
+                numberOfLines={1}
+                style={
+                  summary.data?.look.nameColor
+                    ? { color: themed(summary.data.look.nameColor).color }
+                    : undefined
+                }
+              >
                 {name}
               </Text>
               {summary.data?.vipTier != null && <Badge label={t('profile.vip')} tier={4} />}
@@ -199,6 +209,22 @@ export default function MeTab() {
                 router.push('/(app)/visitors');
               }}
               testID="visitors-row"
+            />
+            <Divider />
+            <ListItem
+              title={t('store.title')}
+              subtitle={
+                wallet.data === undefined
+                  ? undefined
+                  : t('store.meSubtitle', { gems: formatGems(gems(wallet.data.gems)) })
+              }
+              left={<Ionicons name="sparkles-outline" size={20} color={colors.currency.gem} />}
+              right={<Ionicons name="chevron-forward" size={18} color={colors.text.faint} />}
+              onPress={() => {
+                haptic.selection();
+                router.push('/(app)/store');
+              }}
+              testID="store-row"
             />
             <Divider />
             <Row style={styles.stats}>

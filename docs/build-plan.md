@@ -312,15 +312,52 @@ chat composer, a top-gifters sheet, and the `giftingEnabled` flag hiding all of 
 `coins × payout_rate` (asserted in tests, not yet on a device) · animation appears in under
 500ms · ledger balances · payout ratio measured at 30% on gifting.
 
-### M7 · Cosmetics (backend + app) — *moved from Phase 1*
+### M7 · Cosmetics (backend + app) — BUILT, UNVERIFIED — *moved from Phase 1*
 
 **Scope change, deliberate:** gems are 19–37% of every coin pack, so without cosmetics they
 buy nothing and the margin design does not exist.
 
-Ships: profile frame, chat bubble, nickname colour, basic entry effect. `user_cosmetics`
-with expiry. VIP tiers stay in Phase 1.
+**Ledger decisions settled first** (`backend/docs/ledger-decisions.md`): C11c, time stacks
+onto an active item and restarts after expiry; C11d, ownership written inside the ledger's
+own transaction and expiry evaluated on read, never swept.
 
-**Exit:** gems spend · cosmetics expire correctly · cosmetics share of spend is measurable.
+**Built** (migration `016_cosmetics.sql`, 25 tests): the four kinds — avatar frame, chat
+bubble, nickname colour, entry effect — three frames, three bubbles, three name colours and
+two entrances, each kind at its source-doc price. `POST /v1/cosmetics/purchase` spends
+**gems only** (never coins, whatever the coin balance), money-endpoint gates, replay-first
+like gifting, and refuses a key reused by another account. Buying equips; one item per kind
+is worn, enforced by a unique index. `GET /v1/cosmetics/mine`, `POST /equip`, `POST /unequip`.
+The catalog carries art paths, validated light/dark style data, and the live coins→gems
+terms.
+
+**What people see:** a `look` travels with every person the backend describes — room seats,
+chat lines, gift senders, public profiles, the owner's own summary — batched into one query
+per seat map or chat backlog and cached for 15 seconds per process. Someone wearing an entry
+effect is announced to a room over the gateway, at most once per room per five minutes, so a
+reconnecting phone does not replay it at every doorway.
+
+**Exit criterion "share is measurable":** a daily `spend_mix` worker job at 03:30 IST
+records gifting vs cosmetics revenue for the previous IST day in `job_runs.result`, read
+straight off `revenue_gifting` and `revenue_cosmetics`. A new reconciliation check,
+`cosmetic_purchases_match_ledger`, holds each purchase record to the gems that moved.
+
+App: a Store (from the Me tab) built around a live preview of the viewer wearing the
+selected item over what they already wear; shelves per kind with status (wearing / owned /
+expired, days left); a confirmation sheet that says exactly how many days a purchase adds;
+wear, take off, extend and renew; a coins→gems sheet that states it is one way and suggests
+exactly enough to cover a shortfall. Frames on seats, gift strips, the Me tab and profiles;
+bubbles and name colours in room chat; an entry banner in rooms. Every cosmetic has a
+code-drawn fallback, so nothing paid for is invisible while stand-in art is missing.
+
+**Not in M7, deliberately:**
+- **Free unlocks by user level** (`free_at_user_level`, `cosmetic_grant`). Levels are not
+  visible anywhere in the app yet, and a reward nobody can see coming is not a reward.
+- **Super messages and VIP tiers.** Hidden in the catalog; VIP remains Phase 1.
+- **Gradient nickname colours.** Solid colours until masked text ships.
+
+**Exit — none of it verified on a device yet:** gems spend · cosmetics expire correctly
+(tested server-side, including extension and renewal) · cosmetics share of spend is
+measurable (the job exists; it needs real traffic to mean anything).
 
 ### M8 · Host tools & payouts (backend + app)
 

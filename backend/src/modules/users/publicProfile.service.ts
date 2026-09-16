@@ -1,5 +1,6 @@
 import { AppError } from '../../infra/errors.js';
 import { pool } from '../../infra/db.js';
+import { lookFor, type UserLook } from '../cosmetics/index.js';
 import { isBlockedBetween } from '../moderation/index.js';
 
 /**
@@ -24,6 +25,8 @@ export interface PublicProfile {
   isFollowing: boolean;
   /** Their live room, if they are broadcasting right now. */
   liveRoomId: string | null;
+  /** The frame and name colour they wear — a profile is where a cosmetic is most seen. */
+  look: UserLook;
 }
 
 export async function getPublicProfile(
@@ -89,5 +92,6 @@ export async function getPublicProfile(
     following: Number(row.following),
     isFollowing: row.is_following,
     liveRoomId: row.live_room_id,
+    look: await lookFor(targetId),
   };
 }

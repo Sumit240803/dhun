@@ -9,6 +9,8 @@
 
 import { pool } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
+import { logger } from '../../infra/logger.js';
+import { isWearable, parseCosmeticStyle } from '../../shared/cosmeticStyle.js';
 
 const CACHE_TTL_MS = 30_000;
 
@@ -62,6 +64,49 @@ export interface Cosmetic {
   gemPrice: number;
   durationDays: number | null;
   freeAtUserLevel: number | null;
+  /** Frame WebP or entry-effect Lottie. Null for kinds that are pure style data. */
+  asset: string | null;
+  /** Validated style data (shared/cosmeticStyle.ts). */
+  style: unknown;
+}
+
+interface CosmeticRow {
+  id: string;
+  name: string;
+  kind: string;
+  gem_price: string;
+  duration_days: number | null;
+  free_at_user_level: number | null;
+  asset: string | null;
+  style: unknown;
+  is_active?: boolean;
+}
+
+/**
+ * The row as a client may see it, or null when its style does not validate.
+ *
+ * An item with a broken style is withheld rather than sold: a user who pays
+ * for a bubble that renders as nothing has been charged for a bug.
+ */
+function toCosmetic(r: CosmeticRow): Cosmetic | null {
+  let style: unknown = null;
+  if (isWearable(r.kind)) {
+    style = parseCosmeticStyle(r.kind, r.style);
+    if (style === null) {
+      logger.error('cosmetic style is invalid; item withheld', { cosmetic_id: r.id });
+      return null;
+    }
+  }
+  return {
+    id: r.id,
+    name: r.name,
+    kind: r.kind,
+    gemPrice: Number(r.gem_price),
+    durationDays: r.duration_days,
+    freeAtUserLevel: r.free_at_user_level,
+    asset: r.asset,
+    style,
+  };
 }
 
 /** `is_active` plus the visibility window — how seasonal and event items are scheduled. */
@@ -171,19 +216,27 @@ export async function getGift(id: string): Promise<Gift> {
 
 export async function listCosmetics(): Promise<Cosmetic[]> {
   return cached('cosmetics', async () => {
-    const { rows } = await pool.query(
-      'SELECT id, name, kind, gem_price, duration_days, free_at_user_level' +
+    const { rows } = await pool.query<CosmeticRow>(
+      'SELECT id, name, kind, gem_price, duration_days, free_at_user_level, asset, style' +
         ' FROM cosmetics WHERE' + VISIBLE + ' ORDER BY sort_order',
     );
-    return rows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      kind: r.kind,
-      gemPrice: Number(r.gem_price),
-      durationDays: r.duration_days,
-      freeAtUserLevel: r.free_at_user_level,
-    }));
+    return rows.map(toCosmetic).filter((c): c is Cosmetic => c !== null);
   });
+}
+
+/**
+ * The exact row a purchase is about to charge for. Uncached, like
+ * `getGiftForSend` — a withdrawn or repriced item stops selling immediately.
+ */
+export async function getCosmeticForSale(id: string): Promise<Cosmetic> {
+  const { rows } = await pool.query<CosmeticRow>(
+    'SELECT id, name, kind, gem_price, duration_days, free_at_user_level, asset, style' +
+      ' FROM cosmetics WHERE id = $1 AND' + VISIBLE,
+    [id],
+  );
+  const cosmetic = rows[0] ? toCosmetic(rows[0]) : null;
+  if (!cosmetic) throw new AppError('COSMETIC_NOT_FOUND', 'That item is not available', 404);
+  return cosmetic;
 }
 
 /** A dial from app_config. Falls back to the compiled default if the row is missing. */

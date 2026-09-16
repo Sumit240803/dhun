@@ -44,6 +44,8 @@ export const zIndex = {
   giftInline: 20,
   /** Below full-screen gifts: a Galaxy playing should not be covered by strips. */
   giftStrip: 25,
+  /** With the strips, under a full-screen gift — an arrival never covers a Yacht. */
+  entryEffect: 26,
   giftFullscreen: 30,
   roomBanner: 40,
   globalAnnouncement: 50,
@@ -67,6 +69,8 @@ export const duration = {
   giftStripEnter: 260,
   giftStripHold: 3_000,
   giftStripExit: 220,
+  /** An entry effect's whole life on screen — the asset contract caps its art at 2.5s. */
+  entryEffect: 2_500,
 } as const;
 
 /**

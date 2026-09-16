@@ -16,6 +16,7 @@ import { uuidv7 } from 'uuidv7';
 import { pool, withTransaction } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
 import { logger } from '../../infra/logger.js';
+import { EMPTY_LOOK, looksFor, type UserLook } from '../cosmetics/index.js';
 import {
   announceRoomEnded,
   closeRoom,
@@ -48,6 +49,7 @@ export interface RoomSeat {
   displayName: string | null;
   muted: boolean;
   takenAt: Date;
+  look: UserLook;
 }
 
 interface RoomRow {
@@ -266,12 +268,14 @@ export async function listSeats(roomId: string): Promise<RoomSeat[]> {
     [roomId],
   );
 
+  const looks = await looksFor(rows.map((r) => r.user_id));
   return rows.map((r) => ({
     seatIndex: r.seat_index,
     userId: r.user_id,
     displayName: r.display_name,
     muted: r.muted,
     takenAt: r.taken_at,
+    look: looks.get(r.user_id) ?? EMPTY_LOOK,
   }));
 }
 

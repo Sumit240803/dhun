@@ -1,4 +1,5 @@
 import { pool } from '../../infra/db.js';
+import { lookFor, type UserLook } from '../cosmetics/index.js';
 import { getBalance } from '../economy/index.js';
 
 export interface ProfileSummary {
@@ -12,6 +13,8 @@ export interface ProfileSummary {
   hostLevel: number | null;
   points: number;
   verified: boolean;
+  /** What the owner is wearing — so the Me screen draws them as others see them. */
+  look: UserLook;
 }
 
 interface Row {
@@ -37,7 +40,7 @@ interface Row {
  * function rather than touching the table.
  */
 export async function getProfileSummary(userId: string): Promise<ProfileSummary> {
-  const [{ rows }, points] = await Promise.all([
+  const [{ rows }, points, look] = await Promise.all([
     pool.query<Row>(
       `SELECT u.public_id,
               u.phone_verified_at,
@@ -66,6 +69,7 @@ export async function getProfileSummary(userId: string): Promise<ProfileSummary>
       [userId],
     ),
     getBalance('user_points', userId),
+    lookFor(userId),
   ]);
 
   const row = rows[0];
@@ -87,5 +91,6 @@ export async function getProfileSummary(userId: string): Promise<ProfileSummary>
     // KYC badge — PAN plus face match, hard rule #5 — is a different and
     // stricter check that arrives with payouts in M8.
     verified: row?.phone_verified_at != null,
+    look,
   };
 }

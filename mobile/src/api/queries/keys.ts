@@ -30,6 +30,11 @@ export const queryKeys = {
     cosmetics: () => [...queryKeys.catalog.all, 'cosmetics'] as const,
   },
 
+  cosmetics: {
+    all: ['cosmetics'] as const,
+    mine: () => [...queryKeys.cosmetics.all, 'mine'] as const,
+  },
+
   rooms: {
     all: ['rooms'] as const,
     // Keyed by category so switching tabs does not discard the other tab's

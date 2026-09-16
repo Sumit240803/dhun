@@ -175,6 +175,37 @@ const CHECKS: Check[] = [
     },
   },
   {
+    name: 'cosmetic_purchases_match_ledger',
+    description: 'Every cosmetic purchase has exactly one purchase record, for the gems it moved',
+    run: async (client) => {
+      // The same guarantee as gifts: the record and the money are written in
+      // one transaction, and this proves nothing has written one without the
+      // other. A purchase without its record is someone who paid for an item
+      // they may not own.
+      const { rows } = await client.query<{ missing: string; mismatched: string }>(
+        'SELECT' +
+          '  count(*) FILTER (WHERE p.txn_id IS NULL) AS missing,' +
+          '  count(*) FILTER (WHERE p.txn_id IS NOT NULL AND p.gems <> m.gems) AS mismatched' +
+          ' FROM (' +
+          "   SELECT t.id, SUM(CASE WHEN a.code = 'user_gems' THEN -e.amount ELSE 0 END) AS gems" +
+          '     FROM ledger_txns t' +
+          '     JOIN ledger_entries e ON e.txn_id = t.id' +
+          '     JOIN ledger_accounts a ON a.id = e.account_id' +
+          "    WHERE t.txn_type = 'cosmetic_purchase' AND t.reverses_txn_id IS NULL" +
+          "      AND t.status = 'completed'" +
+          '    GROUP BY t.id' +
+          ' ) m' +
+          ' LEFT JOIN cosmetic_purchases p ON p.txn_id = m.id',
+      );
+      const missing = Number(rows[0].missing);
+      const mismatched = Number(rows[0].mismatched);
+
+      return missing + mismatched === 0
+        ? pass('cosmetic_purchases_match_ledger')
+        : fail('cosmetic_purchases_match_ledger', missing + mismatched, { missing, mismatched });
+    },
+  },
+  {
     name: 'no_placeholder_assets_live',
     description: 'Production serves no stand-in art (docs/asset-contract.md § 8)',
     run: async (client) => {

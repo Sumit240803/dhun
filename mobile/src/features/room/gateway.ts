@@ -12,7 +12,7 @@
 // of a two-person project costs more than it saves. The gateway tests are what
 // hold the two in step.
 
-import type { GiftView } from '@/api/types';
+import type { EntryView, GiftView, UserLook } from '@/api/types';
 import { env } from '@/config/env';
 import { reportError } from '@/lib/reporting';
 
@@ -22,6 +22,8 @@ export interface ChatLine {
   name: string | null;
   body: string;
   at: string;
+  /** The sender's bubble and name colour, as they are now. */
+  look: UserLook;
 }
 
 export interface MicRequest {
@@ -35,7 +37,10 @@ export interface SeatView {
   userId: string;
   displayName: string | null;
   muted: boolean;
+  look: UserLook;
 }
+
+export type { EntryView };
 
 export type ServerMessage =
   | { t: 'ready'; userId: string }
@@ -54,6 +59,7 @@ export type ServerMessage =
   | { t: 'mic:resolved'; roomId: string; approved: boolean }
   /** Somebody sent a gift. Drives the strips and animations; the ledger has already settled. */
   | { t: 'gift'; roomId: string; gift: GiftView }
+  | { t: 'entry'; roomId: string; user: EntryView }
   | { t: 'room:ended'; roomId: string }
   | { t: 'error'; code: string; message: string }
   | { t: 'pong' };

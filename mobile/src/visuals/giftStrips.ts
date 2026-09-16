@@ -27,6 +27,8 @@
 //      leaving — unmounted mid-animation, a dropped frame — is released anyway.
 //      One stuck lane would silently cut the room's capacity by a third.
 
+import type { UserLook } from '@/api/types';
+
 export interface GiftStripEvent {
   /** The ledger transaction id. A replayed delivery must never show twice. */
   id: string;
@@ -34,7 +36,7 @@ export interface GiftStripEvent {
   senderName: string;
   senderAvatar: string | null;
   /** The sender's equipped avatar frame, when they have one. */
-  senderFrame: string | null;
+  senderFrame: UserLook['frame'];
   recipientId: string;
   recipientName: string | null;
   giftId: string;
