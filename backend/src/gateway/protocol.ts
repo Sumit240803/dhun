@@ -82,10 +82,9 @@ export interface MicRequest {
  * gift to look up a name or an avatar — in a room receiving a gift a second,
  * that would be a request a second from every viewer.
  *
- * ⚠️ Nothing publishes this yet. The send path — the ledger transaction, the
- * idempotency key, the 18+ gate — is M6 and needs its decisions settled in
- * ledger-decisions.md first. It is defined now so the app's strips are built
- * against the real contract rather than a guess at it.
+ * Published by the API (`gifting/gifts.service.ts`) straight after the ledger
+ * commits, and relayed here over the room bus. Mirrored there rather than
+ * imported, and the gifting tests hold the two shapes together.
  */
 export interface GiftView {
   /** The ledger transaction id. Clients dedupe on it. */
@@ -101,6 +100,13 @@ export interface GiftView {
   giftName: string;
   giftIcon: string | null;
   tier: number;
+  /**
+   * `basic` shows as a strip only; anything else also plays full-screen. Sent
+   * rather than looked up from the client's catalog, which may be older than a
+   * gift added this morning.
+   */
+  effect: string;
+  animationAsset: string | null;
   coinPrice: number;
   /** The combo multiplier on this send: 1, 10, 99, 520, 999. */
   quantity: number;

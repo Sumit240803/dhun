@@ -413,6 +413,35 @@ export const en = {
     // Whole sentence with placeholders — never assembled from fragments.
     someoneSentGift: '{sender} sent {gift} to {host}',
     combo: 'x{count}',
+
+    open: 'Send a gift',
+    title: 'Send a gift',
+    topUp: 'Top up coins',
+    sendTo: 'Send to {name}',
+    sendFor: 'Send · {coins}',
+    sendAgain: 'Again · x{count}',
+    topUpFor: 'Top up to send · {coins}',
+    noRecipients: 'Nobody is on stage to send a gift to.',
+
+    tier1: 'Everyday',
+    tier2: 'Sweet',
+    tier3: 'Big moment',
+    tier4: 'Luxury',
+    tier5: 'Legendary',
+
+    notEnoughCoins: 'You do not have enough coins for this gift.',
+    priceChanged: 'The price of this gift just changed. Check it and send again.',
+    giftUnavailable: 'This gift is no longer available.',
+    recipientGone: 'They are no longer on stage. Pick someone else.',
+    unavailable: 'Gifting is paused for a moment. Nothing was charged.',
+
+    guestTitle: 'Sign up to send gifts',
+    guestBody: 'Gifts are bought with coins, and coins need an account. It takes a minute.',
+
+    boardTitle: 'Top gifters',
+    boardEmptyTitle: 'No gifts yet',
+    boardEmptyBody: 'The first gift in this room puts its sender at the top.',
+    boardRow: 'Number {rank}, {name}, {coins} coins',
   },
 
   room: {

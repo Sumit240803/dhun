@@ -5,8 +5,6 @@
 // continuously because a strip that never stops moving cannot be READ, and the
 // gift name and the count are the whole point of it.
 
-import { Ionicons } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { memo, useEffect } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
@@ -23,6 +21,7 @@ import { useTranslation } from '@/i18n';
 import { colors, duration, radius, spacing, type TierKey } from '@/theme';
 import { Avatar, Text } from '@/ui';
 import { assetUrl } from './assets';
+import { GiftIcon } from './GiftIcon';
 import type { GiftStrip as GiftStripModel } from './giftStrips';
 
 /** Fixed, so the layer can place lanes without measuring each strip. */
@@ -103,7 +102,6 @@ function GiftStripView({ strip, hostId, onExited }: Props) {
 
   const { event } = strip;
   const tierColor = colors.tier[Math.min(Math.max(event.tier, 1), 5) as TierKey];
-  const icon = assetUrl(event.giftIcon);
 
   // Written as whole sentences with slots, never assembled from fragments —
   // Hindi puts the verb last, so "sent" + gift + "to" + name reads wrong.
@@ -140,12 +138,9 @@ function GiftStripView({ strip, hostId, onExited }: Props) {
         </Text>
       </View>
 
-      {icon ? (
-        <Image source={{ uri: icon }} style={styles.icon} contentFit="contain" />
-      ) : (
-        // onMedia, not the tier colour — the same contrast problem as the count.
-        <Ionicons name="gift" size={24} color={colors.text.onMedia} style={styles.iconFallback} />
-      )}
+      {/* onMedia fallback, not the tier colour — the same contrast problem as
+          the count. */}
+      <GiftIcon path={event.giftIcon} tier={event.tier} size={30} onMedia />
 
       <Animated.View style={countStyle}>
         <Text variant="heading" style={styles.count}>
@@ -194,8 +189,6 @@ const styles = StyleSheet.create({
   text: { flexShrink: 1, minWidth: 0 },
   name: { color: colors.text.onMedia, fontWeight: '700' },
   action: { color: colors.text.onMedia, opacity: 0.85 },
-  icon: { width: 30, height: 30 },
-  iconFallback: { width: 30, textAlign: 'center' },
   // White rather than the tier colour: several tier colours are too dark to
   // read on the scrim, and the count is the one thing everyone looks at. The
   // tier shows in the strip's edge instead.

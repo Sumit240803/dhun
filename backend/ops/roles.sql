@@ -49,6 +49,10 @@ REVOKE UPDATE, DELETE ON ledger_entries FROM :"app_role";
 -- transaction may never be erased.
 REVOKE DELETE ON ledger_txns FROM :"app_role";
 
+-- The gift record is written in the same transaction as the ledger entries and
+-- is held to the same rule: appended, never edited.
+REVOKE UPDATE, DELETE ON gift_sends FROM :"app_role";
+
 -- Reference data. Changing a gift price or a rate is an ADMIN action through a
 -- reviewed path, never something an API request can do.
 REVOKE INSERT, UPDATE, DELETE ON ledger_txn_types FROM :"app_role";

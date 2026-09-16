@@ -1235,7 +1235,7 @@
                 "gifts"
               ]
             },
-            "description": "20 gifts across 5 tiers, repriced for 55 coins/rupee.\n\n`payoutRateBp` is PER GIFT, never a global constant, so event gifts can carry a different rate later.",
+            "description": "20 gifts across 5 tiers, repriced for 55 coins/rupee.\n\n`payoutRateBp` is PER GIFT, never a global constant, so event gifts can carry a different rate later.\n\nEach gift carries `iconAsset` (every gift) and `animationAsset` (full-screen effects only — NULL for `basic`). Paths are versioned and immutable; until real art lands they sit under `placeholder/`, which production reconciliation refuses. See docs/asset-contract.md.",
             "auth": {
               "type": "noauth"
             }
@@ -1248,7 +1248,8 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200', () => pm.response.to.have.status(200));",
-                  "pm.test('20 gifts', () => pm.expect(pm.response.json().gifts).to.have.lengthOf(20));"
+                  "pm.test('20 gifts', () => pm.expect(pm.response.json().gifts).to.have.lengthOf(20));",
+                  "const gifts = pm.response.json().gifts; if (gifts && gifts.length) pm.environment.set('giftId', gifts[0].id);"
                 ]
               }
             }
@@ -1756,7 +1757,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('200', () => pm.response.to.have.status(200));"
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "if (pm.response.code === 200) pm.environment.set('hostId', pm.response.json().room.hostId);"
                 ]
               }
             }
@@ -2108,8 +2110,108 @@
     },
     {
       "name": "Gifting — M6",
-      "description": "Money endpoints — `Idempotency-Key` required.\n\nPlanned: `GET /v1/gifts/catalog` (server-driven; adding a gift must never need an app release), `POST /v1/gifts/send` (identity: gift_id, host_id, room_id, quantity), `GET /v1/gifts/leaderboard/{roomId}`.",
-      "item": []
+      "description": "Money endpoint — `Idempotency-Key` required.\n\nThe catalog is `GET /v1/catalog/gifts` (Catalog folder). One send is ONE ledger transaction whatever the combo (ledger-decisions § C10), and writes a `gift_sends` row in the same database transaction, which is what the leaderboard reads.\n\nIdempotency identity: `gift_id`, `recipient_id`, `room_id`, `quantity`.",
+      "item": [
+        {
+          "name": "1 — Send a gift",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/gifts/send",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "gifts",
+                "send"
+              ]
+            },
+            "description": "Registered, 18+ with a verified contact, `Idempotency-Key` required. Rate limited to 300/min per user — its own scope, because a combo is a thumb tapping several times a second.\n\n`quantity` is one of 1, 10, 99, 520, 999. `expectedCoinPrice` is the unit price the app displayed; a mismatch is refused rather than charged.\n\nThe recipient is the host, or anyone on a seat in a party room. On success the gift is published to the room's gateway channel straight after commit (the fast path) and `gift_sent` is written to the outbox (the durable one).\n\nA retry with the same key returns the original gift with `replayed: true` — even if the room has ended since.\n\n**Errors:** `INSUFFICIENT_BALANCE` 402 · `GIFT_TO_SELF` 422 · `GIFT_PRICE_CHANGED` 409 (details.coinPrice) · `GIFT_NOT_FOUND` 404 · `RECIPIENT_NOT_IN_ROOM` 409 (also returned when the recipient has blocked the sender, deliberately indistinguishable) · `ROOM_NOT_FOUND` 404 · `ROOM_ENDED` 410 · `ROOM_BANNED` 403 · `TXN_TYPE_INACTIVE` 503 (kill switch) · `IDEMPOTENCY_KEY_REUSED` 422 · `REQUEST_IN_PROGRESS` 409 · `REGISTRATION_REQUIRED` / `DOB_REQUIRED` / `CONTACT_UNVERIFIED` 403.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomId\": \"{{roomId}}\",\n  \"recipientId\": \"{{hostId}}\",\n  \"giftId\": \"rose\",\n  \"quantity\": 10,\n  \"expectedCoinPrice\": 45\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('one transaction for the whole combo', () => {",
+                  "  pm.expect(b.coinsSpent).to.eql(b.gift.coinPrice * b.gift.quantity);",
+                  "});",
+                  "pm.test('the gift id is the ledger transaction', () => pm.expect(b.gift.id).to.be.a('string'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 — Room leaderboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/gifts/leaderboard/{{roomId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "gifts",
+                "leaderboard",
+                "{{roomId}}"
+              ]
+            },
+            "description": "Top 20 senders in the room by total coins given. Readable without a session, like the room itself. Read from `gift_sends`, written in the same transaction as the money, so it can never disagree with the ledger. Ties go to whoever reached the total first.\n\nAn empty list is a real room with no gifts; an unknown room is `ROOM_NOT_FOUND` 404."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('ranked', () => {",
+                  "  const board = pm.response.json().leaderboard;",
+                  "  for (let i = 1; i < board.length; i++) pm.expect(board[i - 1].coins).to.be.at.least(board[i].coins);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     },
     {
       "name": "Cosmetics — M7",

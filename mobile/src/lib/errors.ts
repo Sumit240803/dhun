@@ -60,6 +60,13 @@ const codeMessages: Partial<Record<string, MessageKey>> = {
   // A media-server outage, not the user getting anything wrong. Same sentence
   // as any other service being briefly unavailable.
   [ApiErrorCode.RTC_UNAVAILABLE]: 'errors.serviceUnavailable',
+
+  // INSUFFICIENT_BALANCE is deliberately absent: conversion returns it too, and
+  // "not enough coins for this gift" would be wrong there. The gift sheet says
+  // it in its own words.
+  [ApiErrorCode.GIFT_PRICE_CHANGED]: 'gifting.priceChanged',
+  [ApiErrorCode.GIFT_NOT_FOUND]: 'gifting.giftUnavailable',
+  [ApiErrorCode.RECIPIENT_NOT_IN_ROOM]: 'gifting.recipientGone',
 };
 
 /** The sentence to show. Never the raw `error.message` for an unknown code. */

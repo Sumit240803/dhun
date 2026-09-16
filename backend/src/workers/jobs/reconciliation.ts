@@ -8,6 +8,7 @@
 // is "ledger zero mismatches, 7 consecutive days" and that should be a query.
 
 import { PoolClient } from 'pg';
+import { config } from '../../config/index.js';
 import { pool, withTransaction } from '../../infra/db.js';
 import { alert } from '../../infra/alerts.js';
 import { logger } from '../../infra/logger.js';
@@ -140,6 +141,55 @@ const CHECKS: Check[] = [
     },
   },
   {
+    name: 'gift_sends_match_ledger',
+    description: 'Every gift transaction has exactly one gift record, and the two agree on the money',
+    run: async (client) => {
+      // gift_sends is written in the same transaction as the entries, so these
+      // cannot disagree unless a write path skipped one of them. Both halves are
+      // counted: a gift the leaderboard never saw, and a record whose coins or
+      // points differ from what the ledger actually moved.
+      const { rows } = await client.query<{ missing: string; mismatched: string }>(
+        'SELECT' +
+          '  count(*) FILTER (WHERE g.txn_id IS NULL) AS missing,' +
+          '  count(*) FILTER (WHERE g.txn_id IS NOT NULL' +
+          '                   AND (g.coins <> m.coins OR g.points <> m.points)) AS mismatched' +
+          ' FROM (' +
+          '   SELECT t.id,' +
+          "          SUM(CASE WHEN a.code = 'user_coins' THEN -e.amount ELSE 0 END) AS coins," +
+          "          SUM(CASE WHEN a.code = 'host_points_held' THEN e.amount ELSE 0 END) AS points" +
+          '     FROM ledger_txns t' +
+          '     JOIN ledger_entries e ON e.txn_id = t.id' +
+          '     JOIN ledger_accounts a ON a.id = e.account_id' +
+          "    WHERE t.txn_type = 'gift_send' AND t.reverses_txn_id IS NULL" +
+          "      AND t.status = 'completed'" +
+          '    GROUP BY t.id' +
+          ' ) m' +
+          ' LEFT JOIN gift_sends g ON g.txn_id = m.id',
+      );
+      const missing = Number(rows[0].missing);
+      const mismatched = Number(rows[0].mismatched);
+
+      return missing + mismatched === 0
+        ? pass('gift_sends_match_ledger')
+        : fail('gift_sends_match_ledger', missing + mismatched, { missing, mismatched });
+    },
+  },
+  {
+    name: 'no_placeholder_assets_live',
+    description: 'Production serves no stand-in art (docs/asset-contract.md § 8)',
+    run: async (client) => {
+      // Placeholders are expected everywhere except production, where one
+      // means a stand-in emoji is what a paying user sees for their gift.
+      if (!config.isProduction) {
+        return { name: 'no_placeholder_assets_live', status: 'skipped', mismatchCount: 0 };
+      }
+      const count = await countLivePlaceholderAssets(client);
+      return count === 0
+        ? pass('no_placeholder_assets_live')
+        : fail('no_placeholder_assets_live', count, { placeholderRows: count });
+    },
+  },
+  {
     name: 'no_negative_user_balances',
     description: 'No user or host account has gone negative',
     run: async (client) => {
@@ -169,6 +219,22 @@ const CHECKS: Check[] = [
     },
   },
 ];
+
+/**
+ * Active catalog rows still pointing at stand-in art — counted per row, however
+ * many of its paths are stand-ins.
+ *
+ * Exported so the query is tested on its own — the check that calls it only
+ * runs in production.
+ */
+export async function countLivePlaceholderAssets(client: PoolClient): Promise<number> {
+  const { rows } = await client.query<{ count: string }>(
+    "SELECT (SELECT count(*) FROM gift_catalog WHERE is_active AND (icon_asset LIKE 'placeholder/%'" +
+      "          OR animation_asset LIKE 'placeholder/%'))" +
+      " + (SELECT count(*) FROM cosmetics WHERE is_active AND asset LIKE 'placeholder/%') AS count",
+  );
+  return Number(rows[0].count);
+}
 
 // E4 (payouts versus the bank statement) arrives with M8 — there are no payouts
 // to reconcile yet, and a check that always passes because it has nothing to

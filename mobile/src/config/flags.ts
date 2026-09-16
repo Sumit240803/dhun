@@ -9,6 +9,8 @@
 // endpoint and override them, so a bad flag can be corrected without a release —
 // which is the entire point of having flags rather than build constants.
 
+import { useSyncExternalStore } from 'react';
+
 export interface Flags {
   /** Master switch. Off = the gift sheet is hidden and sends are refused client-side. */
   giftingEnabled: boolean;
@@ -69,4 +71,18 @@ export function isEnabled(flag: keyof Flags): boolean {
 export function subscribeToFlags(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
+}
+
+/**
+ * A flag, re-rendering when a remote override arrives.
+ *
+ * For anything that SHOWS or HIDES on a flag. `isEnabled` reads once and would
+ * leave a gift button on screen after gifting was switched off mid-session.
+ */
+export function useFlag(flag: keyof Flags): boolean {
+  return useSyncExternalStore(
+    subscribeToFlags,
+    () => flags[flag],
+    () => flags[flag],
+  );
 }

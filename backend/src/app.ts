@@ -11,6 +11,7 @@ import { buildAuthRouter } from './modules/auth/index.js';
 import { buildMessagesRouter } from './modules/chat/index.js';
 import { buildConfigRouter } from './modules/config/index.js';
 import { buildCatalogRouter, buildWalletRouter } from './modules/economy/index.js';
+import { buildGiftsRouter } from './modules/gifting/index.js';
 import { buildModerationRouter } from './modules/moderation/index.js';
 import { buildWebhooksRouter } from './modules/realtime/index.js';
 import { buildRoomsRouter } from './modules/rooms/index.js';
@@ -67,9 +68,7 @@ export function buildApp() {
   app.use('/v1/messages', buildMessagesRouter());
   app.use('/v1/users', buildUsersRouter());
   app.use('/v1/moderation', buildModerationRouter());
-
-  // Mounted as each milestone lands (see docs/build-plan.md):
-  //   app.use('/v1/gifts', giftsRouter);      // M6
+  app.use('/v1/gifts', buildGiftsRouter());
 
   app.use(notFoundHandler());
   app.use(errorHandler());

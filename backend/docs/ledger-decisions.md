@@ -168,7 +168,7 @@ in the database during support work. Stored as `jsonb` on `ledger_txns`:
 |---|---|
 | Purchase (IAP) | `pack_id`, `platform` |
 | Purchase (web) | `pack_id` |
-| Gift send | `gift_id`, `host_id`, `room_id`, `quantity` |
+| Gift send | `gift_id`, `recipient_id`, `room_id`, `quantity` — *recipient*, not host: in a party room a gift can go to anyone on a seat |
 | Cosmetic purchase | `item_id`, `duration_days` |
 | VIP purchase | `tier`, `months` |
 | Coins → Gems | `coin_amount` |
@@ -285,7 +285,7 @@ any consumer actually needs. Shipper wakes on `LISTEN`/`NOTIFY` rather than tigh
 | C7 | Gift — 8 legs across `coin` / `point` / `paise` | **[D]** see A4 worked example |
 | C8 | ~~Gift with bonus coins at 20%~~ — **eliminated.** One payout rate only. | **[D]** dropped |
 | C9 | ~~Mixed paid + bonus gift~~ — **eliminated** by the same change. | **[D]** dropped |
-| C10 | Combo gift x10/x99/x520/x999 — one txn with quantity, or N txns | [R] one txn |
+| C10 | Combo gift x10/x99/x520/x999 — one txn with quantity, or N txns | **[D]** one txn, `coins = unit_price × quantity`. Quantity is one of 1/10/99/520/999 and nothing else. N transactions would be N row locks, N outbox rows and N animations for one tap. |
 | C11 | Cosmetic purchase — gems → revenue, **zero points**, no host leg | **[D]** see A4 worked example |
 | C11b | **Coins → Gems conversion** (+20%, one-way, config-driven) | **[D]** see A4 worked example |
 | C12 | VIP subscription purchase and monthly renewal — priced in gems; is renewal a fresh txn or a scheduled deduction? | [?] |
@@ -353,8 +353,8 @@ any consumer actually needs. Shipper wakes on `LISTEN`/`NOTIFY` rather than tigh
 
 | # | Item | Status |
 |---|---|---|
-| G1 | **Rate immutability** — a gift's `payout_rate` and the coin/point rates used must be stored **on the txn**, so a later price change never retroactively reinterprets history | [R] store on txn |
-| G2 | Kill-switch interaction — what happens to in-flight transactions when gifting is disabled | [?] |
+| G1 | **Rate immutability** — a gift's `payout_rate` and the coin/point rates used must be stored **on the txn**, so a later price change never retroactively reinterprets history | **[D]** stored on the txn (`rates` jsonb), and the unit price and rate are ALSO copied onto `gift_sends`. The send carries the price the client displayed; a mismatch is refused (`GIFT_PRICE_CHANGED`) rather than charged at a price the user never saw. |
+| G2 | Kill-switch interaction — what happens to in-flight transactions when gifting is disabled | **[D]** `is_active` is read INSIDE the posting transaction. Anything that has already passed that read commits normally; everything after it gets `503 TXN_TYPE_INACTIVE`. No transaction is ever half-applied or rolled back by the switch. The client flag `giftingEnabled` hides the button, but the ledger check is what actually stops money. |
 | G3 | Admin read access + audit log (who viewed, who adjusted) | [?] |
 | G4 | Test strategy — property test (sum always zero), concurrency test (parallel gifts, no deadlock, no double-spend), replay test (idempotency) | [?] |
 | G5 | Seeding / fixtures for local dev and the Postman collection | [?] |

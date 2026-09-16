@@ -16,7 +16,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useJoinRoom, useRoomActions } from '@/api/queries/useRoom';
 import { useGiftCatalog } from '@/api/queries/useWallet';
-import { ApiErrorCode, type JoinedRoom } from '@/api/types';
+import { ApiErrorCode, type GiftView, type JoinedRoom } from '@/api/types';
+import { useFlag } from '@/config/flags';
+import { deliverGift } from '@/features/gifting/deliver';
+import { GiftSheet } from '@/features/gifting/GiftSheet';
+import { giftRecipients } from '@/features/gifting/recipients';
+import { RoomLeaderboard } from '@/features/gifting/RoomLeaderboard';
 import { RoomChat } from '@/features/room/RoomChat';
 import { simulateGift } from '@/features/room/devGifts';
 import type { MicRequest, SeatView } from '@/features/room/gateway';
@@ -28,8 +33,11 @@ import { errorMessage, isErrorCode, traceReference } from '@/lib/errors';
 import { haptic } from '@/lib/haptics';
 import { colors, duration, radius, spacing } from '@/theme';
 import { useSession } from '@/store/session';
+import { preloadGiftAssets, preloadImages } from '@/visuals/assets';
+import { GiftAnimationLayer } from '@/visuals/GiftAnimationLayer';
+import { GiftQueue } from '@/visuals/giftQueue';
 import { GiftStripLayer } from '@/visuals/GiftStripLayer';
-import { GiftStripLanes, type GiftStripEvent } from '@/visuals/giftStrips';
+import { GiftStripLanes } from '@/visuals/giftStrips';
 import {
   Avatar,
   Badge,
@@ -75,6 +83,9 @@ export default function RoomScreen() {
   const leaveSheet = useRef<SheetHandle>(null);
   const manageSheet = useRef<SheetHandle>(null);
   const queueSheet = useRef<SheetHandle>(null);
+  const giftSheet = useRef<SheetHandle>(null);
+  const boardSheet = useRef<SheetHandle>(null);
+  const [boardOpen, setBoardOpen] = useState(false);
   const [managing, setManaging] = useState<SeatView | null>(null);
 
   // Once, on mount. Not a query: it mints a short-lived credential, and a
@@ -91,18 +102,32 @@ export default function RoomScreen() {
   const [strips] = useState(() => new GiftStripLanes({ holdMs: duration.giftStripHold }));
   useEffect(() => () => strips.clear(), [strips]);
 
+  // The full-screen layer's queue, owned here for the same reason. Every gift
+  // goes into both through `deliverGift`, which dedupes the sender's own gift
+  // arriving once from their send and again from the socket.
+  const [animations] = useState(() => new GiftQueue());
+  const receive = (gift: GiftView) => deliverGift(gift, { strips, animations });
+
   // Where the stage begins — the strips stack from here down. Measured rather
   // than guessed, because the header grows with the safe-area inset, the
   // connection line and any notice showing under it.
   const [stageTop, setStageTop] = useState(0);
 
-  const socket = useRoomSocket(joined ? id : undefined, {
-    onGift: (gift) => strips.push(gift),
-  });
+  const socket = useRoomSocket(joined ? id : undefined, { onGift: receive });
+
+  // Loaded on entering the room, not on opening the sheet: the sheet is the
+  // moment money is spent, and a spinner there costs the gift. Icons and the
+  // full-screen animations are warmed as soon as the catalog arrives — the
+  // animations only on Wi-Fi, which `preloadGiftAssets` decides.
+  const catalog = useGiftCatalog();
+  useEffect(() => {
+    if (!catalog.data) return;
+    preloadImages(catalog.data.map((gift) => gift.iconAsset));
+    void preloadGiftAssets(catalog.data);
+  }, [catalog.data]);
 
   // Development only — see features/room/devGifts.ts.
-  const catalog = useGiftCatalog(__DEV__);
-  const lastDevGift = useRef<GiftStripEvent | null>(null);
+  const lastDevGift = useRef<GiftView | null>(null);
 
   // The gateway is the live source; the join response fills the screen in the
   // moment before the socket is up.
@@ -116,6 +141,20 @@ export default function RoomScreen() {
   // and then offered no control to undo it. The host can always speak in
   // their own room; a seat is how everybody else earns it.
   const canSpeak = isHost || mySeat !== undefined;
+
+  // Who a gift can go to: the host and anyone seated, never yourself. Empty
+  // for a host alone in their own room, and then there is no gift button —
+  // an option that can only fail is not an option.
+  const giftingEnabled = useFlag('giftingEnabled');
+  const recipients = room
+    ? giftRecipients({ hostId: room.hostId, hostName: room.hostName, seats, meId: user?.id })
+    : [];
+  const canGift = giftingEnabled && recipients.length > 0;
+
+  function openGifts() {
+    haptic.tap();
+    giftSheet.current?.present();
+  }
 
   const live = useLiveRoom({
     url: joined?.rtc.url ?? null,
@@ -251,7 +290,7 @@ export default function RoomScreen() {
                 if (!gift) return;
                 lastDevGift.current = gift;
                 haptic.selection();
-                strips.push(gift);
+                receive(gift);
               }}
               accessibilityRole="button"
               accessibilityLabel={t('room.devSimulateGift')}
@@ -261,6 +300,20 @@ export default function RoomScreen() {
               <Ionicons name="gift-outline" size={22} color={colors.text.secondary} />
             </Pressable>
           )}
+
+          <Pressable
+            onPress={() => {
+              haptic.tap();
+              setBoardOpen(true);
+              boardSheet.current?.present();
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={t('gifting.boardTitle')}
+            hitSlop={spacing.sm}
+            testID="open-leaderboard"
+          >
+            <Ionicons name="trophy-outline" size={22} color={colors.text.secondary} />
+          </Pressable>
 
           <Pressable
             onPress={() => {
@@ -377,63 +430,104 @@ export default function RoomScreen() {
             meId={user?.id}
             canSend={socket.status === 'live'}
             onSend={socket.sendChat}
+            onGift={canGift ? openGifts : undefined}
           />
         )}
       </KeyboardAvoidingView>
 
-      {/* Three states: on a seat, waiting, or able to ask. */}
-      {tab === 'seats' && (
+      {/* The mic in three states — on a seat, waiting, or able to ask — and
+          the gift button beside it. A listener in a single-host room has no
+          mic to ask for, so giving is the whole bar. */}
+      {tab === 'seats' && (canSpeak || room?.seatCapacity != null || canGift) && (
         <View style={[styles.bar, { paddingBottom: insets.bottom + spacing.md }]}>
-          {canSpeak ? (
-            <Row gap="md">
-              <Button
-                label={live.micOn ? t('room.micOn') : t('room.micOff')}
-                onPress={() => {
-                  haptic.tap();
-                  void live.setMicOn(!live.micOn);
-                }}
-                // The host's mute is not ours to undo. An enabled button that
-                // silently fails is worse than a disabled one.
-                disabled={mySeat?.muted === true || live.connection !== 'connected'}
-                variant={live.micOn ? 'primary' : 'secondary'}
-                size="lg"
-                fullWidth
-                testID="toggle-mic"
-              />
-              {!isHost && mySeat !== undefined && (
+          <Row gap="md">
+            {canSpeak ? (
+              <>
+                <View style={styles.barMain}>
+                  <Button
+                    label={live.micOn ? t('room.micOn') : t('room.micOff')}
+                    onPress={() => {
+                      haptic.tap();
+                      void live.setMicOn(!live.micOn);
+                    }}
+                    // The host's mute is not ours to undo. An enabled button
+                    // that silently fails is worse than a disabled one.
+                    disabled={mySeat?.muted === true || live.connection !== 'connected'}
+                    variant={live.micOn ? 'primary' : 'secondary'}
+                    size="lg"
+                    fullWidth
+                    testID="toggle-mic"
+                  />
+                </View>
+                {!isHost && mySeat !== undefined && (
+                  <Button
+                    label={t('room.leaveSeat')}
+                    onPress={() => {
+                      haptic.tap();
+                      actions.releaseSeat.mutate(user!.id);
+                    }}
+                    loading={actions.releaseSeat.isPending}
+                    variant="ghost"
+                    size="lg"
+                    testID="leave-seat"
+                  />
+                )}
+              </>
+            ) : room?.seatCapacity != null && !isHost ? (
+              <View style={styles.barMain}>
                 <Button
-                  label={t('room.leaveSeat')}
-                  onPress={() => {
-                    haptic.tap();
-                    actions.releaseSeat.mutate(user!.id);
-                  }}
-                  loading={actions.releaseSeat.isPending}
-                  variant="ghost"
+                  label={socket.micPending ? t('room.handRaised') : t('room.raiseHand')}
+                  onPress={askForMic}
+                  disabled={socket.status !== 'live'}
+                  variant={socket.micPending ? 'secondary' : 'primary'}
                   size="lg"
-                  testID="leave-seat"
+                  fullWidth
+                  testID="raise-hand"
                 />
-              )}
-            </Row>
-          ) : (
-            room?.seatCapacity != null &&
-            !isHost && (
-              <Button
-                label={socket.micPending ? t('room.handRaised') : t('room.raiseHand')}
-                onPress={askForMic}
-                disabled={socket.status !== 'live'}
-                variant={socket.micPending ? 'secondary' : 'primary'}
-                size="lg"
-                fullWidth
-                testID="raise-hand"
-              />
-            )
-          )}
+              </View>
+            ) : (
+              canGift && (
+                <View style={styles.barMain}>
+                  <Button
+                    label={t('gifting.open')}
+                    onPress={openGifts}
+                    size="lg"
+                    fullWidth
+                    testID="open-gifts"
+                  />
+                </View>
+              )
+            )}
+
+            {canGift && (canSpeak || room?.seatCapacity != null) && (
+              <Pressable
+                onPress={openGifts}
+                accessibilityRole="button"
+                accessibilityLabel={t('gifting.open')}
+                style={({ pressed }) => [styles.giftButton, pressed && styles.giftButtonPressed]}
+                testID="open-gifts"
+              >
+                <Ionicons name="gift" size={24} color={colors.text.onBrand} />
+              </Pressable>
+            )}
+          </Row>
         </View>
       )}
 
       {/* Over the stage, under the sheets. Drawn after the seats and chat so it
           sits above them; the layer itself ignores touches. */}
       <GiftStripLayer lanes={strips} top={stageTop} hostId={room?.hostId} />
+
+      {/* Above the strips and every piece of room chrome, below the sheets. */}
+      <GiftAnimationLayer queue={animations} />
+
+      {room && (
+        <GiftSheet ref={giftSheet} roomId={room.id} recipients={recipients} onSent={receive} />
+      )}
+
+      <Sheet ref={boardSheet} title={t('gifting.boardTitle')} onDismiss={() => setBoardOpen(false)}>
+        {room && <RoomLeaderboard roomId={room.id} open={boardOpen} meId={user?.id} />}
+      </Sheet>
 
       <Sheet ref={leaveSheet} title={isHost ? t('room.endTitle') : t('room.leaveTitle')}>
         <Text variant="body" tone="secondary">
@@ -792,6 +886,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   solo: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xxl },
+  barMain: { flex: 1 },
+  giftButton: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.pill,
+    backgroundColor: colors.brand.solid,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  giftButtonPressed: { backgroundColor: colors.brand.pressed },
   bar: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,

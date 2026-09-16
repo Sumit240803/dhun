@@ -7,8 +7,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import type { GiftView } from '@/api/types';
 import { tokenStorage } from '@/features/auth/storage';
-import type { GiftStripEvent } from '@/visuals/giftStrips';
 import {
   RoomSocket,
   type ChatLine,
@@ -52,7 +52,7 @@ interface Options {
    * them in state would mean an array growing for the whole broadcast and a
    * re-render of the entire room on every single send.
    */
-  onGift?: (gift: GiftStripEvent) => void;
+  onGift?: (gift: GiftView) => void;
 }
 
 export function useRoomSocket(roomId: string | undefined, options: Options = {}) {

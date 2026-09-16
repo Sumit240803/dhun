@@ -1,12 +1,14 @@
-// PUBLIC API + event wiring for leaderboards (Redis sorted sets).
+// PUBLIC API + event wiring for the platform-wide leaderboards.
 //
-// It SUBSCRIBES to gift.sent — gifting never calls it directly. Built out in M6
-// alongside gifting; see docs/build-plan.md.
+// NOT the room leaderboard. That one lives in `gifting` and is read straight
+// from `gift_sends`, which is written in the same transaction as the money — a
+// board inside a room is small, exact, and needs no second copy of the data.
 //
-// Deliberately does not import Redis yet: the API process must start without a
-// Redis connection until M5 introduces one.
+// What is left here are the boards that span the whole platform — daily top
+// hosts, daily top gifters — which are too large to aggregate per request and
+// are the case sorted sets exist for. They subscribe to `gift_sent` from the
+// outbox and are M10 (discovery), not M6.
 
 export function registerLeaderboardSubscribers(): void {
-  // M6: subscribe to gift.sent and ZINCRBY the room, daily-host and
-  // daily-gifter sorted sets.
+  // M10: consume gift_sent and ZINCRBY the daily-host and daily-gifter sets.
 }

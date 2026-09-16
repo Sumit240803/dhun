@@ -12,9 +12,9 @@
 // of a two-person project costs more than it saves. The gateway tests are what
 // hold the two in step.
 
+import type { GiftView } from '@/api/types';
 import { env } from '@/config/env';
 import { reportError } from '@/lib/reporting';
-import type { GiftStripEvent } from '@/visuals/giftStrips';
 
 export interface ChatLine {
   id: string;
@@ -52,8 +52,8 @@ export type ServerMessage =
   | { t: 'presence'; roomId: string; viewers: number }
   | { t: 'mic:queue'; roomId: string; requests: MicRequest[] }
   | { t: 'mic:resolved'; roomId: string; approved: boolean }
-  /** Somebody sent a gift. Drives the strips; the ledger has already settled. */
-  | { t: 'gift'; roomId: string; gift: GiftStripEvent }
+  /** Somebody sent a gift. Drives the strips and animations; the ledger has already settled. */
+  | { t: 'gift'; roomId: string; gift: GiftView }
   | { t: 'room:ended'; roomId: string }
   | { t: 'error'; code: string; message: string }
   | { t: 'pong' };

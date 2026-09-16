@@ -399,6 +399,35 @@ export const hi: Messages = {
     sentGift: 'आपने {host} को {gift} भेजा',
     someoneSentGift: '{sender} ने {host} को {gift} भेजा',
     combo: 'x{count}',
+
+    open: 'गिफ़्ट भेजें',
+    title: 'गिफ़्ट भेजें',
+    topUp: 'कॉइन टॉप अप करें',
+    sendTo: '{name} को भेजें',
+    sendFor: 'भेजें · {coins}',
+    sendAgain: 'फिर से · x{count}',
+    topUpFor: 'भेजने के लिए टॉप अप करें · {coins}',
+    noRecipients: 'स्टेज पर कोई नहीं है जिसे गिफ़्ट भेजा जा सके।',
+
+    tier1: 'रोज़ के',
+    tier2: 'प्यारे',
+    tier3: 'बड़ा पल',
+    tier4: 'लग्ज़री',
+    tier5: 'लेजेंडरी',
+
+    notEnoughCoins: 'इस गिफ़्ट के लिए आपके पास पर्याप्त कॉइन नहीं हैं।',
+    priceChanged: 'इस गिफ़्ट की कीमत अभी बदली है। देखकर फिर से भेजें।',
+    giftUnavailable: 'यह गिफ़्ट अब उपलब्ध नहीं है।',
+    recipientGone: 'वे अब स्टेज पर नहीं हैं। किसी और को चुनें।',
+    unavailable: 'गिफ़्टिंग थोड़ी देर के लिए रुकी है। कोई कॉइन नहीं कटा।',
+
+    guestTitle: 'गिफ़्ट भेजने के लिए साइन अप करें',
+    guestBody: 'गिफ़्ट कॉइन से खरीदे जाते हैं, और कॉइन के लिए अकाउंट चाहिए। बस एक मिनट लगेगा।',
+
+    boardTitle: 'टॉप गिफ़्टर',
+    boardEmptyTitle: 'अभी तक कोई गिफ़्ट नहीं',
+    boardEmptyBody: 'इस रूम में पहला गिफ़्ट भेजने वाला सबसे ऊपर होगा।',
+    boardRow: 'नंबर {rank}, {name}, {coins} कॉइन',
   },
 
   room: {

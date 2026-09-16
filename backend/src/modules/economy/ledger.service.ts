@@ -87,6 +87,22 @@ function replayOrThrow(existing: ExistingTxn, key: string): PostTxnResult {
   };
 }
 
+/**
+ * The outcome of an idempotency key that has already been used, or null.
+ *
+ * For callers that validate against state that can CHANGE between a request
+ * and its retry. A gift sent a moment before its room ended must replay as the
+ * gift it was — not fail with "room ended" on the retry and leave the sender
+ * believing a charge that went through did not.
+ */
+export async function findCompletedTransaction(
+  idempotencyKey: string,
+  identity: Record<string, unknown>,
+): Promise<PostTxnResult | null> {
+  const seen = await withTransaction((c) => findByKey(c, idempotencyKey, identity));
+  return seen ? replayOrThrow(seen, idempotencyKey) : null;
+}
+
 export async function postTransaction(input: PostTxnInput): Promise<PostTxnResult> {
   assertBalanced(input.legs);
 
@@ -194,6 +210,8 @@ async function post(client: PoolClient, input: PostTxnInput): Promise<PostTxnRes
     );
   }
 
+  if (input.withinTransaction) await input.withinTransaction(client, txnId);
+
   // Same transaction as the entries. A crash between COMMIT and publish would
   // otherwise lose the event permanently and drift analytics forever.
   for (const evt of input.events ?? []) {
@@ -204,7 +222,10 @@ async function post(client: PoolClient, input: PostTxnInput): Promise<PostTxnRes
     );
   }
 
-  const response = input.response ?? { txn_id: txnId };
+  const response =
+    typeof input.response === 'function'
+      ? input.response(txnId)
+      : (input.response ?? { txn_id: txnId });
   await client.query(
     "UPDATE ledger_txns SET status = 'completed', completed_at = now(), response_body = $2::jsonb" +
       ' WHERE id = $1',

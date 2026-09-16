@@ -23,9 +23,15 @@ interface Props {
   /** False while reconnecting — the composer says so rather than failing silently. */
   canSend: boolean;
   onSend: (body: string) => boolean;
+  /**
+   * Opens the gift sheet. Beside the composer because chat is where a room is
+   * most alive, and switching back to the seats tab to give would lose the
+   * moment. Omitted when gifting is off or there is nobody to give to.
+   */
+  onGift?: () => void;
 }
 
-export function RoomChat({ lines, meId, canSend, onSend }: Props) {
+export function RoomChat({ lines, meId, canSend, onSend, onGift }: Props) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState('');
   const listRef = useRef<FlashListRef<ChatLine>>(null);
@@ -75,6 +81,18 @@ export function RoomChat({ lines, meId, canSend, onSend }: Props) {
       )}
 
       <Row gap="sm" style={styles.composer}>
+        {onGift && (
+          <Pressable
+            onPress={onGift}
+            accessibilityRole="button"
+            accessibilityLabel={t('gifting.open')}
+            hitSlop={spacing.xs}
+            style={styles.giftButton}
+            testID="chat-open-gifts"
+          >
+            <Ionicons name="gift" size={20} color={colors.brand.accent} />
+          </Pressable>
+        )}
         <View style={styles.field}>
           <Input
             placeholder={t('room.chatPlaceholder')}
@@ -127,4 +145,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendDisabled: { backgroundColor: colors.bg.raised },
+  giftButton: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.pill,
+    backgroundColor: colors.bg.raised,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

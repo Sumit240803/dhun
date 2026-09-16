@@ -328,10 +328,10 @@ walk away from a vendor and an SDK spread across four modules cannot walk anywhe
 One repo, pushed to `git@github.com:Sumit240803/dhun.git` (`main`).
 Verify everything with **`npm run check`** from the root.
 
-### `backend/` — M1, M2 and M4 complete, M3 auth done. 213 tests.
+### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5 and M6 built, unverified. 299 tests.
 
-Twelve migrations, 45 endpoints, three processes' worth of code (API and workers
-built; the realtime gateway is M5).
+Fifteen migrations, 56 routes, and all three processes built: API, workers, and the
+realtime gateway.
 
 | Area | State |
 |---|---|
@@ -340,7 +340,8 @@ built; the realtime gateway is M5).
 | **Wallet / purchases** | Server-driven catalogs, IAP behind a verifier interface (stub in dev), Razorpay signature verification fully implemented, coins→gems conversion. |
 | **Social / chat / moderation** | Follows, profile visits, public profiles, profile summary, message threads, reports and blocks. Bans are enforced on every request, not only at sign-in, and guests are bannable. |
 | **Rooms / RTC** | Go live, join, mic seats, host mute and kick, end. Publish rights come from the SEAT TABLE and nowhere else — there is no way to request them. LiveKit webhooks feed viewer counts and `room_sessions` (host hours). Seats, bans and sessions are in Postgres; presence is not mirrored, because it would drift from the media server within seconds. |
-| **Workers** | `npm run worker`. Outbox shipper (LISTEN/NOTIFY + 2s poll floor), nightly reconciliation at 03:00 IST with 7 checks and zero tolerance, five retention purges. Advisory-lock job locking. |
+| **Gifting** | `POST /v1/gifts/send`: one ledger transaction per tap whatever the combo, registered 18+ only, `Idempotency-Key` required. Recipient is the host or anyone seated; self-gifts, off-stage recipients, blocks, bans, ended rooms and a price the user never saw are refused. Published to the room on commit. Each send writes a `gift_sends` row inside the ledger's own transaction, which the room leaderboard reads. |
+| **Workers** | `npm run worker`. Outbox shipper (LISTEN/NOTIFY + 2s poll floor), nightly reconciliation at 03:00 IST with 9 checks and zero tolerance, five retention purges. Advisory-lock job locking. |
 | **Security** | Rate limiting by IP/device/user, security headers, CORS allowlist, 18+ gate on every money endpoint, strict validation of body/query/params, sanitised client errors. |
 
 **Invariants worth never breaking:**
@@ -367,11 +368,16 @@ built; the realtime gateway is M5).
    the app and is PUBLIC (a leak lets someone spend your SMS balance);
    `authkey` is server-only (a leak lets any number be claimed). The authkey
    must never be served to a client, logged, or returned in an error.
+7. **A gift's record is written inside the ledger's transaction, not after it.**
+   `gift_sends` goes through `postTransaction`'s `withinTransaction` hook, so a
+   gift the leaderboard shows can never be missing from the ledger, or the
+   reverse. The gift id every client dedupes on IS the ledger transaction id.
+   Moving that insert out "for cleanliness" reopens the gap it closes.
 
 ### `mobile/` — 31 routes, 23 of them built.
 
 Expo SDK 57 · React Native 0.86 · React 19.2 · expo-router. EAS project
-`@sumitsumit/dhun` (`c7c547aa-86e2-4d02-befa-b5e643fde400`). 68 tests.
+`@sumitsumit/dhun` (`c7c547aa-86e2-4d02-befa-b5e643fde400`). 97 tests.
 
 Read **`mobile/ARCHITECTURE.md`** before adding a file. The essentials:
 
@@ -404,19 +410,22 @@ devices, delete), wallet, thread, public profile, visitors.
 **Gift animations are Lottie**, decided by checking what is maintained: both SVGA
 React Native bindings died in 2022 and PAG has no RN binding, because every app
 using those formats is native Android/iOS. Brief designers for After Effects →
-Bodymovin, 750×750, under 500KB, **and always keep the `.aep` source** — that is
-what keeps the decision reversible.
+Bodymovin, **and always keep the `.aep` source** — that is what keeps the decision
+reversible. Every canvas, budget and Lottie restriction is in **`docs/asset-contract.md`**;
+the app runs on stand-in art until real art is swapped in last.
 
 The gift queue **sheds the cheapest gift when full**, never the newest. Dropping a
 ₹15,000 Galaxy behind two hundred Roses is a refund request.
 
 ### Not built yet
 
-OAuth (Google / Facebook / Instagram) · the room UI · text chat and the WebSocket
-gateway that carries it · the mic-request queue · gifting UI · discover · host tools · payouts ·
-the legal screens' actual text · admin panel · push token registration ·
-analytics pipeline · CI beyond typecheck and tests · Terraform and environments ·
-**a development build** (M2 exit criterion — the MSG91 widget needs one).
+OAuth (Google / Facebook / Instagram) · cosmetics (M7) · the Tier 5 all-rooms gift
+broadcast · stand-in art files · discover · host tools · payouts · the legal screens'
+actual text · admin panel · push token registration · analytics pipeline · CI beyond
+typecheck and tests · Terraform and environments.
+
+Built but **unverified on devices**: M5 (two phones, live audio, chat under 200ms, an API
+redeploy with a room live) and M6 (a real gift between two accounts, animation under 500ms).
 
 Honest read: the foundation is stronger than the budget suggests, the product does
 not exist yet, and the things most likely to kill this are people problems —

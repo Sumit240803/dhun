@@ -1,34 +1,32 @@
-import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { absoluteFill, zIndex } from '@/theme';
 import { ErrorBoundary } from '@/ui/ErrorBoundary';
 import { GiftAnimation } from './GiftAnimation';
-import { GiftQueue, needsQueue, type QueuedGift } from './giftQueue';
+import type { GiftQueue } from './giftQueue';
 
 /**
  * The overlay that plays queued gifts above a room.
  *
- * Mount this ONCE per room, above the video and the chat. It owns the queue, so
- * two full-screen gifts can never overlap — which is the most common way these
- * apps look broken during a whale moment.
+ * Mount this ONCE per room, above the stage and the chat. The QUEUE belongs to
+ * the room screen, like the strip lanes do: gifts arrive over the room's socket
+ * and from the sender's own send, and both go straight into it with
+ * `enqueue()` + `next()` — no React state in between, so a gift storm does not
+ * re-render the room once per gift. The queue is what guarantees two
+ * full-screen gifts never overlap, which is the most common way these apps look
+ * broken during a whale moment.
  *
  * Wrapped in its own ErrorBoundary with a null fallback: if an animation throws,
- * the room and the host's video keep running and only the effect is lost. A
- * single top-level boundary would take the whole stream down instead.
+ * the room and its audio keep running and only the effect is lost. A single
+ * top-level boundary would take the whole stream down instead.
  */
 
 export interface GiftAnimationLayerProps {
-  /** Newest gift received. Push the same object once; the queue dedupes by id. */
-  incoming?: QueuedGift | null;
-  /** Room id — changing it clears the queue so a gift never follows you out. */
-  roomId?: string;
+  queue: GiftQueue;
 }
 
-export function GiftAnimationLayer({ incoming, roomId }: GiftAnimationLayerProps) {
-  const queue = useMemo(() => new GiftQueue(), []);
-  const lastEnqueued = useRef<string | null>(null);
-
+export function GiftAnimationLayer({ queue }: GiftAnimationLayerProps) {
   // Read the queue directly rather than mirroring it into component state.
   // Mirroring would mean setState inside an effect on every gift, and a
   // cascading re-render each time — measurable during a storm.
@@ -39,24 +37,8 @@ export function GiftAnimationLayer({ incoming, roomId }: GiftAnimationLayerProps
     queue.next();
   }, [queue]);
 
-  useEffect(() => {
-    if (!incoming || incoming.id === lastEnqueued.current) return;
-    lastEnqueued.current = incoming.id;
-
-    // Tier 1-2 render inline in the message stream, not here. Queueing them
-    // would block the screen behind a flood of Roses.
-    if (!needsQueue(incoming.effect)) return;
-
-    queue.enqueue(incoming);
-    // Imperative, not setState — the store notifies and useSyncExternalStore
-    // re-reads, so no cascading render.
-    queue.next();
-  }, [incoming, queue]);
-
-  useEffect(() => {
-    lastEnqueued.current = null;
-    queue.clear();
-  }, [roomId, queue]);
+  // Leaving the room abandons its queue; a gift must never follow you out.
+  useEffect(() => () => queue.clear(), [queue]);
 
   if (!current) return null;
 

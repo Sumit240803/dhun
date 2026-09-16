@@ -33,8 +33,8 @@ export interface QueuedGift {
 /**
  * Only queue what takes over the screen.
  *
- * Tier 1–2 render inline in the message stream — many at once, no queue, no
- * blocking. That is what keeps a room feeling alive during a flood of Roses.
+ * Tier 1–2 show as gift strips only — many at once, no queue, no blocking.
+ * That is what keeps a room feeling alive during a flood of Roses.
  */
 export function needsQueue(effect: GiftEffect): boolean {
   return effect !== 'basic';

@@ -1,4 +1,10 @@
 /* eslint-env jest */
+
+// config/env.ts refuses to load without an API URL, which is right for a build
+// and wrong for a unit test that only needs ApiError. A fixed, unroutable host,
+// so no test can reach a real server by accident.
+process.env.EXPO_PUBLIC_API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://api.test:3000';
+
 // Native modules that have no JS implementation in the test environment.
 
 jest.mock('expo-secure-store', () => ({

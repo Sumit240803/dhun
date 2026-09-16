@@ -226,12 +226,13 @@ An asset is not done until all of these pass:
 The contract is only half the swap. These are code, not art, and belong before any real
 asset arrives.
 
-| Gap | State today |
+| Gap | State |
 |---|---|
-| **`icon_asset` on the gift catalog** | Missing. The table has `animation_asset` only, while the gift strips already expect `giftIcon`. Migration + API field + client type. |
-| **Cosmetics API returns `asset`** | Missing. The `cosmetics.asset` column exists but `listCosmetics` never selects it, so no client can draw a frame. |
-| **Tier 1–2 `animation_asset`** | Seeded with paths nothing plays. Set to `NULL` so no one briefs or pays for them. |
-| **Mount `GiftAnimationLayer` in the room** | Built, never mounted. Full-screen Tier 3–5 gifts cannot play anywhere yet. |
-| **Versioned paths** | Seeds are unversioned (`gifts/heart.json`). Migrate to the §1 scheme. |
-| **Placeholder guard** | A reconciliation check (alongside the existing seven in `workers/`) that fails loudly if any active row references `placeholder/`. |
-| **Entry effects, chat-bubble styles, VIP badges** | Not built. |
+| **`icon_asset` on the gift catalog** | ✅ Done in M6 — migration `015`, the catalog API, the client type, and `visuals/GiftIcon.tsx` with its fallback. |
+| **Cosmetics API returns `asset`** | Open — M7. The `cosmetics.asset` column exists but `listCosmetics` never selects it. |
+| **Tier 1–2 `animation_asset`** | ✅ Done in M6 — set to `NULL`, and a CHECK constraint keeps `basic` gifts from ever getting one. |
+| **Mount `GiftAnimationLayer` in the room** | ✅ Done in M6. |
+| **Versioned paths** | ✅ Done in M6 for gifts: `placeholder/gifts/{id}/icon.v1.webp` and `anim.v1.json`. |
+| **Placeholder guard** | ✅ Done in M6 — reconciliation check `no_placeholder_assets_live`, production only. |
+| **Stand-in files uploaded** | Open. The paths exist; the Fluent and Noto files behind them do not, so the app shows its fallbacks. |
+| **Entry effects, chat-bubble styles, VIP badges** | Open — M7. |

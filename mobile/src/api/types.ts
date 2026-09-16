@@ -103,6 +103,14 @@ export const ApiErrorCode = {
   REQUEST_IN_PROGRESS: 'REQUEST_IN_PROGRESS',
   TXN_TYPE_INACTIVE: 'TXN_TYPE_INACTIVE',
 
+  // gifting
+  GIFT_TO_SELF: 'GIFT_TO_SELF',
+  GIFT_NOT_FOUND: 'GIFT_NOT_FOUND',
+  /** The catalog was repriced while the sheet was open. Refetch it; nothing was charged. */
+  GIFT_PRICE_CHANGED: 'GIFT_PRICE_CHANGED',
+  /** The recipient left the stage — or blocked the sender, deliberately the same code. */
+  RECIPIENT_NOT_IN_ROOM: 'RECIPIENT_NOT_IN_ROOM',
+
   // transport
   VALIDATION_FAILED: 'VALIDATION_FAILED',
   RATE_LIMITED: 'RATE_LIMITED',
@@ -415,8 +423,56 @@ export interface Gift {
   tier: number;
   coinPrice: number;
   payoutRateBp: number;
-  effect: 'basic' | 'fullscreen' | 'room_banner' | 'global_announcement';
+  effect: GiftEffect;
+  /** Static picture, every gift. A CDN path — resolve with `assetUrl`. */
+  iconAsset: string | null;
+  /** Full-screen Lottie. Null for `basic` gifts, which only ever show as a strip. */
   animationAsset: string | null;
+}
+
+export type GiftEffect = 'basic' | 'fullscreen' | 'room_banner' | 'global_announcement';
+
+/** The combo multipliers — the only quantities the server accepts. */
+export const GIFT_QUANTITIES = [1, 10, 99, 520, 999] as const;
+export type GiftQuantity = (typeof GIFT_QUANTITIES)[number];
+
+/**
+ * A gift as a room is told about it — over the gateway, and in the sender's own
+ * send response. Mirrors `GiftView` in backend/src/gateway/protocol.ts.
+ */
+export interface GiftView {
+  /** The ledger transaction id. Dedupe on it: the sender sees it twice. */
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar: string | null;
+  senderFrame: string | null;
+  recipientId: string;
+  recipientName: string | null;
+  giftId: string;
+  giftName: string;
+  giftIcon: string | null;
+  tier: number;
+  effect: GiftEffect;
+  animationAsset: string | null;
+  coinPrice: number;
+  quantity: number;
+}
+
+export interface SendGiftResult {
+  gift: GiftView;
+  coinsSpent: number;
+  balance: { coins: number };
+  /** True when this key had already been sent — the retry of a lost response. */
+  replayed: boolean;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  userId: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  coins: number;
 }
 
 export interface Cosmetic {

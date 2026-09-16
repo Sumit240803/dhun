@@ -49,6 +49,9 @@ export interface Gift {
   coinPrice: number;
   payoutRateBp: number;
   effect: string;
+  /** The static picture — every gift has one. See docs/asset-contract.md § 2. */
+  iconAsset: string | null;
+  /** Full-screen Lottie. NULL for `basic` gifts, which nothing plays full-screen. */
   animationAsset: string | null;
 }
 
@@ -109,20 +112,54 @@ export async function getCoinPack(id: string): Promise<CoinPack> {
 
 export async function listGifts(): Promise<Gift[]> {
   return cached('gifts', async () => {
-    const { rows } = await pool.query(
-      'SELECT id, name, tier, coin_price, payout_rate_bp, effect, animation_asset' +
+    const { rows } = await pool.query<GiftRow>(
+      'SELECT id, name, tier, coin_price, payout_rate_bp, effect, icon_asset, animation_asset' +
         ' FROM gift_catalog WHERE' + VISIBLE + ' ORDER BY tier, sort_order',
     );
-    return rows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      tier: r.tier,
-      coinPrice: Number(r.coin_price),
-      payoutRateBp: r.payout_rate_bp,
-      effect: r.effect,
-      animationAsset: r.animation_asset,
-    }));
+    return rows.map(toGift);
   });
+}
+
+interface GiftRow {
+  id: string;
+  name: string;
+  tier: number;
+  coin_price: string;
+  payout_rate_bp: number;
+  effect: string;
+  icon_asset: string | null;
+  animation_asset: string | null;
+}
+
+function toGift(r: GiftRow): Gift {
+  return {
+    id: r.id,
+    name: r.name,
+    tier: r.tier,
+    coinPrice: Number(r.coin_price),
+    payoutRateBp: r.payout_rate_bp,
+    effect: r.effect,
+    iconAsset: r.icon_asset,
+    animationAsset: r.animation_asset,
+  };
+}
+
+/**
+ * The exact catalog row a send is about to charge for.
+ *
+ * Bypasses the cache, like `getCoinPack`: a gift withdrawn or repriced by an
+ * admin must stop selling at its old terms immediately, not thirty seconds
+ * later. The visibility window applies — a seasonal gift outside its dates is
+ * not for sale, whatever an old client still shows.
+ */
+export async function getGiftForSend(id: string): Promise<Gift> {
+  const { rows } = await pool.query<GiftRow>(
+    'SELECT id, name, tier, coin_price, payout_rate_bp, effect, icon_asset, animation_asset' +
+      ' FROM gift_catalog WHERE id = $1 AND' + VISIBLE,
+    [id],
+  );
+  if (!rows[0]) throw new AppError('GIFT_NOT_FOUND', 'That gift is not available', 404);
+  return toGift(rows[0]);
 }
 
 export async function getGift(id: string): Promise<Gift> {

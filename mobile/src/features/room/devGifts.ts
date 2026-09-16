@@ -1,17 +1,15 @@
 // A DEVELOPMENT-ONLY gift simulator.
 //
-// Sending a real gift is M6 — the ledger transaction, the idempotency key and
-// the 18+ gate all need their decisions settled first. Until then there is
-// nothing that publishes a gift, so the strips could not be seen on a device at
-// all. This fakes the gateway's `gift` message from the REAL catalog, so what
-// shows is a real gift name, tier and price rather than invented data.
+// Real gifts cost coins, and a busy room is hard to stage with one phone. This
+// fakes the gateway's `gift` message from the REAL catalog — real names, tiers,
+// prices and asset paths — so the strips and the full-screen layer can be seen
+// under load without spending anything or needing five accounts.
 //
 // Every caller is behind `__DEV__`, and the bundler strips the dead branch from
 // a release build.
 
-import type { Gift, JoinedRoom } from '@/api/types';
+import type { Gift, GiftView, JoinedRoom } from '@/api/types';
 import type { SeatView } from '@/features/room/gateway';
-import type { GiftStripEvent } from '@/visuals/giftStrips';
 
 const SENDERS = [
   { id: 'dev-asha', name: 'Asha' },
@@ -35,8 +33,8 @@ export function simulateGift(input: {
   catalog: Gift[];
   room: JoinedRoom['room'];
   seats: SeatView[];
-  previous: GiftStripEvent | null;
-}): GiftStripEvent | null {
+  previous: GiftView | null;
+}): GiftView | null {
   const { catalog, room, seats, previous } = input;
   if (catalog.length === 0) return null;
 
@@ -65,8 +63,10 @@ export function simulateGift(input: {
     recipientName: recipient?.displayName ?? room.hostName,
     giftId: gift.id,
     giftName: gift.name,
-    giftIcon: null,
+    giftIcon: gift.iconAsset,
     tier: gift.tier,
+    effect: gift.effect,
+    animationAsset: gift.animationAsset,
     coinPrice: gift.coinPrice,
     quantity: MULTIPLIERS[Math.floor(Math.random() * MULTIPLIERS.length)],
   };

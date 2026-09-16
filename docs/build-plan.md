@@ -266,16 +266,51 @@ room and check audio and chat both survive.
 cannot be rolled without dropping sockets — clients reconnect with backoff, but a deploy
 during peak hours is felt.
 
-### M6 · Gifting (backend + app)
+### M6 · Gifting (backend + app) — BUILT, UNVERIFIED
 
-Gift catalog served from config. `sendGift` on the real ledger — 8 legs, one transaction.
-Combo multipliers as a single transaction with quantity. Room leaderboard as an event
-subscriber. Fast-path fanout so animations don't wait on the outbox.
+**Scope change, agreed 2026-09-16:** M6 started while M5's exit verification (two devices,
+live audio) is still outstanding. That verification needs two phones and is the founder's to
+run; nothing in M6 depends on its result, and waiting would have idled the build.
 
-App: gift sheet, combo tap, animations, room leaderboard.
+**Ledger decisions settled first** (`backend/docs/ledger-decisions.md`): C10 one transaction
+per combo, G1 rates and unit price frozen on the send, G2 the kill switch is read inside the
+posting transaction.
 
-**Exit:** gift sends · host points credit at exactly `coins × payout_rate` · animation
-appears in under 500ms · ledger balances · payout ratio measured at 30% on gifting.
+**Built** (migration `015_gifting.sql`, 27 tests): `POST /v1/gifts/send` on the real ledger —
+the 8 legs from `giftLegs`, one transaction whatever the combo, `Idempotency-Key` required,
+registered 18+ only. The recipient is the host or anyone on a seat; gifting yourself, a
+recipient off stage, a recipient who blocked you, an ended room and a room ban are all
+refused. The client sends the price it displayed and a repriced gift is refused, never
+charged. A retry replays the original even after the room ends. Fast path: published to the
+room the moment the ledger commits. `GET /v1/gifts/leaderboard/{roomId}`.
+
+**A deliberate divergence from what this file said.** It specified the room leaderboard "as
+an event subscriber". It is a query over **`gift_sends`** instead — one row per gift, written
+by a hook INSIDE the ledger's own posting transaction. An outbox subscriber would be
+eventually consistent with the money; this cannot disagree with it, and a new reconciliation
+check (`gift_sends_match_ledger`) proves that nightly. The platform-wide daily boards, which
+are too big to aggregate per request, stay sorted-set subscribers and move to M10.
+
+**Asset contract gaps closed** (`docs/asset-contract.md` § 10): `icon_asset` on the catalog,
+versioned `placeholder/` paths, Tier 1–2 animation paths removed (with a CHECK constraint),
+and a production-only reconciliation check that refuses stand-in art.
+
+App: gift sheet (recipient, tiers, grid, combo multipliers, total beside the balance, top-up
+when short), one-tap send with an "again" combo button, idempotency keys reused only to retry
+a send whose outcome is unknown, the full-screen animation layer mounted, the sender's own
+gift shown from the response before the socket echo, gift buttons in the seat bar and the
+chat composer, a top-gifters sheet, and the `giftingEnabled` flag hiding all of it.
+
+**Not in M6, deliberately:**
+- **Tier 5 "all-rooms" broadcast.** Global gifts currently play in their own room only. It
+  needs a global gateway channel and a design for how another room's gift appears; it is small,
+  but it is a product decision first.
+- **Stand-in art files.** The catalog points at `placeholder/` paths that are not uploaded
+  anywhere yet, so the app draws its fallbacks — a tier-tinted gift glyph and a text card.
+
+**Exit — none of it verified yet:** gift sends · host points credit at exactly
+`coins × payout_rate` (asserted in tests, not yet on a device) · animation appears in under
+500ms · ledger balances · payout ratio measured at 30% on gifting.
 
 ### M7 · Cosmetics (backend + app) — *moved from Phase 1*
 

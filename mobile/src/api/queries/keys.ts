@@ -36,6 +36,7 @@ export const queryKeys = {
     // pages — coming back to Explore should be instant, not another spinner.
     feed: (category: string) => [...queryKeys.rooms.all, 'feed', category] as const,
     detail: (roomId: string) => [...queryKeys.rooms.all, 'detail', roomId] as const,
+    leaderboard: (roomId: string) => [...queryKeys.rooms.all, 'leaderboard', roomId] as const,
   },
 
   messages: {

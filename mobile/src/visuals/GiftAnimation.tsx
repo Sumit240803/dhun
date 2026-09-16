@@ -3,10 +3,10 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { t } from '@/i18n';
-import { absoluteFill, colors, radius, spacing } from '@/theme';
+import { absoluteFill, colors, duration, radius, spacing } from '@/theme';
 import { Text } from '@/ui/Text';
 import { loadLottie } from './assets';
-import type { QueuedGift } from './giftQueue';
+import { displayDurationMs, type QueuedGift } from './giftQueue';
 
 /**
  * Renders one gift.
@@ -50,9 +50,20 @@ export function GiftAnimation({ gift, onComplete }: GiftAnimationProps) {
     return () => clearTimeout(timer);
   }, [gift.id, onComplete]);
 
+  // The text card has no animation to finish, so it holds for the tier's own
+  // duration rather than the 8-second safety net. Until real art is uploaded
+  // this is what every full-screen gift shows, and eight seconds of a card
+  // would hold up the queue behind it for no reason.
+  const showingCard = failed || !gift.animationAsset;
+  useEffect(() => {
+    if (!showingCard) return;
+    const timer = setTimeout(onComplete, displayDurationMs(gift.effect) || duration.giftFullscreen);
+    return () => clearTimeout(timer);
+  }, [showingCard, gift.effect, onComplete]);
+
   // Fallback card. Still celebratory: it names the sender, the gift and the
   // combo, so the moment lands even without the animation.
-  if (failed || !gift.animationAsset) {
+  if (showingCard) {
     return (
       <View style={styles.fallback} pointerEvents="none">
         <View style={[styles.fallbackCard, { borderColor: colors.tier[tierKey(gift.tier)] }]}>
