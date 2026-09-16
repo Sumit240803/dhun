@@ -51,9 +51,17 @@ export async function resetLedger(): Promise<void> {
   });
 }
 
+let phoneSequence = 0;
+
 export async function createUser(status = 'guest'): Promise<string> {
   const id = uuidv7();
-  const phone = status === 'guest' ? null : '+9199' + String(Date.now()).slice(-8);
+  // A counter beside the clock, not the clock alone. Two users created in the
+  // same millisecond used to get the same number, and the unique index made a
+  // test fail only on a fast run.
+  const phone =
+    status === 'guest'
+      ? null
+      : '+9199' + String((Date.now() % 1_000_000) * 100 + (phoneSequence++ % 100)).padStart(8, '0');
   await withTransaction((c) =>
     c.query(
       'INSERT INTO users (id, status, phone_e164, phone_verified_at) VALUES ($1,$2,$3,$4)',
