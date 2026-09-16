@@ -495,6 +495,10 @@ export const en = {
     queueBadge: '{count} waiting',
     approve: 'Let them speak',
     deny: 'Not now',
+
+    stripSent: 'sent {gift}',
+    stripSentTo: 'sent {gift} to {name}',
+    devSimulateGift: 'Simulate a gift (development)',
   },
 
   legal: {

@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { tokenStorage } from '@/features/auth/storage';
+import type { GiftStripEvent } from '@/visuals/giftStrips';
 import {
   RoomSocket,
   type ChatLine,
@@ -42,8 +43,27 @@ export interface RoomSocketState {
   lastError: { code: string; message: string } | null;
 }
 
-export function useRoomSocket(roomId: string | undefined) {
+interface Options {
+  /**
+   * A gift arrived.
+   *
+   * A callback rather than state, deliberately. Gifts are EVENTS — a strip
+   * takes one and animates it — not a value the screen renders from. Holding
+   * them in state would mean an array growing for the whole broadcast and a
+   * re-render of the entire room on every single send.
+   */
+  onGift?: (gift: GiftStripEvent) => void;
+}
+
+export function useRoomSocket(roomId: string | undefined, options: Options = {}) {
   const socketRef = useRef<RoomSocket | null>(null);
+
+  // Held in a ref so a new callback identity does not tear down the socket.
+  // Without this, an inline arrow at the call site reconnects on every render.
+  const onGiftRef = useRef(options.onGift);
+  useEffect(() => {
+    onGiftRef.current = options.onGift;
+  });
   const [state, setState] = useState<RoomSocketState>({
     status: 'connecting',
     seats: [],
@@ -63,7 +83,11 @@ export function useRoomSocket(roomId: string | undefined) {
       roomId,
       getToken: () => tokenStorage.getAccess(),
       onStatus: (status) => setState((s) => ({ ...s, status })),
-      onMessage: (message) =>
+      onMessage: (message) => {
+        if (message.t === 'gift') {
+          onGiftRef.current?.(message.gift);
+          return;
+        }
         setState((s) => {
           switch (message.t) {
             case 'joined':
@@ -106,7 +130,8 @@ export function useRoomSocket(roomId: string | undefined) {
             default:
               return s;
           }
-        }),
+        });
+      },
     });
 
     socketRef.current = socket;

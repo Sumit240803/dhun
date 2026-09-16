@@ -22,8 +22,26 @@ export interface AvatarProps {
   size?: Size;
   /** Draws the live ring. Reserved for an actually-broadcasting host. */
   live?: boolean;
+  /**
+   * An equipped avatar frame — a cosmetic, bought with gems.
+   *
+   * Drawn OVER the avatar and larger than it, because every frame asset is
+   * designed with ornament that extends past the circle: wings, a crown, a
+   * glow. Clipping it to the avatar's box would cut off the part people paid
+   * for. The avatar keeps its size; the frame spills outside it, and callers
+   * leave room for that.
+   */
+  frameUri?: string | null;
   testID?: string;
 }
+
+/**
+ * How much bigger than the avatar a frame is drawn.
+ *
+ * One number for every frame, so designers have a fixed canvas to work to:
+ * a frame asset is `FRAME_SCALE` times the avatar, with the avatar centred.
+ */
+export const FRAME_SCALE = 1.36;
 
 /**
  * A user or host avatar, with a deterministic fallback.
@@ -31,7 +49,7 @@ export interface AvatarProps {
  * Most users never set a photo, so the fallback is the common case rather than
  * the edge case — an empty grey circle across a whole feed looks broken.
  */
-export function Avatar({ uri, name, size = 'md', live = false, testID }: AvatarProps) {
+export function Avatar({ uri, name, size = 'md', live = false, frameUri, testID }: AvatarProps) {
   const px = sizes[size];
   const initial = name.trim().charAt(0).toUpperCase() || '?';
 
@@ -63,6 +81,26 @@ export function Avatar({ uri, name, size = 'md', live = false, testID }: AvatarP
           </Text>
         </View>
       )}
+
+      {frameUri ? (
+        <Image
+          source={{ uri: frameUri }}
+          // Not announced separately — it is decoration on an avatar that is
+          // already labelled with the person's name.
+          accessibilityElementsHidden
+          importantForAccessibility="no"
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            width: px * FRAME_SCALE,
+            height: px * FRAME_SCALE,
+            left: (px - px * FRAME_SCALE) / 2,
+            top: (px - px * FRAME_SCALE) / 2,
+          }}
+          contentFit="contain"
+          cachePolicy="memory-disk"
+        />
+      ) : null}
     </View>
   );
 }

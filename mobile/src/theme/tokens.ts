@@ -42,6 +42,8 @@ export const zIndex = {
   base: 0,
   roomChrome: 10,
   giftInline: 20,
+  /** Below full-screen gifts: a Galaxy playing should not be covered by strips. */
+  giftStrip: 25,
   giftFullscreen: 30,
   roomBanner: 40,
   globalAnnouncement: 50,
@@ -58,6 +60,13 @@ export const duration = {
   giftFullscreen: 3_000,
   giftBanner: 5_000,
   giftGlobal: 6_000,
+  /**
+   * Gift strips. Short on purpose: a strip is read, not watched, and a busy
+   * room has three lanes turning over constantly. Every combo resets the hold.
+   */
+  giftStripEnter: 260,
+  giftStripHold: 3_000,
+  giftStripExit: 220,
 } as const;
 
 /**

@@ -75,6 +75,37 @@ export interface MicRequest {
   requestedAt: string;
 }
 
+/**
+ * A gift, as the room is told about it.
+ *
+ * Carries everything a strip draws, so the client never makes a request per
+ * gift to look up a name or an avatar — in a room receiving a gift a second,
+ * that would be a request a second from every viewer.
+ *
+ * ⚠️ Nothing publishes this yet. The send path — the ledger transaction, the
+ * idempotency key, the 18+ gate — is M6 and needs its decisions settled in
+ * ledger-decisions.md first. It is defined now so the app's strips are built
+ * against the real contract rather than a guess at it.
+ */
+export interface GiftView {
+  /** The ledger transaction id. Clients dedupe on it. */
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar: string | null;
+  /** The sender's equipped avatar frame asset path, when they have one. */
+  senderFrame: string | null;
+  recipientId: string;
+  recipientName: string | null;
+  giftId: string;
+  giftName: string;
+  giftIcon: string | null;
+  tier: number;
+  coinPrice: number;
+  /** The combo multiplier on this send: 1, 10, 99, 520, 999. */
+  quantity: number;
+}
+
 export interface SeatView {
   seatIndex: number;
   userId: string;
@@ -108,6 +139,8 @@ export type ServerMessage =
   | { t: 'presence'; roomId: string; viewers: number }
   /** Host only. */
   | { t: 'mic:queue'; roomId: string; requests: MicRequest[] }
+  /** A gift was sent in this room. Drives the strips. */
+  | { t: 'gift'; roomId: string; gift: GiftView }
   /** Requester only — the answer to their own raised hand. */
   | { t: 'mic:resolved'; roomId: string; approved: boolean }
   /** The host ended it, or a moderator did. The client leaves the screen. */

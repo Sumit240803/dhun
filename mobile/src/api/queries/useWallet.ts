@@ -3,7 +3,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { walletApi } from '@/api/endpoints/wallet';
+import { catalogApi, walletApi } from '@/api/endpoints/wallet';
 import { queryKeys } from '@/api/queries/keys';
 import { track } from '@/lib/analytics';
 
@@ -15,6 +15,22 @@ export function useWallet() {
     // fine for display; the server is authoritative at the moment of spending
     // and will reject an overdraft regardless of what the client believed.
     staleTime: 30_000,
+  });
+}
+
+/**
+ * The gift catalog.
+ *
+ * Server-driven — adding a gift must never need an app release — and loaded
+ * well before anyone opens the gift sheet, because that sheet is the moment
+ * money is spent and a spinner there costs the purchase.
+ */
+export function useGiftCatalog(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.catalog.gifts(),
+    queryFn: async () => (await catalogApi.gifts()).gifts,
+    staleTime: 10 * 60_000,
+    enabled,
   });
 }
 

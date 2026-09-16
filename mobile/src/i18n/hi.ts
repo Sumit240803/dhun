@@ -481,6 +481,10 @@ export const hi: Messages = {
     queueBadge: '{count} इंतज़ार में',
     approve: 'बोलने दें',
     deny: 'अभी नहीं',
+
+    stripSent: '{gift} भेजा',
+    stripSentTo: '{name} को {gift} भेजा',
+    devSimulateGift: 'गिफ़्ट सिम्युलेट करें (डेवलपमेंट)',
   },
 
   legal: {

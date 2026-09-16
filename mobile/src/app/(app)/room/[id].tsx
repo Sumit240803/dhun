@@ -15,8 +15,10 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useJoinRoom, useRoomActions } from '@/api/queries/useRoom';
+import { useGiftCatalog } from '@/api/queries/useWallet';
 import { ApiErrorCode, type JoinedRoom } from '@/api/types';
 import { RoomChat } from '@/features/room/RoomChat';
+import { simulateGift } from '@/features/room/devGifts';
 import type { MicRequest, SeatView } from '@/features/room/gateway';
 import { isLiveKitAvailable } from '@/features/room/livekit';
 import { useLiveRoom } from '@/features/room/useLiveRoom';
@@ -24,8 +26,10 @@ import { useRoomSocket } from '@/features/room/useRoomSocket';
 import { useTranslation } from '@/i18n';
 import { errorMessage, isErrorCode, traceReference } from '@/lib/errors';
 import { haptic } from '@/lib/haptics';
-import { colors, radius, spacing } from '@/theme';
+import { colors, duration, radius, spacing } from '@/theme';
 import { useSession } from '@/store/session';
+import { GiftStripLayer } from '@/visuals/GiftStripLayer';
+import { GiftStripLanes, type GiftStripEvent } from '@/visuals/giftStrips';
 import {
   Avatar,
   Badge,
@@ -81,7 +85,24 @@ export default function RoomScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const socket = useRoomSocket(joined ? id : undefined);
+  // One set of lanes per room screen, created once. Gifts arrive over the
+  // socket and go straight in; the layer reads them without this screen
+  // re-rendering on every send.
+  const [strips] = useState(() => new GiftStripLanes({ holdMs: duration.giftStripHold }));
+  useEffect(() => () => strips.clear(), [strips]);
+
+  // Where the stage begins — the strips stack from here down. Measured rather
+  // than guessed, because the header grows with the safe-area inset, the
+  // connection line and any notice showing under it.
+  const [stageTop, setStageTop] = useState(0);
+
+  const socket = useRoomSocket(joined ? id : undefined, {
+    onGift: (gift) => strips.push(gift),
+  });
+
+  // Development only — see features/room/devGifts.ts.
+  const catalog = useGiftCatalog(__DEV__);
+  const lastDevGift = useRef<GiftStripEvent | null>(null);
 
   // The gateway is the live source; the join response fills the screen in the
   // moment before the socket is up.
@@ -218,6 +239,29 @@ export default function RoomScreen() {
             </Pressable>
           )}
 
+          {__DEV__ && room && (
+            <Pressable
+              onPress={() => {
+                const gift = simulateGift({
+                  catalog: catalog.data ?? [],
+                  room,
+                  seats,
+                  previous: lastDevGift.current,
+                });
+                if (!gift) return;
+                lastDevGift.current = gift;
+                haptic.selection();
+                strips.push(gift);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={t('room.devSimulateGift')}
+              hitSlop={spacing.sm}
+              testID="dev-simulate-gift"
+            >
+              <Ionicons name="gift-outline" size={22} color={colors.text.secondary} />
+            </Pressable>
+          )}
+
           <Pressable
             onPress={() => {
               haptic.tap();
@@ -256,7 +300,13 @@ export default function RoomScreen() {
         onDismiss={socket.clearError}
       />
 
-      <View style={styles.tabs}>
+      <View
+        style={styles.tabs}
+        onLayout={(event) => {
+          const { y, height } = event.nativeEvent.layout;
+          setStageTop(y + height);
+        }}
+      >
         <SegmentedTabs
           options={[
             { value: 'seats', label: t('room.seatsTab') },
@@ -380,6 +430,10 @@ export default function RoomScreen() {
           )}
         </View>
       )}
+
+      {/* Over the stage, under the sheets. Drawn after the seats and chat so it
+          sits above them; the layer itself ignores touches. */}
+      <GiftStripLayer lanes={strips} top={stageTop} hostId={room?.hostId} />
 
       <Sheet ref={leaveSheet} title={isHost ? t('room.endTitle') : t('room.leaveTitle')}>
         <Text variant="body" tone="secondary">
