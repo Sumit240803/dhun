@@ -56,7 +56,7 @@ Legend: **[R]** = recommendation on the table, waiting for confirm/veto ·
 | `revenue:cosmetics` | revenue | **the 75–80 / 20–25 split reads straight off these two** |
 | `contra_revenue:pack_discount` | contra-revenue | keeps every unit worth exactly 1/65 ₹ |
 | `contra_revenue:conversion_bonus` | contra-revenue | the +20% coins→gems bonus |
-| `contra_revenue:reseller_discount` | contra-revenue | reseller buys at ~88 coins/₹, sells at face |
+| `contra_revenue:reseller_discount` | contra-revenue | the wholesale spread: an agency buys coins below the retail 55/₹ rate (recommended 62–70/₹ by volume) and resells at its own price |
 | `expense:host_payout_cost` | expense | |
 | `expense:free_coins` | expense | **the ≤8% budget check** |
 | `expense:agency_commission` | expense | |
@@ -274,8 +274,8 @@ any consumer actually needs. Shipper wakes on `LISTEN`/`NOTIFY` rather than tigh
 |---|---|---|
 | C1 | IAP purchase (Play / App Store) — including receipt verification failure and refund webhook | [?] |
 | C2 | Web gateway purchase | [?] |
-| C3 | Reseller prepay (reseller buys bulk coins with own money) | [?] |
-| C4 | Reseller → user coin transfer | [?] |
+| C3 | Reseller prepay (reseller buys bulk coins with own money) | **[D]** see below |
+| C4 | Reseller → user coin transfer | **[D]** see below |
 | C5 | Free coin grant (signup, check-in, watch, follow, share, referral) — 6 sources, one flow shape, differing only by txn subtype | **[D]** see A4 worked example |
 | C5b | **Free coin claims — amounts, caps and once-only** | **[D]** Amounts and caps from economy-design-v1 § 6, held in `app_config.free_coins` so they can be cut without a release (the doc's own lever when free-coin cost passes 8%). The ledger idempotency key is DERIVED FROM THE CLAIM (`checkin:{user}:{IST date}`, `watch:{user}:{date}:{n}`, `signup:{user}`, `referral:{referred user}`), never from a client header — the same reasoning as purchases: a claim is the money event, and one claim must mean one credit. Every claim writes a `reward_claims` row inside the ledger transaction. Registered accounts only. Check-in ladder, which the doc gives only as 20 → 150: **20, 30, 40, 60, 80, 100, 150**, cycling after day 7, resetting to day 1 on a missed IST day. The welcome bonus is once per account AND once per device. Follow and share rewards are not built: share cannot be verified, and neither is in the build plan. |
 | C5c | **Referral reward** | **[D]** 2,000 coins to the referrer when the referred user's FIRST purchase of at least ₹99 is credited (`referral.minPurchasePaise`, config). The doc says "friend recharge kare"; the ₹99 floor is added because the ₹19 starter pack would otherwise buy ₹31 of referral coins. Attached by entering the referrer's public ID within 7 days of signup, once, never to yourself, never across a shared device. Granted by the workers' outbox consumer — the durable path — keyed on the referred user, so a replayed event cannot pay twice. Clawback on refund or chargeback waits for C23/C24. |
@@ -320,6 +320,62 @@ any consumer actually needs. Shipper wakes on `LISTEN`/`NOTIFY` rather than tigh
 | C25 | Abandoned account — 24-month forfeiture / escheat | [?] |
 | C26 | Manual admin adjustment / goodwill credit — does it require maker-checker too? | [?] |
 | C27 | Duplicate payout caused by a bug — clawback path | [?] |
+
+### C3 / C4 · The agency channel, worked
+
+Two paths reach a user's coin balance. Most users take the second (see the app's coin
+distribution model in CLAUDE.md).
+
+**C3 — Agency prepay.** An agency pays the PLATFORM up front, by bank transfer, UPI or a
+web gateway, and receives coins into an inventory account it cannot gift from. Same shape
+as a pack purchase, with two differences: the coins land in `reseller:{id}:inventory`, and
+there are no gems — an agency resells coins, and gems would be dead stock.
+
+Example: ₹50,000 at a 66 coins/₹ wholesale rate → 3,300,000 coins (face ₹50,769.23 at the
+65-units/₹ accounting rate).
+
+```
+coin    reseller:{r}:inventory       +3,300,000
+        system:coin_float            −3,300,000        → 0 ✓
+
+paise   asset:cash:reseller          +5,000,000        (₹50,000 actually received)
+        contra_revenue:reseller_discount +76,923
+        liability:deferred_revenue   −5,076,923        → 0 ✓
+```
+
+**Never on credit** (hard rule #3). The coins are minted by the payment being confirmed,
+and the confirmation is a maker-checker admin action until a gateway automates it —
+`reseller_prepay` already carries `requires_maker_checker`.
+
+**C4 — Agency → user transfer.** The agency has been paid by the user OFF-PLATFORM. Our
+books never see that money, which is precisely what keeps us a distributor rather than a
+payment aggregator. So the transfer moves coins and nothing else:
+
+```
+coin    reseller:{r}:inventory         −10,000
+        user:{u}:coins                 +10,000        → 0 ✓
+```
+
+No paise legs at all. The rupees were recognised as deferred revenue when the agency
+prepaid, and become revenue when the user eventually SPENDS the coins — unchanged from
+every other coin. A transfer that tried to book revenue would double-count it.
+
+Three properties this shape gives for free:
+
+- **The float still reconciles.** E3 (coin float = issued − spent) is the global sum to
+  zero, and inventory is inside it.
+- **Pay-first is enforced by the balance check.** An agency with 10,000 coins cannot
+  transfer 11,000; the same code path that stops a user overdrafting stops this.
+- **`purchase_reseller` touches `coin` only**, not `['coin','paise']` as seeded in
+  migration 002 — that row needs correcting when the flow is built.
+
+Identity for the idempotency key: `{reseller_id, user_id, coins, request_id}`. The agency's
+client generates the request id once per transfer, so a retry over a dropped connection
+cannot send the coins twice.
+
+**What this is NOT.** Hard rule #7 stands: no user-to-user transfer. This flow is
+one-directional, from a verified agency's inventory to a user, and there is deliberately no
+route back — a user cannot send coins to an agency, to another user, or to anyone else.
 
 ## D. Derived values — from the ledger, or separate counters?
 
@@ -369,6 +425,6 @@ any consumer actually needs. Shipper wakes on `LISTEN`/`NOTIFY` rather than tigh
 |---|---|---|
 | H1 | Multi-currency ever, or INR-only forever? Affects whether `paise` is a unit or a currency+amount pair | [?] |
 | H2 | Can any balance go negative, under any circumstance? | [?] |
-| H3 | Do resellers and agencies get real ledger accounts, or are they tracked outside the ledger? | [?] |
+| H3 | Do resellers and agencies get real ledger accounts, or are they tracked outside the ledger? | **[D]** real accounts — `reseller:{id}:inventory` in the `coin` unit, tracked and non-negative. The non-negative constraint IS hard rule #3: an agency cannot transfer coins it has not paid for, enforced by the database rather than by a policy someone has to remember. |
 | H4 | Is the gift `quantity`/combo a first-class ledger concept or purely an event property? | [?] |
 | H5 | Does the ledger record the *channel* (iap/web/reseller) per purchase, for the channel-mix dial? | **[D]** yes — three separate `asset:cash:*` accounts, so channel mix is a balance read |

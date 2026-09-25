@@ -77,6 +77,13 @@ three months after launch.
    prepaid-instrument exposure, plus it is the standard laundering route for gift-economy
    currency. Expect this to come back as a harmless-sounding feature request.
 
+**The one allowed transfer, and why it is not a hole in rule #7:** an approved **agency
+(reseller)** may move coins from its own prepaid **inventory account to a user**, because it
+bought those coins from us with its own money first and is selling them on as a distributor.
+That is one-directional and closed: never user→user, never user→agency, never agency→agency,
+and there is no route back. Generalising it in any direction re-creates the payment
+instrument rule #7 exists to prevent.
+
 **Unresolved contradiction:** `app-blueprint-v1.pdf` lists a **lucky wheel** under Phase 1
 daily hooks. If it costs coins to spin, it is a paid chance-based game and breaks hard rule
 #1. Only acceptable as a *free* daily spin awarding coins (a `free_coin_grant` subtype).
@@ -125,6 +132,34 @@ out ~30%. The point rate is the **last** lever to touch — hosts notice immedia
 
 **Payout ratio is set by one number only:** `coins per ₹ ÷ 216.7`. Gift prices and cosmetic
 prices do not affect it — they only change how many gifts a given balance buys.
+
+### Coin distribution channels
+
+Two paths reach a user's coin balance, and most users take the second.
+
+| Path | Who really uses it | Money reaches us | Built |
+|---|---|---|---|
+| **Direct top-up** — IAP, web gateway, (crypto: open) | **Agencies buying inventory**, at a ₹10,000 floor. A retail user buying a ₹99 pack in the app is the Play-billing path and stays | Directly, up front | Packs yes, agency prepay M12 |
+| **Agency resale** | Almost every user. Pays the agency by UPI/Paytm/bank **off-platform**, receives coins in-app | Earlier, when the agency prepaid | M12 |
+
+The platform's spread is taken once, at wholesale. The agency's margin is whatever it
+charges above that. Revenue is still recognised only when a coin is **spent**, so a transfer
+from an agency to a user moves no money on our books (ledger-decisions § C3/C4).
+
+**Wholesale rate — OPEN, and it sets the payout ratio.** Payout ratio is `coins per ₹ ÷
+216.7`, so the wholesale rate does to the agency channel what the pack rate does to retail:
+
+| Wholesale rate | Agency margin reselling at 55/₹ | Our payout ratio on those coins |
+|---|---|---|
+| 62 coins/₹ | 13% | 28.6% |
+| 66 coins/₹ | 20% | 30.5% |
+| 70 coins/₹ | 27% | 32.3% |
+| ~88 coins/₹ *(an earlier note, not a decision)* | 60% | **40.6% — do not** |
+
+Recommended: **62 / 66 / 70 coins per ₹ in volume tiers** (₹10,000 / ₹50,000 / ₹2,00,000+),
+config-driven like every other rate. It keeps the blended payout near the 30% the model
+assumes while leaving an agency a real margin for collecting small payments and doing the
+support that comes with them.
 
 ### Coin packs
 

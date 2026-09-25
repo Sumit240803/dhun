@@ -461,6 +461,61 @@ rotation documented. Rollback plan. Privacy policy, ToS, community guidelines li
 
 ---
 
+### M12 · Agency & reseller network (backend + app + admin)
+
+**Scope change, agreed 2026-09-25.** Moved into Phase 0 from Phase 1 ("agency dashboard ·
+sub-agent tooling · reseller wallet" were explicitly OUT), and built before M8, M9 and M11.
+The reason is the revenue model: at a ₹10,000 minimum, direct top-up is how AGENCIES buy
+inventory, not how users buy coins. Without agencies there is no retail channel for a user
+who will not pay ₹10,000 — which is almost all of them.
+
+**The flow** (ledger-decisions § C3/C4; CLAUDE.md "Coin distribution channels"):
+
+1. An agency applies, is verified (PAN, bank account, GST where applicable) and approved by
+   an admin.
+2. It pays the platform up front and receives coins into an **inventory account it cannot
+   gift from**. Never on credit — the non-negative balance is what enforces that.
+3. It appears in the app's agency list with the payment methods it accepts and **its own
+   price**, set by the agency over the wholesale rate.
+4. A user compares prices, contacts an agency by **in-app message or WhatsApp**, and pays it
+   **off-platform**. No platform money is involved on this leg, and no escrow — escrow is
+   what would make us a payment aggregator.
+5. The agency transfers coins from inventory to the user's account. The user gets the coins
+   and a receipt; both sides keep a permanent record.
+
+**Ships:**
+- **Backend:** agency applications and approval; `reseller:{id}:inventory` accounts; prepay
+  crediting behind maker-checker; agency→user transfer with per-agency and per-day limits,
+  velocity checks and an append-only transfer log; the public agency list with rate cards;
+  reseller-scoped rate tiers in `app_config`; suspension and clawback.
+- **Messaging:** the send path does not exist yet — `messages` rows can be read but nothing
+  can write one. M12 builds **user↔agency threads only**, not general DM (still Phase 1, and
+  a moderation cost we are not taking on yet).
+- **App:** an agency list with prices and accepted methods, a rate card, "Message" and
+  "WhatsApp" actions, a transfer receipt and history, and a scam warning that names what the
+  platform can and cannot do about a bad agency.
+- **Agency-side app:** inventory balance, transfer by user public ID, transfer history, a
+  price editor. Role-gated on the existing `coin_reseller` role.
+- **Admin:** agency approval queue, prepay confirmation (maker-checker), limits, suspension
+  and delisting, transfer audit. This is the first real admin surface and closes part of the
+  gap left by M4–M10 shipping without theirs.
+
+**Deliberately NOT in M12:**
+- **Sub-agents.** Agencies manage their own downstream people off-platform. Hard rule #2 —
+  the platform pays the agency only, never a sub-agent.
+- **Escrow or any user→agency payment rail.** See above; also hard rule #7 stays intact —
+  transfer is one-directional, agency inventory → user, never back.
+- **Crypto acceptance (USDT/USDC).** Held pending the Track 0 legal opinion; the likely
+  outcome is FIU-IND registration and an AML programme under PMLA. Bank transfer, UPI and
+  Razorpay cover the same need with none of it.
+
+**Exit:** an agency prepays and its inventory matches the rupees received to the paisa · a
+transfer moves coins with no revenue booked and the float still reconciles · an agency cannot
+transfer coins it has not bought · a user can find an agency by price, message it, and
+receive coins · every transfer is auditable from both sides.
+
+---
+
 ## Admin panel — threaded, not a milestone
 
 Your docs are explicit: *"Admin panel MVP ka hissa hai, baad mein nahi."* Each milestone
