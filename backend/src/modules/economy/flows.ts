@@ -34,9 +34,9 @@ function nonZero(legs: Leg[]): Leg[] {
 /**
  * Coin pack purchased.
  *
- * A pack hands over more face value than it collects in cash (₹299 buys 21,800
- * units, worth ₹335.38 at the 65/₹ accounting rate). Booking that gap as a
- * discount is what keeps every coin and gem worth exactly 1/65 of a rupee
+ * A pack hands over more face value than it collects in cash (₹299 buys 43,600
+ * units, worth ₹335.38 at the 130/₹ accounting rate). Booking that gap as a
+ * discount is what keeps every coin and gem worth exactly 1/130 of a rupee
  * everywhere else in the system.
  */
 export function purchaseLegs(p: {

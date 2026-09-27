@@ -14,7 +14,7 @@ export type TxnId = string & { readonly __brand: 'TxnId' };
 export type Coins = number;
 /** Pack bonus, or converted from coins. Cosmetics only — zero host payout. */
 export type Gems = number;
-/** What hosts earn from gifts. 130 points = ₹1. */
+/** What hosts earn from gifts. 260 points = ₹1. */
 export type Points = number;
 /** INR as integer paise. Rupees never appear in the database. */
 export type Paise = number;

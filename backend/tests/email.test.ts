@@ -304,7 +304,7 @@ describe('money needs a verified contact', () => {
       .post('/v1/wallet/convert')
       .set('Authorization', `Bearer ${account.accessToken}`)
       .set('Idempotency-Key', '11111111-1111-4111-8111-111111111111')
-      .send({ coins: 100 })
+      .send({ coins: 200 })
       .expect(403);
 
     expect(res.body.error.code).toBe('CONTACT_UNVERIFIED');
@@ -324,7 +324,7 @@ describe('money needs a verified contact', () => {
       .post('/v1/wallet/convert')
       .set('Authorization', `Bearer ${account.accessToken}`)
       .set('Idempotency-Key', '22222222-2222-4222-8222-222222222222')
-      .send({ coins: 100 })
+      .send({ coins: 200 })
       // 402: it cleared the gate and failed on the balance instead, which is
       // the next check and is exactly what proves the guard let it through.
       .expect(402);

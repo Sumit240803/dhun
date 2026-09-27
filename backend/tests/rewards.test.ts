@@ -78,16 +78,16 @@ afterAll(async () => {
 });
 
 describe('the welcome bonus', () => {
-  it('pays 500 coins once, as ordinary giftable coins', async () => {
+  it('pays 1,000 coins once, as ordinary giftable coins', async () => {
     const user = await registered();
 
     const first = await request(app).post('/v1/rewards/welcome').set(auth(user)).expect(200);
-    expect(first.body).toEqual({ coins: 500, alreadyClaimed: false });
+    expect(first.body).toEqual({ coins: 1_000, alreadyClaimed: false });
 
     const again = await request(app).post('/v1/rewards/welcome').set(auth(user)).expect(200);
-    expect(again.body).toEqual({ coins: 500, alreadyClaimed: true });
+    expect(again.body).toEqual({ coins: 1_000, alreadyClaimed: true });
 
-    expect(await sumEntries('user_coins', user.id)).toBe(500);
+    expect(await sumEntries('user_coins', user.id)).toBe(1_000);
     // The cost lands where the ≤8% budget check reads it: ₹7.69 of face value.
     expect(await systemBalance('expense_free_coins')).toBe(769);
     expect(await balanceDrift()).toEqual([]);
@@ -129,20 +129,20 @@ describe('the daily check-in', () => {
     const first = await request(app).post('/v1/rewards/checkin').set(auth(user)).expect(200);
     const second = await request(app).post('/v1/rewards/checkin').set(auth(user)).expect(200);
 
-    expect(first.body).toEqual({ coins: 20, streakDay: 1, alreadyClaimed: false });
-    expect(second.body).toEqual({ coins: 20, streakDay: 1, alreadyClaimed: true });
-    expect(await sumEntries('user_coins', user.id)).toBe(20);
+    expect(first.body).toEqual({ coins: 40, streakDay: 1, alreadyClaimed: false });
+    expect(second.body).toEqual({ coins: 40, streakDay: 1, alreadyClaimed: true });
+    expect(await sumEntries('user_coins', user.id)).toBe(40);
   });
 
   it('climbs the ladder on consecutive days, and wraps after day 7', async () => {
     const user = await registered();
-    const ladder = [20, 30, 40, 60, 80, 100, 150, 20];
+    const ladder = [40, 60, 80, 120, 160, 200, 300, 40];
 
     for (let offset = 7; offset >= 0; offset--) {
       const result = await claimCheckin(user.id, daysAgo(offset));
       expect(result.coins).toBe(ladder[7 - offset]);
     }
-    expect(await sumEntries('user_coins', user.id)).toBe(500);
+    expect(await sumEntries('user_coins', user.id)).toBe(1_000);
   });
 
   it('starts over at day 1 after a missed day', async () => {
@@ -152,7 +152,7 @@ describe('the daily check-in', () => {
     // Yesterday missed.
     const today = await claimCheckin(user.id, daysAgo(0));
 
-    expect(today).toMatchObject({ streakDay: 1, coins: 20 });
+    expect(today).toMatchObject({ streakDay: 1, coins: 40 });
   });
 
   it('pays one claim when two arrive at once', async () => {
@@ -162,7 +162,7 @@ describe('the daily check-in', () => {
     );
 
     expect(results.every((r) => r.status === 200)).toBe(true);
-    expect(await sumEntries('user_coins', user.id)).toBe(20);
+    expect(await sumEntries('user_coins', user.id)).toBe(40);
   });
 
   it('reports today’s state', async () => {
@@ -171,7 +171,7 @@ describe('the daily check-in', () => {
 
     const before = await request(app).get('/v1/rewards').set(auth(user)).expect(200);
     expect(before.body.rewards.checkin).toEqual({
-      ladder: [20, 30, 40, 60, 80, 100, 150],
+      ladder: [40, 60, 80, 120, 160, 200, 300],
       claimedToday: false,
       streakDay: 2,
     });
@@ -183,14 +183,14 @@ describe('the daily check-in', () => {
 });
 
 describe('the watch reward', () => {
-  it('pays 30 coins an interval, ten times a day and no more', async () => {
+  it('pays 60 coins an interval, ten times a day and no more', async () => {
     const user = await registered();
 
     for (let i = 1; i <= 10; i++) {
-      expect(await grantWatchReward(user.id)).toEqual({ coins: 30, earnedToday: i, dailyCap: 10 });
+      expect(await grantWatchReward(user.id)).toEqual({ coins: 60, earnedToday: i, dailyCap: 10 });
     }
     expect(await grantWatchReward(user.id)).toBeNull();
-    expect(await sumEntries('user_coins', user.id)).toBe(300);
+    expect(await sumEntries('user_coins', user.id)).toBe(600);
   });
 
   it('pays a racing pair for one slot only once', async () => {
@@ -198,7 +198,7 @@ describe('the watch reward', () => {
     const results = await Promise.all([grantWatchReward(user.id), grantWatchReward(user.id)]);
 
     expect(results.filter((r) => r !== null)).toHaveLength(1);
-    expect(await sumEntries('user_coins', user.id)).toBe(30);
+    expect(await sumEntries('user_coins', user.id)).toBe(60);
   });
 
   describe('measured by the gateway', () => {
@@ -265,8 +265,8 @@ describe('the watch reward', () => {
       }
 
       const reward = await viewerSocket.next('reward');
-      expect(reward).toEqual({ t: 'reward', kind: 'watch', coins: 30, earnedToday: 1, dailyCap: 10 });
-      expect(await sumEntries('user_coins', viewer.id)).toBe(30);
+      expect(reward).toEqual({ t: 'reward', kind: 'watch', coins: 60, earnedToday: 1, dailyCap: 10 });
+      expect(await sumEntries('user_coins', viewer.id)).toBe(60);
 
       expect(await hostSocket.next('reward', 300)).toBeNull();
       expect(await sumEntries('user_coins', host.id)).toBe(0);
@@ -299,7 +299,7 @@ describe('referrals', () => {
     return status.body.rewards.referral.code as string;
   }
 
-  it('pays the referrer 2,000 coins on the friend’s first real purchase — once', async () => {
+  it('pays the referrer 4,000 coins on the friend’s first real purchase — once', async () => {
     const referrer = await registered('Kabir');
     const friend = await registered('Meera');
     const code = await referralCode(referrer);
@@ -317,7 +317,7 @@ describe('referrals', () => {
 
     await consumeEvents([purchaseEvent(friend.id, 29_900)]);
     await consumeEvents([purchaseEvent(friend.id, 99_900)]);
-    expect(await sumEntries('user_coins', referrer.id)).toBe(2_000);
+    expect(await sumEntries('user_coins', referrer.id)).toBe(4_000);
 
     const status = await request(app).get('/v1/rewards').set(auth(referrer)).expect(200);
     expect(status.body.rewards.referral).toMatchObject({ invited: 1, rewarded: 1 });
@@ -393,7 +393,7 @@ describe('the dials', () => {
       expect(res.body.coins).toBe(250);
     } finally {
       await pool.query(
-        `UPDATE app_config SET value = jsonb_set(value, '{signup}', '500') WHERE key = 'free_coins'`,
+        `UPDATE app_config SET value = jsonb_set(value, '{signup}', '1000') WHERE key = 'free_coins'`,
       );
       invalidateCatalogCache();
     }

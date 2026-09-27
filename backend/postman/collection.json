@@ -1235,7 +1235,7 @@
                 "gifts"
               ]
             },
-            "description": "20 gifts across 5 tiers, repriced for 55 coins/rupee.\n\n`payoutRateBp` is PER GIFT, never a global constant, so event gifts can carry a different rate later.\n\nEach gift carries `iconAsset` (every gift) and `animationAsset` (full-screen effects only — NULL for `basic`). Paths are versioned and immutable; until real art lands they sit under `placeholder/`, which production reconciliation refuses. See docs/asset-contract.md.",
+            "description": "20 gifts across 5 tiers, priced for 110 coins/rupee (migration 018 doubled every count).\n\n`payoutRateBp` is PER GIFT, never a global constant, so event gifts can carry a different rate later.\n\nEach gift carries `iconAsset` (every gift) and `animationAsset` (full-screen effects only — NULL for `basic`). Paths are versioned and immutable; until real art lands they sit under `placeholder/`, which production reconciliation refuses. See docs/asset-contract.md.",
             "auth": {
               "type": "noauth"
             }
@@ -1358,7 +1358,7 @@
                 "packs"
               ]
             },
-            "description": "The 55 coins/rupee table. Totals match the source doc so advertised value is preserved; only the coin/gem split is new.\n\nStarter is deliberately off-formula (105 coins/rupee) — its job is teaching the gifting loop, not margin."
+            "description": "The 110 coins/rupee table. Totals match the source doc so advertised value is preserved; only the coin/gem split is new.\n\nStarter is deliberately off-formula (105 coins/rupee) — its job is teaching the gifting loop, not margin."
           },
           "response": [],
           "event": [
@@ -1520,7 +1520,7 @@
             "description": "ONE WAY, +20%. This is the lever that pulls blended payout down: coins pay hosts 30% of face value, gems pay nothing.\n\nThere is deliberately no reverse. Gems converting back to coins would let a whale turn cosmetics money into giftable coins and the payout design collapses.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"coins\": 6500\n}",
+              "raw": "{\n  \"coins\": 13000\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2146,7 +2146,7 @@
             "description": "Registered, 18+ with a verified contact, `Idempotency-Key` required. Rate limited to 300/min per user — its own scope, because a combo is a thumb tapping several times a second.\n\n`quantity` is one of 1, 10, 99, 520, 999. `expectedCoinPrice` is the unit price the app displayed; a mismatch is refused rather than charged.\n\nThe recipient is the host, or anyone on a seat in a party room. On success the gift is published to the room's gateway channel straight after commit (the fast path) and `gift_sent` is written to the outbox (the durable one).\n\nA retry with the same key returns the original gift with `replayed: true` — even if the room has ended since.\n\n**Errors:** `INSUFFICIENT_BALANCE` 402 · `GIFT_TO_SELF` 422 · `GIFT_PRICE_CHANGED` 409 (details.coinPrice) · `GIFT_NOT_FOUND` 404 · `RECIPIENT_NOT_IN_ROOM` 409 (also returned when the recipient has blocked the sender, deliberately indistinguishable) · `ROOM_NOT_FOUND` 404 · `ROOM_ENDED` 410 · `ROOM_BANNED` 403 · `TXN_TYPE_INACTIVE` 503 (kill switch) · `IDEMPOTENCY_KEY_REUSED` 422 · `REQUEST_IN_PROGRESS` 409 · `REGISTRATION_REQUIRED` / `DOB_REQUIRED` / `CONTACT_UNVERIFIED` 403.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"roomId\": \"{{roomId}}\",\n  \"recipientId\": \"{{hostId}}\",\n  \"giftId\": \"rose\",\n  \"quantity\": 10,\n  \"expectedCoinPrice\": 45\n}",
+              "raw": "{\n  \"roomId\": \"{{roomId}}\",\n  \"recipientId\": \"{{hostId}}\",\n  \"giftId\": \"rose\",\n  \"quantity\": 10,\n  \"expectedCoinPrice\": 90\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2287,7 +2287,7 @@
             "description": "Spends gems only — never coins, whatever the coin balance. `expectedGemPrice` is the price the store displayed; a repriced item is refused, not charged. A retry with the same key replays the original purchase, even after a reprice; a key reused for another item or by another account is `IDEMPOTENCY_KEY_REUSED`.\n\n**Errors:** `INSUFFICIENT_BALANCE` 402 · `COSMETIC_PRICE_CHANGED` 409 (details.gemPrice) · `COSMETIC_NOT_FOUND` 404 (also VIP and super message, not sold in M7) · `IDEMPOTENCY_KEY_REUSED` 422 · `REQUEST_IN_PROGRESS` 409 · `TXN_TYPE_INACTIVE` 503 · `REGISTRATION_REQUIRED` / `DOB_REQUIRED` / `CONTACT_UNVERIFIED` 403.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"cosmeticId\": \"frame_basic\",\n  \"expectedGemPrice\": 3250\n}",
+              "raw": "{\n  \"cosmeticId\": \"frame_basic\",\n  \"expectedGemPrice\": 6500\n}",
               "options": {
                 "raw": {
                   "language": "json"

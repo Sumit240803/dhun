@@ -127,12 +127,12 @@ afterAll(async () => {
 describe('buying a cosmetic', () => {
   it('spends gems, books cosmetics revenue, pays no host anything, and equips it', async () => {
     const user = await adult();
-    await grantGems(user.id, 5_000);
+    await grantGems(user.id, 10_000);
 
-    const res = await buy(user, 'frame_basic', 3_250).expect(200);
+    const res = await buy(user, 'frame_basic', 6_500).expect(200);
 
-    expect(res.body.gemsSpent).toBe(3_250);
-    expect(res.body.balance.gems).toBe(1_750);
+    expect(res.body.gemsSpent).toBe(6_500);
+    expect(res.body.balance.gems).toBe(3_500);
     expect(res.body.replayed).toBe(false);
     expect(res.body.item).toMatchObject({
       cosmeticId: 'frame_basic',
@@ -142,7 +142,7 @@ describe('buying a cosmetic', () => {
     });
     expect(daysFromNow(res.body.item.expiresAt)).toBeCloseTo(30, 0);
 
-    expect(await sumEntries('user_gems', user.id)).toBe(1_750);
+    expect(await sumEntries('user_gems', user.id)).toBe(3_500);
     expect(await sumEntries('user_coins', user.id)).toBe(0);
     // ₹50 of face value, all of it revenue — the zero-payout path.
     expect(await systemBalance('revenue_cosmetics')).toBe(-5_000);
@@ -152,7 +152,7 @@ describe('buying a cosmetic', () => {
       'SELECT gems, duration_days FROM cosmetic_purchases WHERE user_id = $1',
       [user.id],
     );
-    expect(record.rows).toEqual([{ gems: '3250', duration_days: 30 }]);
+    expect(record.rows).toEqual([{ gems: '6500', duration_days: 30 }]);
 
     expect(await unbalancedTxns()).toEqual([]);
     expect(await balanceDrift()).toEqual([]);
@@ -161,33 +161,33 @@ describe('buying a cosmetic', () => {
   it('adds time to an item that is still active, rather than starting over', async () => {
     // Extending early must never throw away days already paid for.
     const user = await adult();
-    await grantGems(user.id, 10_000);
+    await grantGems(user.id, 20_000);
 
-    await buy(user, 'frame_basic', 3_250).expect(200);
-    const second = await buy(user, 'frame_basic', 3_250).expect(200);
+    await buy(user, 'frame_basic', 6_500).expect(200);
+    const second = await buy(user, 'frame_basic', 6_500).expect(200);
 
     expect(daysFromNow(second.body.item.expiresAt)).toBeCloseTo(60, 0);
   });
 
   it('starts again from now when the item has already lapsed', async () => {
     const user = await adult();
-    await grantGems(user.id, 10_000);
+    await grantGems(user.id, 20_000);
 
-    await buy(user, 'frame_basic', 3_250).expect(200);
+    await buy(user, 'frame_basic', 6_500).expect(200);
     await setExpiry(user.id, 'frame_basic', new Date(Date.now() - 10 * DAY_MS));
 
-    const renewed = await buy(user, 'frame_basic', 3_250).expect(200);
+    const renewed = await buy(user, 'frame_basic', 6_500).expect(200);
     expect(daysFromNow(renewed.body.item.expiresAt)).toBeCloseTo(30, 0);
   });
 
   it('wears one item per kind — a new frame takes the old one off', async () => {
     const user = await adult();
-    await grantGems(user.id, 10_000);
+    await grantGems(user.id, 20_000);
 
-    await buy(user, 'frame_basic', 3_250).expect(200);
-    await buy(user, 'frame_rose', 3_250).expect(200);
+    await buy(user, 'frame_basic', 6_500).expect(200);
+    await buy(user, 'frame_rose', 6_500).expect(200);
     // A different kind is worn alongside.
-    await buy(user, 'nickname_teal', 1_300).expect(200);
+    await buy(user, 'nickname_teal', 2_600).expect(200);
 
     const items = (await mine(user).expect(200)).body.items as Array<{
       cosmeticId: string;
@@ -199,9 +199,9 @@ describe('buying a cosmetic', () => {
 
   it('refuses a purchase the gems do not cover, and grants nothing', async () => {
     const user = await adult();
-    await grantGems(user.id, 1_000);
+    await grantGems(user.id, 2_000);
 
-    const res = await buy(user, 'frame_basic', 3_250).expect(402);
+    const res = await buy(user, 'frame_basic', 6_500).expect(402);
 
     expect(res.body.error.code).toBe('INSUFFICIENT_BALANCE');
     expect((await mine(user).expect(200)).body.items).toEqual([]);
@@ -219,17 +219,17 @@ describe('buying a cosmetic', () => {
       legs: freeCoinGrantLegs({ userId: user.id, coins: 100_000 }),
     });
 
-    await buy(user, 'frame_basic', 3_250).expect(402);
+    await buy(user, 'frame_basic', 6_500).expect(402);
     expect(await sumEntries('user_coins', user.id)).toBe(100_000);
   });
 
   it('refuses a price the user never saw', async () => {
     const user = await adult();
-    await grantGems(user.id, 5_000);
+    await grantGems(user.id, 10_000);
 
-    const res = await buy(user, 'frame_basic', 3_000).expect(409);
+    const res = await buy(user, 'frame_basic', 6_000).expect(409);
     expect(res.body.error.code).toBe('COSMETIC_PRICE_CHANGED');
-    expect(res.body.error.details).toEqual({ gemPrice: 3_250 });
+    expect(res.body.error.details).toEqual({ gemPrice: 6_500 });
   });
 
   it('does not sell what M7 does not ship — VIP, super messages, or nothing at all', async () => {
@@ -237,8 +237,8 @@ describe('buying a cosmetic', () => {
     await grantGems(user.id, 1_000_000);
 
     for (const [id, price] of [
-      ['vip_gold', 32_500],
-      ['super_message', 5_200],
+      ['vip_gold', 65_000],
+      ['super_message', 10_400],
       ['no_such_item', 100],
     ] as const) {
       const res = await buy(user, id, price).expect(404);
@@ -254,7 +254,7 @@ describe('buying a cosmetic', () => {
     const asGuest = await buy(
       { id: guest.body.user.id, token: guest.body.accessToken },
       'frame_basic',
-      3_250,
+      6_500,
     ).expect(403);
     expect(asGuest.body.error.code).toBe('REGISTRATION_REQUIRED');
 
@@ -262,7 +262,7 @@ describe('buying a cosmetic', () => {
     const noKey = await request(app)
       .post('/v1/cosmetics/purchase')
       .set('Authorization', `Bearer ${user.token}`)
-      .send({ cosmeticId: 'frame_basic', expectedGemPrice: 3_250 })
+      .send({ cosmeticId: 'frame_basic', expectedGemPrice: 6_500 })
       .expect(400);
     expect(noKey.body.error.code).toBe('IDEMPOTENCY_KEY_REQUIRED');
   });
@@ -271,46 +271,46 @@ describe('buying a cosmetic', () => {
 describe('retries', () => {
   it('replays the same purchase for the same key, and charges once', async () => {
     const user = await adult();
-    await grantGems(user.id, 10_000);
+    await grantGems(user.id, 20_000);
     const key = randomUUID();
 
-    await buy(user, 'frame_basic', 3_250, key).expect(200);
-    const again = await buy(user, 'frame_basic', 3_250, key).expect(200);
+    await buy(user, 'frame_basic', 6_500, key).expect(200);
+    const again = await buy(user, 'frame_basic', 6_500, key).expect(200);
 
     expect(again.body.replayed).toBe(true);
-    expect(again.body.balance.gems).toBe(6_750);
+    expect(again.body.balance.gems).toBe(13_500);
     expect(daysFromNow(again.body.item.expiresAt)).toBeCloseTo(30, 0);
   });
 
   it('replays even after the item is repriced', async () => {
     const user = await adult();
-    await grantGems(user.id, 10_000);
+    await grantGems(user.id, 20_000);
     const key = randomUUID();
 
-    await buy(user, 'frame_basic', 3_250, key).expect(200);
-    await pool.query("UPDATE cosmetics SET gem_price = 4000 WHERE id = 'frame_basic'");
+    await buy(user, 'frame_basic', 6_500, key).expect(200);
+    await pool.query("UPDATE cosmetics SET gem_price = 8000 WHERE id = 'frame_basic'");
     try {
-      const again = await buy(user, 'frame_basic', 3_250, key).expect(200);
+      const again = await buy(user, 'frame_basic', 6_500, key).expect(200);
       expect(again.body.replayed).toBe(true);
     } finally {
-      await pool.query("UPDATE cosmetics SET gem_price = 3250 WHERE id = 'frame_basic'");
+      await pool.query("UPDATE cosmetics SET gem_price = 6500 WHERE id = 'frame_basic'");
     }
   });
 
   it('refuses a key reused for a different item, or by a different account', async () => {
     const user = await adult();
     const other = await adult('Rohan');
-    await grantGems(user.id, 10_000);
-    await grantGems(other.id, 10_000);
+    await grantGems(user.id, 20_000);
+    await grantGems(other.id, 20_000);
     const key = randomUUID();
 
-    await buy(user, 'frame_basic', 3_250, key).expect(200);
+    await buy(user, 'frame_basic', 6_500, key).expect(200);
 
-    const differentItem = await buy(user, 'frame_rose', 3_250, key).expect(422);
+    const differentItem = await buy(user, 'frame_rose', 6_500, key).expect(422);
     expect(differentItem.body.error.code).toBe('IDEMPOTENCY_KEY_REUSED');
 
     // Replaying someone else's key would describe THEIR purchase to a stranger.
-    const differentUser = await buy(other, 'frame_basic', 3_250, key).expect(422);
+    const differentUser = await buy(other, 'frame_basic', 6_500, key).expect(422);
     expect(differentUser.body.error.code).toBe('IDEMPOTENCY_KEY_REUSED');
   });
 });
@@ -318,9 +318,9 @@ describe('retries', () => {
 describe('wearing', () => {
   it('equips something owned, and takes a kind off', async () => {
     const user = await adult();
-    await grantGems(user.id, 10_000);
-    await buy(user, 'frame_basic', 3_250).expect(200);
-    await buy(user, 'frame_rose', 3_250).expect(200);
+    await grantGems(user.id, 20_000);
+    await buy(user, 'frame_basic', 6_500).expect(200);
+    await buy(user, 'frame_rose', 6_500).expect(200);
 
     const equipped = await request(app)
       .post('/v1/cosmetics/equip')
@@ -342,7 +342,7 @@ describe('wearing', () => {
 
   it('refuses to equip what is not owned, or has expired', async () => {
     const user = await adult();
-    await grantGems(user.id, 5_000);
+    await grantGems(user.id, 10_000);
 
     const notOwned = await request(app)
       .post('/v1/cosmetics/equip')
@@ -351,7 +351,7 @@ describe('wearing', () => {
       .expect(404);
     expect(notOwned.body.error.code).toBe('COSMETIC_NOT_OWNED');
 
-    await buy(user, 'frame_basic', 3_250).expect(200);
+    await buy(user, 'frame_basic', 6_500).expect(200);
     await setExpiry(user.id, 'frame_basic', new Date(Date.now() - 1_000));
 
     const expired = await request(app)
@@ -364,8 +364,8 @@ describe('wearing', () => {
 
   it('lists a lapsed item as inactive and not worn, so it can be renewed', async () => {
     const user = await adult();
-    await grantGems(user.id, 5_000);
-    await buy(user, 'frame_basic', 3_250).expect(200);
+    await grantGems(user.id, 10_000);
+    await buy(user, 'frame_basic', 6_500).expect(200);
     await setExpiry(user.id, 'frame_basic', new Date(Date.now() - 1_000));
 
     const items = (await mine(user).expect(200)).body.items;
@@ -388,11 +388,11 @@ describe('the catalog', () => {
     expect(frame).toMatchObject({
       asset: 'placeholder/frames/frame_basic.v1.webp',
       style: { light: { ring: '#D97706' }, dark: { ring: '#FBBF24' } },
-      gemPrice: 3_250,
+      gemPrice: 6_500,
       durationDays: 30,
     });
 
-    expect(res.body.conversion).toEqual({ coinToGemRateBp: 12_000, minimumCoins: 100 });
+    expect(res.body.conversion).toEqual({ coinToGemRateBp: 12_000, minimumCoins: 200 });
   });
 
   it('withholds an item whose style is broken, rather than selling a blank', async () => {
@@ -419,8 +419,8 @@ describe('the catalog', () => {
 describe('looks — how people appear to everyone else', () => {
   it('draws a frame on a seat, and stops the moment it expires', async () => {
     const host = await adult('Host');
-    await grantGems(host.id, 5_000);
-    await buy(host, 'frame_ocean', 3_250).expect(200);
+    await grantGems(host.id, 10_000);
+    await buy(host, 'frame_ocean', 6_500).expect(200);
 
     const live = await request(app)
       .post('/v1/rooms/live')
@@ -455,8 +455,8 @@ describe('looks — how people appear to everyone else', () => {
   it('shows on a public profile and on the owner’s own summary', async () => {
     const user = await adult('Kabir');
     const viewer = await adult('Meera');
-    await grantGems(user.id, 5_000);
-    await buy(user, 'nickname_teal', 1_300).expect(200);
+    await grantGems(user.id, 10_000);
+    await buy(user, 'nickname_teal', 2_600).expect(200);
 
     const profile = await request(app)
       .get(`/v1/users/${user.id}/profile`)
@@ -480,14 +480,14 @@ describe('looks — how people appear to everyone else', () => {
   it('puts the sender’s frame on their gift', async () => {
     const host = await adult('Host');
     const sender = await adult('Asha');
-    await grantGems(sender.id, 5_000);
-    await buy(sender, 'frame_rose', 3_250).expect(200);
+    await grantGems(sender.id, 10_000);
+    await buy(sender, 'frame_rose', 6_500).expect(200);
     await postTransaction({
       txnType: 'free_coin_grant',
       idempotencyKey: uuidv7(),
       identity: { source: 'signup' },
       rates: RATES,
-      legs: freeCoinGrantLegs({ userId: sender.id, coins: 100 }),
+      legs: freeCoinGrantLegs({ userId: sender.id, coins: 200 }),
     });
 
     const live = await request(app)
@@ -505,7 +505,7 @@ describe('looks — how people appear to everyone else', () => {
         recipientId: host.id,
         giftId: 'rose',
         quantity: 1,
-        expectedCoinPrice: 45,
+        expectedCoinPrice: 90,
       })
       .expect(200);
 
@@ -575,8 +575,8 @@ describe('in a live room, over the gateway', () => {
   it('announces an entrance for someone wearing an entry effect — once, not per reconnect', async () => {
     const host = await adult('Host');
     const vip = await adult('Zoya');
-    await grantGems(vip.id, 10_000);
-    await buy(vip, 'entry_basic', 6_500).expect(200);
+    await grantGems(vip.id, 20_000);
+    await buy(vip, 'entry_basic', 13_000).expect(200);
     const roomId = await room(host);
 
     const watcher = await inRoom(host.token, roomId);
@@ -611,9 +611,9 @@ describe('in a live room, over the gateway', () => {
   it('carries the sender’s bubble and name colour on a chat line', async () => {
     const host = await adult('Host');
     const talker = await adult('Meera');
-    await grantGems(talker.id, 10_000);
-    await buy(talker, 'bubble_night', 1_950).expect(200);
-    await buy(talker, 'nickname_rose', 1_300).expect(200);
+    await grantGems(talker.id, 20_000);
+    await buy(talker, 'bubble_night', 3_900).expect(200);
+    await buy(talker, 'nickname_rose', 2_600).expect(200);
     const roomId = await room(host);
 
     const watcher = await inRoom(host.token, roomId);
@@ -638,8 +638,8 @@ describe('in a live room, over the gateway', () => {
 describe('measuring and reconciling', () => {
   it('finds every purchase recorded and matching the ledger', async () => {
     const user = await adult();
-    await grantGems(user.id, 5_000);
-    await buy(user, 'frame_basic', 3_250).expect(200);
+    await grantGems(user.id, 10_000);
+    await buy(user, 'frame_basic', 6_500).expect(200);
 
     const outcomes = await runReconciliation();
     expect(outcomes.find((o) => o.name === 'cosmetic_purchases_match_ledger')?.status).toBe('pass');
@@ -648,22 +648,22 @@ describe('measuring and reconciling', () => {
   it('reports the cosmetics share of spend for a day', async () => {
     const user = await adult();
     const host = await adult('Host');
-    await grantGems(user.id, 3_250);
-    await buy(user, 'frame_basic', 3_250).expect(200); // ₹50 of cosmetics
+    await grantGems(user.id, 6_500);
+    await buy(user, 'frame_basic', 6_500).expect(200); // ₹50 of cosmetics
 
     await postTransaction({
       txnType: 'free_coin_grant',
       idempotencyKey: uuidv7(),
       identity: { source: 'signup' },
       rates: RATES,
-      legs: freeCoinGrantLegs({ userId: user.id, coins: 9_750 }),
+      legs: freeCoinGrantLegs({ userId: user.id, coins: 19_500 }),
     });
     const live = await request(app)
       .post('/v1/rooms/live')
       .set('Authorization', `Bearer ${host.token}`)
       .send({ title: 'Mix', tag: 'chatting' })
       .expect(201);
-    await pool.query("UPDATE gift_catalog SET coin_price = 9750 WHERE id = 'yacht'");
+    await pool.query("UPDATE gift_catalog SET coin_price = 19500 WHERE id = 'yacht'");
     try {
       await request(app)
         .post('/v1/gifts/send')
@@ -674,11 +674,11 @@ describe('measuring and reconciling', () => {
           recipientId: host.id,
           giftId: 'yacht',
           quantity: 1,
-          expectedCoinPrice: 9_750,
+          expectedCoinPrice: 19_500,
         })
         .expect(200); // ₹150 of gifting
     } finally {
-      await pool.query("UPDATE gift_catalog SET coin_price = 15500 WHERE id = 'yacht'");
+      await pool.query("UPDATE gift_catalog SET coin_price = 31000 WHERE id = 'yacht'");
     }
 
     const today = new Date(Date.now() + 5.5 * 3_600_000).toISOString().slice(0, 10);

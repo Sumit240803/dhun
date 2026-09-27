@@ -115,7 +115,7 @@ authenticated and would otherwise be locked out of the screen that upgrades them
 
 **Backend done** (22 tests, 62 total). Migration `003_economy_config.sql`.
 
-Server-driven config, all seeded: `coin_packs` (6, at 55 coins/₹) · `gift_catalog`
+Server-driven config, all seeded: `coin_packs` (6, at 110 coins/₹ after 018) · `gift_catalog`
 (20 gifts, repriced, incl. the new Scooter bridge) · `cosmetics` (10, VIP seeded inactive) ·
 `level_thresholds` · `app_config` (7 dials). Adding a gift or changing a price is now an
 `UPDATE`, never an app release.
@@ -458,6 +458,22 @@ on transaction types covers the money layer). Force-update. Crash monitoring. On
 rotation documented. Rollback plan. Privacy policy, ToS, community guidelines live.
 
 **Exit:** the closed-beta entry checklist from `data-and-launch-plan-v1` is fully green.
+
+---
+
+### Redenomination ×2 — DONE, 2026-09-27
+
+Migration `018_redenomination.sql`. Every coin, gem and point count doubled — packs, gifts,
+cosmetics, level bands, free-coin grants, and the three rates (110 coins/₹, 130 units/₹ face,
+260 points/₹). **No rupee price moved and no ratio changed**, because both sides of
+`coins per ₹ ÷ 433.4` doubled together; a gift pays the same host the same rupees as before.
+
+It ran before M12 deliberately: M12 quotes prices to agencies, wholesale rates, level bands
+and commission figures, and renumbering after those exist would mean changing them twice.
+
+**Exit, met:** 360 backend tests and 114 mobile tests pass on the new denomination, Postman
+examples updated, `npm run check` clean. Balances are NOT rescaled by it — the ledger is
+append-only — so this migration is pre-launch-only, which the file says at the top.
 
 ---
 

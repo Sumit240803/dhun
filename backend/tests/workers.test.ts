@@ -186,7 +186,7 @@ describe('reconciliation', () => {
     await pool.query(
       'INSERT INTO purchases (id, user_id, pack_id, channel, provider, provider_txn_id,' +
         " amount_paise, coins_granted, gems_granted, status, created_at)" +
-        " VALUES ($1,$2,'small_99','iap','google_play',$3,9900,5445,1305,'pending'," +
+        " VALUES ($1,$2,'small_99','iap','google_play',$3,9900,10890,2610,'pending'," +
         " now() - interval '2 hours')",
       [randomUUID(), user, `stub-${randomUUID()}`],
     );

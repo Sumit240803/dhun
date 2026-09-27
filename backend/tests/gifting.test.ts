@@ -105,7 +105,7 @@ function send(
     .send({
       giftId: 'rose',
       quantity: 1,
-      expectedCoinPrice: 45,
+      expectedCoinPrice: 90,
       ...body,
     });
 }
@@ -120,7 +120,7 @@ async function giftRows(roomId: string) {
 }
 
 /** A room with a host, and a sender holding `coins`. */
-async function scene(coins = 10_000) {
+async function scene(coins = 20_000) {
   const host = await adult('Host');
   const sender = await adult('Asha');
   const roomId = await goLive(host);
@@ -150,16 +150,16 @@ describe('sending a gift', () => {
       roomId,
       recipientId: host.id,
       giftId: 'scooter',
-      expectedCoinPrice: 3_300,
+      expectedCoinPrice: 6_600,
     }).expect(200);
 
-    expect(res.body.coinsSpent).toBe(3_300);
-    expect(res.body.balance.coins).toBe(10_000 - 3_300);
+    expect(res.body.coinsSpent).toBe(6_600);
+    expect(res.body.balance.coins).toBe(20_000 - 6_600);
     expect(res.body.replayed).toBe(false);
 
     // points = coins × payout_rate. No ×2 — that is what makes 60% really 30%.
-    expect(await sumEntries('host_points_held', host.id)).toBe(Math.floor(3_300 * 0.6));
-    expect(await sumEntries('user_coins', sender.id)).toBe(6_700);
+    expect(await sumEntries('host_points_held', host.id)).toBe(Math.floor(6_600 * 0.6));
+    expect(await sumEntries('user_coins', sender.id)).toBe(13_400);
 
     expect(await giftRows(roomId)).toEqual([
       {
@@ -167,9 +167,9 @@ describe('sending a gift', () => {
         recipient_user_id: host.id,
         gift_id: 'scooter',
         quantity: 1,
-        unit_price: '3300',
-        coins: '3300',
-        points: '1980',
+        unit_price: '6600',
+        coins: '6600',
+        points: '3960',
       },
     ]);
 
@@ -178,13 +178,13 @@ describe('sending a gift', () => {
   });
 
   it('announces it to the room, once, in the shape the strips and animations draw', async () => {
-    const { host, sender, roomId } = await scene(20_000);
+    const { host, sender, roomId } = await scene(40_000);
 
     const res = await send(sender, {
       roomId,
       recipientId: host.id,
       giftId: 'yacht',
-      expectedCoinPrice: 15_500,
+      expectedCoinPrice: 31_000,
     }).expect(200);
 
     expect(published).toHaveLength(1);
@@ -209,7 +209,7 @@ describe('sending a gift', () => {
       tier: 3,
       effect: 'fullscreen',
       animationAsset: 'placeholder/gifts/yacht/anim.v1.json',
-      coinPrice: 15_500,
+      coinPrice: 31_000,
       quantity: 1,
     });
 
@@ -221,14 +221,14 @@ describe('sending a gift', () => {
   });
 
   it('sends a combo as ONE transaction with a quantity', async () => {
-    const { host, sender, roomId } = await scene(10_000);
+    const { host, sender, roomId } = await scene(20_000);
 
     const res = await send(sender, { roomId, recipientId: host.id, quantity: 99 }).expect(200);
 
-    expect(res.body.coinsSpent).toBe(45 * 99);
+    expect(res.body.coinsSpent).toBe(90 * 99);
     const txns = await pool.query("SELECT count(*) FROM ledger_txns WHERE txn_type = 'gift_send'");
     expect(Number(txns.rows[0].count)).toBe(1);
-    expect(await sumEntries('host_points_held', host.id)).toBe(Math.floor(45 * 99 * 0.6));
+    expect(await sumEntries('host_points_held', host.id)).toBe(Math.floor(90 * 99 * 0.6));
   });
 
   it('can go to someone on a seat in a party room', async () => {
@@ -240,19 +240,19 @@ describe('sending a gift', () => {
       roomId,
       guest.id,
     ]);
-    await grantCoins(sender.id, 1_000);
+    await grantCoins(sender.id, 2_000);
 
     const res = await send(sender, { roomId, recipientId: guest.id }).expect(200);
 
     expect(res.body.gift.recipientName).toBe('Rohan');
-    expect(await sumEntries('host_points_held', guest.id)).toBe(27);
+    expect(await sumEntries('host_points_held', guest.id)).toBe(54);
     expect(await sumEntries('host_points_held', host.id)).toBe(0);
   });
 });
 
 describe('retries', () => {
   it('replays the same gift for the same key, and charges once', async () => {
-    const { host, sender, roomId } = await scene(1_000);
+    const { host, sender, roomId } = await scene(2_000);
     const key = randomUUID();
 
     const first = await send(sender, { roomId, recipientId: host.id }, key).expect(200);
@@ -260,8 +260,8 @@ describe('retries', () => {
 
     expect(second.body.replayed).toBe(true);
     expect(second.body.gift.id).toBe(first.body.gift.id);
-    expect(second.body.balance.coins).toBe(955);
-    expect(await sumEntries('user_coins', sender.id)).toBe(955);
+    expect(second.body.balance.coins).toBe(1_910);
+    expect(await sumEntries('user_coins', sender.id)).toBe(1_910);
     // Announced once. A replay already had its moment on screen.
     expect(published).toHaveLength(1);
     expect(await giftRows(roomId)).toHaveLength(1);
@@ -270,7 +270,7 @@ describe('retries', () => {
   it('replays a gift whose room ended before the retry arrived', async () => {
     // The response was lost, the host ended the room, the phone retried. The
     // sender must hear "sent" — because it was — not "room ended".
-    const { host, sender, roomId } = await scene(1_000);
+    const { host, sender, roomId } = await scene(2_000);
     const key = randomUUID();
 
     const first = await send(sender, { roomId, recipientId: host.id }, key).expect(200);
@@ -285,7 +285,7 @@ describe('retries', () => {
   });
 
   it('refuses a key reused for a different gift', async () => {
-    const { host, sender, roomId } = await scene(10_000);
+    const { host, sender, roomId } = await scene(20_000);
     const key = randomUUID();
 
     await send(sender, { roomId, recipientId: host.id }, key).expect(200);
@@ -295,9 +295,9 @@ describe('retries', () => {
   });
 
   it('never overspends under a burst of parallel taps', async () => {
-    // Twelve 1,000-coin sends against a balance that covers five.
-    const { host, sender, roomId } = await scene(5_000);
-    await pool.query("UPDATE gift_catalog SET coin_price = 1000 WHERE id = 'teddy'");
+    // Twelve 2,000-coin sends against a balance that covers five.
+    const { host, sender, roomId } = await scene(10_000);
+    await pool.query("UPDATE gift_catalog SET coin_price = 2000 WHERE id = 'teddy'");
 
     const results = await Promise.all(
       Array.from({ length: 12 }, () =>
@@ -305,7 +305,7 @@ describe('retries', () => {
           roomId,
           recipientId: host.id,
           giftId: 'teddy',
-          expectedCoinPrice: 1_000,
+          expectedCoinPrice: 2_000,
         }),
       ),
     );
@@ -318,19 +318,19 @@ describe('retries', () => {
     expect(await giftRows(roomId)).toHaveLength(5);
     expect(await balanceDrift()).toEqual([]);
 
-    await pool.query("UPDATE gift_catalog SET coin_price = 999 WHERE id = 'teddy'");
+    await pool.query("UPDATE gift_catalog SET coin_price = 1998 WHERE id = 'teddy'");
   });
 });
 
 describe('refusals', () => {
   it('refuses a gift the sender cannot afford, and writes nothing', async () => {
-    const { host, sender, roomId } = await scene(100);
+    const { host, sender, roomId } = await scene(200);
 
     const res = await send(sender, {
       roomId,
       recipientId: host.id,
       giftId: 'scooter',
-      expectedCoinPrice: 3_300,
+      expectedCoinPrice: 6_600,
     }).expect(402);
 
     expect(res.body.error.code).toBe('INSUFFICIENT_BALANCE');
@@ -342,7 +342,7 @@ describe('refusals', () => {
     // The cash-out half of card fraud: stolen card → coins → gift to self → payout.
     const host = await adult('Host');
     const roomId = await goLive(host);
-    await grantCoins(host.id, 1_000);
+    await grantCoins(host.id, 2_000);
 
     const res = await send(host, { roomId, recipientId: host.id }).expect(422);
     expect(res.body.error.code).toBe('GIFT_TO_SELF');
@@ -401,8 +401,8 @@ describe('refusals', () => {
     }).expect(409);
 
     expect(res.body.error.code).toBe('GIFT_PRICE_CHANGED');
-    expect(res.body.error.details).toEqual({ coinPrice: 45 });
-    expect(await sumEntries('user_coins', sender.id)).toBe(10_000);
+    expect(res.body.error.details).toEqual({ coinPrice: 90 });
+    expect(await sumEntries('user_coins', sender.id)).toBe(20_000);
   });
 
   it('refuses a gift that is no longer sold', async () => {
@@ -436,7 +436,7 @@ describe('refusals', () => {
         recipientId: host.id,
         giftId: 'rose',
         quantity: 1,
-        expectedCoinPrice: 45,
+        expectedCoinPrice: 90,
         coins: 1,
       })
       .expect(422);
@@ -449,7 +449,7 @@ describe('refusals', () => {
     const res = await request(app)
       .post('/v1/gifts/send')
       .set('Authorization', `Bearer ${sender.token}`)
-      .send({ roomId, recipientId: host.id, giftId: 'rose', quantity: 1, expectedCoinPrice: 45 })
+      .send({ roomId, recipientId: host.id, giftId: 'rose', quantity: 1, expectedCoinPrice: 90 })
       .expect(400);
     expect(res.body.error.code).toBe('IDEMPOTENCY_KEY_REQUIRED');
   });
@@ -470,22 +470,22 @@ describe('refusals', () => {
   });
 
   it('stops at the kill switch with no money moved', async () => {
-    const { host, sender, roomId } = await scene(1_000);
+    const { host, sender, roomId } = await scene(2_000);
     await setTxnTypeActive('gift_send', false);
 
     const res = await send(sender, { roomId, recipientId: host.id }).expect(503);
 
     expect(res.body.error.code).toBe('TXN_TYPE_INACTIVE');
-    expect(await sumEntries('user_coins', sender.id)).toBe(1_000);
+    expect(await sumEntries('user_coins', sender.id)).toBe(2_000);
     expect(await giftRows(roomId)).toEqual([]);
   });
 });
 
 describe('the room leaderboard', () => {
   it('ranks senders by total coins given in the room', async () => {
-    const { host, sender, roomId } = await scene(20_000);
+    const { host, sender, roomId } = await scene(40_000);
     const whale = await adult('Kabir');
-    await grantCoins(whale.id, 20_000);
+    await grantCoins(whale.id, 40_000);
 
     await send(sender, { roomId, recipientId: host.id, quantity: 10 }).expect(200); // 450
     await send(sender, { roomId, recipientId: host.id }).expect(200); // 45
@@ -493,15 +493,15 @@ describe('the room leaderboard', () => {
       roomId,
       recipientId: host.id,
       giftId: 'scooter',
-      expectedCoinPrice: 3_300,
+      expectedCoinPrice: 6_600,
     }).expect(200);
 
     // Readable without a session, like the room itself.
     const res = await request(app).get(`/v1/gifts/leaderboard/${roomId}`).expect(200);
 
     expect(res.body.leaderboard).toEqual([
-      { rank: 1, userId: whale.id, displayName: 'Kabir', avatarUrl: null, coins: 3_300 },
-      { rank: 2, userId: sender.id, displayName: 'Asha', avatarUrl: null, coins: 495 },
+      { rank: 1, userId: whale.id, displayName: 'Kabir', avatarUrl: null, coins: 6_600 },
+      { rank: 2, userId: sender.id, displayName: 'Asha', avatarUrl: null, coins: 990 },
     ]);
   });
 
@@ -539,7 +539,7 @@ describe('the catalog on the asset contract', () => {
 
 describe('reconciliation', () => {
   it('finds every gift recorded and in agreement with the ledger', async () => {
-    const { host, sender, roomId } = await scene(10_000);
+    const { host, sender, roomId } = await scene(20_000);
     await send(sender, { roomId, recipientId: host.id, quantity: 10 }).expect(200);
 
     const outcomes = await runReconciliation();
@@ -551,7 +551,7 @@ describe('reconciliation', () => {
   it('catches a gift transaction with no gift record', async () => {
     const host = await adult('Host');
     const sender = await adult('Asha');
-    await grantCoins(sender.id, 1_000);
+    await grantCoins(sender.id, 2_000);
 
     // A write path that moved the money but skipped the record — exactly what
     // writing both in one transaction exists to prevent.
@@ -565,7 +565,7 @@ describe('reconciliation', () => {
         pointsPerRupee: ECONOMY.pointsPerRupee,
         payoutRateBp: 6_000,
       },
-      legs: giftLegs({ userId: sender.id, hostId: host.id, coins: 45, payoutRateBp: 6_000 }),
+      legs: giftLegs({ userId: sender.id, hostId: host.id, coins: 90, payoutRateBp: 6_000 }),
     });
 
     const outcomes = await runReconciliation();

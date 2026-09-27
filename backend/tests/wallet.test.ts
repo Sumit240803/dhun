@@ -75,8 +75,8 @@ describe('server-driven catalog', () => {
     const popular = packs.body.packs.find((p: { id: string }) => p.id === 'popular_299');
     expect(popular).toMatchObject({
       pricePaise: 29_900,
-      coins: 16_445,
-      gems: 5_355,
+      coins: 32_890,
+      gems: 10_710,
       badge: 'Most Popular',
     });
   });
@@ -86,8 +86,8 @@ describe('server-driven catalog', () => {
     const byId = Object.fromEntries(res.body.gifts.map((g: { id: string }) => [g.id, g]));
 
     expect(res.body.gifts).toHaveLength(20);
-    expect(byId.yacht.coinPrice).toBe(15_500);
-    expect(byId.scooter).toMatchObject({ coinPrice: 3_300, tier: 3, effect: 'fullscreen' });
+    expect(byId.yacht.coinPrice).toBe(31_000);
+    expect(byId.scooter).toMatchObject({ coinPrice: 6_600, tier: 3, effect: 'fullscreen' });
     // payout_rate is per gift, never a global constant.
     expect(byId.rose.payoutRateBp).toBe(6_000);
   });
@@ -106,23 +106,23 @@ describe('in-app purchase', () => {
     const user = await registeredUser();
     const res = await buyIap(user.token, 'popular_299').expect(200);
 
-    expect(res.body).toMatchObject({ coinsGranted: 16_445, gemsGranted: 5_355 });
-    expect(res.body.balances).toEqual({ coins: 16_445, gems: 5_355 });
-    // 16,445 purchased coins crosses the level-16 threshold (65,000)? No — level 6 (6,500).
+    expect(res.body).toMatchObject({ coinsGranted: 32_890, gemsGranted: 10_710 });
+    expect(res.body.balances).toEqual({ coins: 32_890, gems: 10_710 });
+    // 32,890 purchased coins crosses the level-16 threshold (130,000)? No — level 6 (13,000).
     expect(res.body.userLevel).toBe(6);
 
     const wallet = await request(app)
       .get('/v1/wallet')
       .set('Authorization', `Bearer ${user.token}`)
       .expect(200);
-    expect(wallet.body.wallet.lifetimePurchasedCoins).toBe(16_445);
+    expect(wallet.body.wallet.lifetimePurchasedCoins).toBe(32_890);
   });
 
   it('books the pack discount so every unit stays worth 1/65 of a rupee', async () => {
     const user = await registeredUser();
     await buyIap(user.token, 'popular_299').expect(200);
 
-    // 21,800 units of face value at 65/₹ = ₹335.38, sold for ₹299.
+    // 43,600 units of face value at 130/₹ = ₹335.38, sold for ₹299.
     expect(await systemBalance('deferred_revenue')).toBe(-33_538);
     expect(await systemBalance('cash_iap')).toBe(29_900);
     expect(await systemBalance('discount_pack')).toBe(3_638);
@@ -138,7 +138,7 @@ describe('in-app purchase', () => {
 
     expect(second.body.txnId).toBe(first.body.txnId);
     expect(second.body.replayed).toBe(true);
-    expect(second.body.balances.coins).toBe(5_445); // credited once
+    expect(second.body.balances.coins).toBe(10_890); // credited once
   });
 
   it('rejects a replayed receipt sent with a fresh idempotency key', async () => {
@@ -151,7 +151,7 @@ describe('in-app purchase', () => {
     // ledger's idempotency identity. Coins are credited exactly once.
     const replay = await buyIap(user.token, 'small_99', { purchaseToken: token }).expect(200);
     expect(replay.body.replayed).toBe(true);
-    expect(replay.body.balances.coins).toBe(5_445);
+    expect(replay.body.balances.coins).toBe(10_890);
   });
 
   it('refuses a receipt already redeemed by someone else', async () => {
@@ -233,7 +233,7 @@ describe('web purchase (Razorpay)', () => {
       })
       .expect(200);
 
-    expect(res.body.balances).toEqual({ coins: 54_945, gems: 23_055 });
+    expect(res.body.balances).toEqual({ coins: 109_890, gems: 46_110 });
     // The web channel has its own cash account, so channel mix is a balance read.
     expect(await systemBalance('cash_web')).toBe(99_900);
     expect(await systemBalance('cash_iap')).toBe(0);
@@ -266,12 +266,12 @@ describe('coins to gems conversion', () => {
       .post('/v1/wallet/convert')
       .set('Authorization', `Bearer ${user.token}`)
       .set('Idempotency-Key', randomUUID())
-      .send({ coins: 6_500 })
+      .send({ coins: 13_000 })
       .expect(200);
 
-    expect(res.body.gemsReceived).toBe(7_800);
-    expect(res.body.wallet.coins).toBe(16_445 - 6_500);
-    expect(res.body.wallet.gems).toBe(5_355 + 7_800);
+    expect(res.body.gemsReceived).toBe(15_600);
+    expect(res.body.wallet.coins).toBe(32_890 - 13_000);
+    expect(res.body.wallet.gems).toBe(10_710 + 15_600);
     // The bonus mints units nobody paid for, booked as contra-revenue.
     expect(await systemBalance('discount_conversion_bonus')).toBe(2_000);
   });
@@ -330,7 +330,7 @@ describe('wallet history', () => {
       .expect(200);
 
     expect(res.body.transactions).toHaveLength(1);
-    expect(res.body.transactions[0]).toMatchObject({ type: 'purchase_iap', coins: 5_445 });
+    expect(res.body.transactions[0]).toMatchObject({ type: 'purchase_iap', coins: 10_890 });
   });
 
   it('lists purchases with their status', async () => {

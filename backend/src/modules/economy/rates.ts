@@ -6,23 +6,27 @@
 // onto each transaction.
 //
 // Every rate is an integer. Percentages are basis points (6000 = 60.00%).
+//
+// The counts here are POST-REDENOMINATION (migration 018): coins, gems and
+// points were all doubled together, so every ratio between them is unchanged and
+// only the numerals on screen got bigger.
 
 export const ECONOMY = {
   /**
-   * Accounting face value: 65 units = ₹1. Used ONLY for deferred revenue, so
+   * Accounting face value: 130 units = ₹1. Used ONLY for deferred revenue, so
    * every coin and gem is worth exactly the same amount everywhere in the books.
    * This is not what a user pays.
    */
-  faceValueUnitsPerRupee: 65,
+  faceValueUnitsPerRupee: 130,
 
   /**
-   * What a user actually gets: 55 coins = ₹1. THIS is the margin dial —
-   * payout ratio is exactly `coinsPerRupee / 216.7`.
+   * What a user actually gets: 110 coins = ₹1. THIS is the margin dial —
+   * payout ratio is exactly `coinsPerRupee / 433.4`.
    */
-  packCoinsPerRupee: 55,
+  packCoinsPerRupee: 110,
 
-  /** 130 points = ₹1. Points are worth half a coin, which turns an advertised 60% into a real 30%. */
-  pointsPerRupee: 130,
+  /** 260 points = ₹1. Points are worth half a coin, which turns an advertised 60% into a real 30%. */
+  pointsPerRupee: 260,
 
   /** Coins to gems, one-way, +20%. */
   coinToGemRateBp: 12_000,

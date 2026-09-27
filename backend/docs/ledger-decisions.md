@@ -74,61 +74,63 @@ drift beats one that has to be run.
 ### A4 · Worked examples
 
 Rates are stored **on the transaction** (see G1), so a later retune never rewrites history.
+Counts below are post-redenomination (110 coins/₹, 130 units/₹ face, 260 points/₹); every
+rupee figure is unchanged from before it, which is the whole point of that change.
 
-**Purchase — ₹299 Popular pack** (16,445 coins + 5,355 gems; face value ₹335.38)
+**Purchase — ₹299 Popular pack** (32,890 coins + 10,710 gems; face value ₹335.38)
 
 ```
-coin    user:{u}:coins                 +16,445
-        user:{u}:gems                   +5,355
-        system:coin_float              −21,800        → 0 ✓
+coin    user:{u}:coins                 +32,890
+        user:{u}:gems                  +10,710
+        system:coin_float              −43,600        → 0 ✓
 
 paise   asset:cash:web                 +29,900
         contra_revenue:pack_discount    +3,638
         liability:deferred_revenue     −33,538        → 0 ✓
 ```
 
-**Gift — Yacht, 19,500 coins, payout_rate 6000 bp**
+**Gift — 39,000 coins (₹300 of face value), payout_rate 6000 bp**
 
 ```
-coin    user:{u}:coins                 −19,500
-        system:coin_float              +19,500        → 0 ✓
+coin    user:{u}:coins                 −39,000
+        system:coin_float              +39,000        → 0 ✓
 
-point   system:point_float             −11,700        (19,500 × 0.60)
-        host:{h}:points_held           +11,700        → 0 ✓
+point   system:point_float             −23,400        (39,000 × 0.60)
+        host:{h}:points_held           +23,400        → 0 ✓
 
 paise   liability:deferred_revenue     +30,000        (₹300 face)
         revenue:gifting                −30,000
-        expense:host_payout_cost        +9,000        (₹90 = 11,700 ÷ 130)
+        expense:host_payout_cost        +9,000        (₹90 = 23,400 ÷ 260)
         liability:points_payable        −9,000        → 0 ✓
 ```
 
-**Cosmetic — profile frame, 3,250 gems.** No point legs at all; this is the zero-payout path.
+**Cosmetic — profile frame, 6,500 gems.** No point legs at all; this is the zero-payout path.
 
 ```
-coin    user:{u}:gems                   −3,250
-        system:coin_float               +3,250        → 0 ✓
+coin    user:{u}:gems                   −6,500
+        system:coin_float               +6,500        → 0 ✓
 
 paise   liability:deferred_revenue      +5,000
         revenue:cosmetics               −5,000        → 0 ✓
 ```
 
-**Conversion — 6,500 coins → 7,800 gems (+20%).** The bonus mints 1,300 new units, so it
+**Conversion — 13,000 coins → 15,600 gems (+20%).** The bonus mints 2,600 new units, so it
 needs a source in both books.
 
 ```
-coin    user:{u}:coins                  −6,500
-        user:{u}:gems                   +7,800
-        system:coin_float               −1,300        → 0 ✓
+coin    user:{u}:coins                 −13,000
+        user:{u}:gems                  +15,600
+        system:coin_float               −2,600        → 0 ✓
 
 paise   contra_revenue:conversion_bonus  +2,000       (₹20 of newly minted face value)
         liability:deferred_revenue      −2,000        → 0 ✓
 ```
 
-**Free coin grant — signup, 500 coins**
+**Free coin grant — signup, 1,000 coins**
 
 ```
-coin    system:coin_float                 −500
-        user:{u}:coins                    +500        → 0 ✓
+coin    system:coin_float               −1,000
+        user:{u}:coins                  +1,000        → 0 ✓
 
 paise   expense:free_coins                 +769       (₹7.69 face)
         liability:deferred_revenue         −769       → 0 ✓
@@ -331,12 +333,12 @@ web gateway, and receives coins into an inventory account it cannot gift from. S
 as a pack purchase, with two differences: the coins land in `reseller:{id}:inventory`, and
 there are no gems — an agency resells coins, and gems would be dead stock.
 
-Example: ₹50,000 at a 66 coins/₹ wholesale rate → 3,300,000 coins (face ₹50,769.23 at the
+Example: ₹50,000 at a 132 coins/₹ wholesale rate → 6,600,000 coins (face ₹50,769.23 at the
 65-units/₹ accounting rate).
 
 ```
-coin    reseller:{r}:inventory       +3,300,000
-        system:coin_float            −3,300,000        → 0 ✓
+coin    reseller:{r}:inventory       +6,600,000
+        system:coin_float            −6,600,000        → 0 ✓
 
 paise   asset:cash:reseller          +5,000,000        (₹50,000 actually received)
         contra_revenue:reseller_discount +76,923

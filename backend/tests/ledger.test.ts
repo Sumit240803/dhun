@@ -28,8 +28,8 @@ const RATES = {
 };
 
 /** The packs, exactly as decided at 55 coins/₹. */
-const POPULAR_PACK = { coins: 16_445, gems: 5_355, cashPaise: 29_900 } as const; // ₹299
-const VALUE_PACK = { coins: 54_945, gems: 23_055, cashPaise: 99_900 } as const; // ₹999
+const POPULAR_PACK = { coins: 32_890, gems: 10_710, cashPaise: 29_900 } as const; // ₹299
+const VALUE_PACK = { coins: 109_890, gems: 46_110, cashPaise: 99_900 } as const; // ₹999
 
 function buyPack(pack: { coins: number; gems: number; cashPaise: number }, packId: string) {
   return (userId: string) =>
@@ -44,8 +44,8 @@ function buyPack(pack: { coins: number; gems: number; cashPaise: number }, packI
 
 const buyPopularPack = buyPack(POPULAR_PACK, 'popular_299');
 
-// Used wherever a Yacht (19,500 coins) is sent. At 55 coins/₹ the ₹299 pack
-// yields only 16,445 coins, so it no longer covers the top Tier 3 gift.
+// Used wherever a Yacht (39,000 coins) is sent. At 110 coins/₹ the ₹299 pack
+// yields only 32,890 coins, so it no longer covers the top Tier 3 gift.
 const buyValuePack = buyPack(VALUE_PACK, 'value_999');
 
 beforeEach(resetLedger);
@@ -62,10 +62,10 @@ describe('invariants', () => {
       idempotencyKey: uuidv7(),
       identity: { source: 'signup' },
       rates: RATES,
-      legs: freeCoinGrantLegs({ userId: user, coins: 500 }),
+      legs: freeCoinGrantLegs({ userId: user, coins: 1_000 }),
     });
     // Deliberately awkward amounts: these are where floor() rounding bites.
-    for (const coins of [10, 99, 199, 2_600, 4_900, 19_500]) {
+    for (const coins of [20, 198, 398, 5_200, 9_800, 39_000]) {
       await postTransaction({
         txnType: 'gift_send',
         idempotencyKey: uuidv7(),
@@ -77,16 +77,16 @@ describe('invariants', () => {
     await postTransaction({
       txnType: 'coin_to_gem_conversion',
       idempotencyKey: uuidv7(),
-      identity: { coin_amount: 6_500 },
+      identity: { coin_amount: 13_000 },
       rates: RATES,
-      legs: conversionLegs({ userId: user, coins: 6_500 }),
+      legs: conversionLegs({ userId: user, coins: 13_000 }),
     });
     await postTransaction({
       txnType: 'cosmetic_purchase',
       idempotencyKey: uuidv7(),
       identity: { item_id: 'frame_basic', duration_days: 30 },
       rates: RATES,
-      legs: cosmeticPurchaseLegs({ userId: user, gems: 3_250 }),
+      legs: cosmeticPurchaseLegs({ userId: user, gems: 6_500 }),
     });
 
     expect(await unbalancedTxns()).toEqual([]);
@@ -114,7 +114,7 @@ describe('invariants', () => {
       idempotencyKey: uuidv7(),
       identity: { gift_id: 'yacht', host_id: host, quantity: 1 },
       rates: RATES,
-      legs: giftLegs({ userId: user, hostId: host, coins: 19_500, payoutRateBp: 6_000 }),
+      legs: giftLegs({ userId: user, hostId: host, coins: 39_000, payoutRateBp: 6_000 }),
     });
 
     expect(await balanceDrift()).toEqual([]);
@@ -137,8 +137,8 @@ describe('economy arithmetic', () => {
     const user = await createUser();
     await buyPopularPack(user);
 
-    expect(await getBalance('user_coins', user)).toBe(16_445);
-    expect(await getBalance('user_gems', user)).toBe(5_355);
+    expect(await getBalance('user_coins', user)).toBe(32_890);
+    expect(await getBalance('user_gems', user)).toBe(10_710);
   });
 
   it('pays the host 30% of the gift value, not 60%', async () => {
@@ -146,18 +146,18 @@ describe('economy arithmetic', () => {
     const host = await createUser();
     await buyValuePack(user);
 
-    // Yacht: 19,500 coins. Face value ₹300 at the 65/₹ accounting rate.
+    // Yacht: 39,000 coins. Face value ₹300 at the 130/₹ accounting rate.
     await postTransaction({
       txnType: 'gift_send',
       idempotencyKey: uuidv7(),
       identity: { gift_id: 'yacht', host_id: host, quantity: 1 },
       rates: RATES,
-      legs: giftLegs({ userId: user, hostId: host, coins: 19_500, payoutRateBp: 6_000 }),
+      legs: giftLegs({ userId: user, hostId: host, coins: 39_000, payoutRateBp: 6_000 }),
     });
 
     // points = coins × rate, NOT × 2. The host gets 60% of the COIN COUNT, and a
     // point is worth half a coin — the two-dial mechanic in one assertion.
-    expect(await getBalance('host_points_held', host)).toBe(11_700);
+    expect(await getBalance('host_points_held', host)).toBe(23_400);
     expect(await systemBalance('expense_host_payout')).toBe(9_000); // ₹90
     expect(await systemBalance('revenue_gifting')).toBe(-30_000); // ₹300
   });
@@ -171,10 +171,10 @@ describe('economy arithmetic', () => {
       idempotencyKey: uuidv7(),
       identity: { item_id: 'frame_basic', duration_days: 30 },
       rates: RATES,
-      legs: cosmeticPurchaseLegs({ userId: user, gems: 3_250 }),
+      legs: cosmeticPurchaseLegs({ userId: user, gems: 6_500 }),
     });
 
-    expect(await getBalance('user_gems', user)).toBe(2_105);
+    expect(await getBalance('user_gems', user)).toBe(4_210);
     expect(await getBalance('host_points_held', host)).toBe(0);
     expect(await systemBalance('expense_host_payout')).toBe(0);
     expect(await systemBalance('revenue_cosmetics')).toBe(-5_000); // ₹50
@@ -186,13 +186,13 @@ describe('economy arithmetic', () => {
     await postTransaction({
       txnType: 'coin_to_gem_conversion',
       idempotencyKey: uuidv7(),
-      identity: { coin_amount: 6_500 },
+      identity: { coin_amount: 13_000 },
       rates: RATES,
-      legs: conversionLegs({ userId: user, coins: 6_500 }),
+      legs: conversionLegs({ userId: user, coins: 13_000 }),
     });
 
-    expect(await getBalance('user_coins', user)).toBe(16_445 - 6_500);
-    expect(await getBalance('user_gems', user)).toBe(5_355 + 7_800);
+    expect(await getBalance('user_coins', user)).toBe(32_890 - 13_000);
+    expect(await getBalance('user_gems', user)).toBe(10_710 + 15_600);
     expect(await systemBalance('discount_conversion_bonus')).toBe(2_000); // ₹20 minted
   });
 
@@ -200,7 +200,7 @@ describe('economy arithmetic', () => {
     const user = await createUser();
     await buyPopularPack(user);
 
-    // 21,800 units at 65/₹ = ₹335.38 of face value, sold for ₹299.
+    // 43,600 units at 130/₹ = ₹335.38 of face value, sold for ₹299.
     expect(await systemBalance('deferred_revenue')).toBe(-33_538);
     expect(await systemBalance('cash_web')).toBe(29_900);
     expect(await systemBalance('discount_pack')).toBe(3_638);
@@ -223,13 +223,13 @@ describe('balance protection', () => {
       }),
     ).rejects.toThrow(/Not enough balance/);
 
-    expect(await getBalance('user_coins', user)).toBe(16_445);
+    expect(await getBalance('user_coins', user)).toBe(32_890);
   });
 
   it('will not let gems be spent as coins', async () => {
     const user = await createUser();
     const host = await createUser();
-    await buyPopularPack(user); // 16,445 coins + 5,355 gems
+    await buyPopularPack(user); // 32,890 coins + 10,710 gems
 
     // Gems are a separate account: a gift larger than the coin balance fails
     // even though coins + gems together would cover it.
@@ -239,7 +239,7 @@ describe('balance protection', () => {
         idempotencyKey: uuidv7(),
         identity: { gift_id: 'big', host_id: host, quantity: 1 },
         rates: RATES,
-        legs: giftLegs({ userId: user, hostId: host, coins: 20_000, payoutRateBp: 6_000 }),
+        legs: giftLegs({ userId: user, hostId: host, coins: 40_000, payoutRateBp: 6_000 }),
       }),
     ).rejects.toThrow(/Not enough balance/);
   });
@@ -254,8 +254,8 @@ describe('idempotency', () => {
       idempotencyKey: key,
       identity: { source: 'signup' },
       rates: RATES,
-      legs: freeCoinGrantLegs({ userId: user, coins: 500 }),
-      response: { granted: 500 },
+      legs: freeCoinGrantLegs({ userId: user, coins: 1_000 }),
+      response: { granted: 1_000 },
     };
 
     const first = await postTransaction(input);
@@ -264,8 +264,8 @@ describe('idempotency', () => {
     expect(first.replayed).toBe(false);
     expect(second.replayed).toBe(true);
     expect(second.txnId).toBe(first.txnId);
-    expect(second.response).toEqual({ granted: 500 });
-    expect(await getBalance('user_coins', user)).toBe(500); // credited once
+    expect(second.response).toEqual({ granted: 1_000 });
+    expect(await getBalance('user_coins', user)).toBe(1_000); // credited once
   });
 
   it('rejects the same key used for a different operation', async () => {
@@ -277,7 +277,7 @@ describe('idempotency', () => {
       idempotencyKey: key,
       identity: { source: 'signup' },
       rates: RATES,
-      legs: freeCoinGrantLegs({ userId: user, coins: 500 }),
+      legs: freeCoinGrantLegs({ userId: user, coins: 1_000 }),
     });
 
     await expect(
@@ -286,11 +286,11 @@ describe('idempotency', () => {
         idempotencyKey: key,
         identity: { source: 'referral' }, // different identity, same key
         rates: RATES,
-        legs: freeCoinGrantLegs({ userId: user, coins: 2_000 }),
+        legs: freeCoinGrantLegs({ userId: user, coins: 4_000 }),
       }),
     ).rejects.toThrow(/used for a different operation/);
 
-    expect(await getBalance('user_coins', user)).toBe(500);
+    expect(await getBalance('user_coins', user)).toBe(1_000);
   });
 
   it('applies once when identical requests race', async () => {
@@ -301,14 +301,14 @@ describe('idempotency', () => {
       idempotencyKey: key,
       identity: { source: 'signup' },
       rates: RATES,
-      legs: freeCoinGrantLegs({ userId: user, coins: 500 }),
+      legs: freeCoinGrantLegs({ userId: user, coins: 1_000 }),
     };
 
     const results = await Promise.all([postTransaction(input), postTransaction(input)]);
 
     expect(new Set(results.map((r) => r.txnId)).size).toBe(1);
     expect(results.filter((r) => r.replayed)).toHaveLength(1);
-    expect(await getBalance('user_coins', user)).toBe(500);
+    expect(await getBalance('user_coins', user)).toBe(1_000);
   });
 });
 
@@ -316,16 +316,16 @@ describe('concurrency', () => {
   it('never double-spends under parallel gifts', async () => {
     const user = await createUser();
     const host = await createUser();
-    await buyPopularPack(user); // 16,445 coins
+    await buyPopularPack(user); // 32,890 coins
 
-    // Twenty parallel 1,000-coin gifts against a balance that covers sixteen.
+    // Twenty parallel 2,000-coin gifts against a balance that covers sixteen.
     const attempts = Array.from({ length: 20 }, (_, i) =>
       postTransaction({
         txnType: 'gift_send',
         idempotencyKey: uuidv7(),
         identity: { gift_id: 'rose', host_id: host, quantity: 1, n: i },
         rates: RATES,
-        legs: giftLegs({ userId: user, hostId: host, coins: 1_000, payoutRateBp: 6_000 }),
+        legs: giftLegs({ userId: user, hostId: host, coins: 2_000, payoutRateBp: 6_000 }),
       }).then(
         () => 'ok' as const,
         () => 'rejected' as const,
@@ -336,8 +336,8 @@ describe('concurrency', () => {
     const succeeded = results.filter((r) => r === 'ok').length;
 
     expect(succeeded).toBe(16);
-    expect(await getBalance('user_coins', user)).toBe(445);
-    expect(await getBalance('host_points_held', host)).toBe(16 * 600);
+    expect(await getBalance('user_coins', user)).toBe(890);
+    expect(await getBalance('host_points_held', host)).toBe(16 * 1_200);
     expect(await balanceDrift()).toEqual([]);
     expect(await unbalancedTxns()).toEqual([]);
   });
@@ -357,7 +357,7 @@ describe('kill switch', () => {
           idempotencyKey: uuidv7(),
           identity: { gift_id: 'rose', host_id: host, quantity: 1 },
           rates: RATES,
-          legs: giftLegs({ userId: user, hostId: host, coins: 50, payoutRateBp: 6_000 }),
+          legs: giftLegs({ userId: user, hostId: host, coins: 100, payoutRateBp: 6_000 }),
         }),
       ).rejects.toThrow(/temporarily unavailable/);
     } finally {
@@ -373,7 +373,7 @@ describe('kill switch', () => {
         idempotencyKey: uuidv7(),
         identity: { tier: 'gold', months: 1 },
         rates: RATES,
-        legs: cosmeticPurchaseLegs({ userId: user, gems: 32_500 }),
+        legs: cosmeticPurchaseLegs({ userId: user, gems: 65_000 }),
       }),
     ).rejects.toThrow(/temporarily unavailable/);
   });

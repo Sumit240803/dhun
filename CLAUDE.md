@@ -247,9 +247,9 @@ budget) is accepted as retention spend.
 
 | | |
 |---|---|
-| Pack rate | **55 coins = ₹1** (was 65 — this is the margin dial) |
-| Accounting face value | 65 units = ₹1, for deferred revenue only |
-| Point rate | 130 points = ₹1 |
+| Pack rate | **110 coins = ₹1** — this is the margin dial |
+| Accounting face value | 130 units = ₹1, for deferred revenue only |
+| Point rate | 260 points = ₹1 |
 | Gift split | 60% of the gift's **coin count**, issued as points |
 | **Payout formula** | **`points = coins × payout_rate`** — no ×2. Points are worth half a coin, which is what turns an advertised 60% into a real 30%. |
 | Coins → Gems conversion | one-way, **+20%** (`coin_to_gem_rate: 12000` bp), config-driven |
@@ -259,8 +259,18 @@ budget) is accepted as retention spend.
 the point-to-rupee rate (hidden in the wallet). Together they advertise 60% while paying
 out ~30%. The point rate is the **last** lever to touch — hosts notice immediately.
 
-**Payout ratio is set by one number only:** `coins per ₹ ÷ 216.7`. Gift prices and cosmetic
+**Payout ratio is set by one number only:** `coins per ₹ ÷ 433.4`. Gift prices and cosmetic
 prices do not affect it — they only change how many gifts a given balance buys.
+
+**Every count here was doubled once** (migration `018_redenomination.sql`, 2026-09-27):
+coins, gems, points, gift prices, cosmetic prices, level bands and free-coin grants all ×2,
+while **no rupee price moved**. Competitors quote balances in the hundreds of thousands, and
+next to one of those our old numbers read as small. It costs nothing because both sides of
+the ratio doubled — 110 coins/₹ against 260 points/₹ is the same 25.4% as 55 against 130 —
+so the same gift pays the same host the same rupees. The divisor moved with it: `÷ 216.7`
+became `÷ 433.4`. The migration rewrites prices and **cannot rewrite ledger balances**,
+which is why it is a pre-launch-only change; after launch the same move needs a compensating
+credit per account.
 
 ### Coin distribution channels
 
@@ -276,16 +286,16 @@ charges above that. Revenue is still recognised only when a coin is **spent**, s
 from an agency to a user moves no money on our books (ledger-decisions § C3/C4).
 
 **Wholesale rate — OPEN, and it sets the payout ratio.** Payout ratio is `coins per ₹ ÷
-216.7`, so the wholesale rate does to the agency channel what the pack rate does to retail:
+433.4`, so the wholesale rate does to the agency channel what the pack rate does to retail:
 
-| Wholesale rate | Agency margin reselling at 55/₹ | Our payout ratio on those coins |
+| Wholesale rate | Agency margin reselling at 110/₹ | Our payout ratio on those coins |
 |---|---|---|
-| 62 coins/₹ | 13% | 28.6% |
-| 66 coins/₹ | 20% | 30.5% |
-| 70 coins/₹ | 27% | 32.3% |
-| ~88 coins/₹ *(an earlier note, not a decision)* | 60% | **40.6% — do not** |
+| 124 coins/₹ | 13% | 28.6% |
+| 132 coins/₹ | 20% | 30.5% |
+| 140 coins/₹ | 27% | 32.3% |
+| ~176 coins/₹ *(an earlier note, not a decision)* | 60% | **40.6% — do not** |
 
-Recommended: **62 / 66 / 70 coins per ₹ in volume tiers** (₹10,000 / ₹50,000 / ₹2,00,000+),
+Recommended: **124 / 132 / 140 coins per ₹ in volume tiers** (₹10,000 / ₹50,000 / ₹2,00,000+),
 config-driven like every other rate. It keeps the blended payout near the 30% the model
 assumes while leaving an agency a real margin for collecting small payments and doing the
 support that comes with them.
@@ -294,19 +304,19 @@ support that comes with them.
 
 | Pack | Price | Coins | Gems | Total | Gem share |
 |---|---|---|---|---|---|
-| Starter (lifetime once) | ₹19 | 2,000 | 3,300 | 5,300 | 62% |
-| Small | ₹99 | 5,445 | 1,305 | 6,750 | 19% |
-| Popular | ₹299 | 16,445 | 5,355 | 21,800 | 25% |
-| Value | ₹999 | 54,945 | 23,055 | 78,000 | 30% |
-| Big | ₹2,999 | 164,945 | 84,555 | 249,500 | 34% |
-| Whale | ₹9,999 | 549,945 | 327,555 | 877,500 | 37% |
+| Starter (lifetime once) | ₹19 | 4,000 | 6,600 | 10,600 | 62% |
+| Small | ₹99 | 10,890 | 2,610 | 13,500 | 19% |
+| Popular | ₹299 | 32,890 | 10,710 | 43,600 | 25% |
+| Value | ₹999 | 109,890 | 46,110 | 156,000 | 30% |
+| Big | ₹2,999 | 329,890 | 169,110 | 499,000 | 34% |
+| Whale | ₹9,999 | 1,099,890 | 655,110 | 1,755,000 | 37% |
 
-Totals are unchanged from the source doc, so advertised value is preserved — only the
-coin/gem split is new. Starter is deliberately **off-formula** (105 coins/₹, a loss leader
+Totals are the source doc's, doubled, so advertised value is preserved — only the
+coin/gem split is new. Starter is deliberately **off-formula** (210 coins/₹, a loss leader
 netting ~₹4) because its job is teaching the gifting loop, not margin. Totals stay
 deliberately awkward so a balance never lands exactly on a gift price.
 
-### Gift catalog — REPRICED for 55 coins/₹ (supersedes the source doc)
+### Gift catalog — priced for 110 coins/₹ (supersedes the source doc)
 
 Gift prices do **not** affect the payout ratio — that is set only by coins-per-₹ in the
 packs. Repricing changes how many gifts a balance buys, nothing else. The ladder below was
@@ -315,29 +325,32 @@ remainder**.
 
 | Tier | Gift | Coins | ≈₹ |
 |---|---|---|---|
-| 1 Impulse | Heart · Rose · Chai · Laddu · Clap | 10 · 45 · 85 · 165 · 250 | 0.18–4.55 |
-| 2 Regular | Perfume · Teddy · Guitar · Cake · Bouquet | 520 · 999 · 1,250 · 1,650 · 2,200 | 9.45–40 |
-| 3 Statement *(full-screen)* | **Scooter** · Fireworks · Motorbike · Diamond ring · Yacht | 3,300 · 4,150 · 6,600 · 9,900 · 15,500 | 60–282 |
-| 4 Flex *(room banner)* | Sports car · Private jet · Castle | 45,000 · 82,500 · 145,000 | 818–2,636 |
-| 5 Global *(all-rooms)* | Rocket · Galaxy | 400,000 · 825,000 | 7,273 · 15,000 |
+| 1 Impulse | Heart · Rose · Chai · Laddu · Clap | 20 · 90 · 170 · 330 · 520 | 0.18–4.73 |
+| 2 Regular | Perfume · Teddy · Guitar · Cake · Bouquet | 999 · 1,998 · 2,500 · 3,300 · 4,400 | 9.08–40 |
+| 3 Statement *(full-screen)* | **Scooter** · Fireworks · Motorbike · Diamond ring · Yacht | 6,600 · 8,300 · 13,200 · 19,800 · 31,000 | 60–282 |
+| 4 Flex *(room banner)* | Sports car · Private jet · Castle | 90,000 · 165,000 · 290,000 | 818–2,636 |
+| 5 Global *(all-rooms)* | Rocket · Galaxy | 800,000 · 1,650,000 | 7,273 · 15,000 |
 
-**Scooter (3,300) is new** — it bridges the Tier 2 → 3 gap the source doc predicts will
+**Scooter (6,600) is new** — it bridges the Tier 2 → 3 gap the source doc predicts will
 break first, and it is the cheapest full-screen gift.
 
 Pack cascades: ₹99 → Fireworks + Guitar + Rose · ₹299 → Yacht + Perfume + 2 Laddu ·
 ₹999 → Sports car + Diamond ring · ₹2,999 → Castle + Yacht + Fireworks ·
 ₹9,999 → Rocket + Castle + Fireworks. Galaxy deliberately needs two whale packs.
 
-**Perfume 520 and Teddy 999 keep their prices** — they echo the sentimental combo
-multipliers. Combo multipliers x1 → x10 → x99 → x520 → x999 are unchanged, single-tap,
-no confirmation dialog.
+**Clap 520 and Perfume 999 carry the combo echo.** x520 and x999 are the two multipliers
+people tap for what they mean, and a ladder where nothing costs 520 or 999 loses that.
+Doubling moved the old pair (Perfume 520, Teddy 999) to 1,040 and 1,998, so the echo was
+re-seated on the two gifts landing nearest — both within 4% of their pure double. Combo
+multipliers x1 → x10 → x99 → x520 → x999 are themselves unchanged, single-tap, no
+confirmation dialog.
 
 **Round-rupee anchors were dropped on Yacht, Castle and Rocket.** With packs at ₹299 /
 ₹2,999 and gifts at ₹300 / ₹3,000, every hero gift landed *exactly ₹1* out of reach —
 which reads as a trick, not aspiration.
 
 **Cosmetics** are priced in Gems, unchanged from the source doc. The +20% conversion bonus
-almost exactly offsets the 55/₹ rate (₹1 → 55 coins → 66 gems vs the original 65), so every
+almost exactly offsets the 110/₹ rate (₹1 → 110 coins → 132 gems vs a face value of 130), so every
 cosmetic still lands within 1.5% of its designed rupee price. Everything expiring — VIP
 monthly tiers ₹100/₹500/₹2,000/₹10,000, plus frames, bubbles, entry effects, nickname
 colour, super message.
@@ -345,10 +358,14 @@ colour, super message.
 **User level** accrues on **purchase**, not on spend — otherwise free coins could be ground
 into levels via daily check-ins. Small deviation from the source doc's wording, same intent.
 
-**Agency commission** on trailing-30-day host earnings: 5% / 8% / 12% / 16% / 20% across
-₹0–50K / 50K–2L / 2L–5L / 5L–15L / 15L+. Recalculated monthly, never retroactive. No
-commission on daily/task/reward earnings. Paid by the platform, never deducted from
-the host.
+**Agency commission comes from a LEVEL, not a fixed band.** Nine levels, each a range of
+team points earned in a period, each carrying a rate from 5% to 20% — the table lives in
+`backend/docs/ledger-decisions.md` and supersedes the five rupee bands that used to sit here.
+The previous period's volume sets this period's rate, so the rate is known before the period
+starts and nothing is ever repriced retroactively. Bands are counted in **points**, which is
+why the ×2 redenomination doubled them too: a rupee band would have moved every agency's
+level the moment a rate was retuned. No commission on daily/task/reward earnings. Paid by
+the platform, never deducted from the host.
 
 ### Corrections to the source docs' arithmetic
 
@@ -357,7 +374,7 @@ Both carried into the financial model — tell the CA:
 1. The ₹1,000 revenue table and the 22–25% blended payout target were both calculated at
    face value (65 coins/₹) and **ignore pack bonuses entirely**. Under the original design
    the real blended payout was ~26–27%, not 23.4%.
-2. Host cost per ₹1,000 is **₹254** at 55 coins/₹, not the ₹300 in the doc. On the web
+2. Host cost per ₹1,000 is **₹254** at 110 coins/₹, not the ₹300 in the doc. On the web
    channel that leaves ~₹501 rather than ₹449.
 
 ---
