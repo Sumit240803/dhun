@@ -188,6 +188,23 @@ in fifty places.
 | **Commission** | See and earn commission on hosts' earnings | Agency (paid), agents (visible only — settled by their agency) |
 | **Coin trading** | Buy coin inventory from the platform and transfer it to users | Granted separately, and the only capability that touches money directly |
 
+Who may add whom:
+
+| Role | Can add agents? | Can add hosts? |
+|---|---|---|
+| **Agency / main agent** | ✅ Yes | ✅ Yes |
+| **Sub-agent** | Generally ❌ | ✅ Yes |
+| **Host** | ❌ | ❌ |
+
+Which is the capability table restated: a sub-agent is an agent **without** agent
+management. "Generally" is why this is a grant per account and not a second role name — an
+agency can hand one trusted sub-agent the ability to recruit agents without inventing a
+tier for them.
+
+**A sub-agent is an org chart, never a payee.** Hard rule #2 holds whatever the tree looks
+like: hosts are paid directly, commission goes to the agency at the top, and the agency
+settles its own sub-agents off-platform out of its own funds.
+
 **Coin trading settles the open question: the coin reseller IS the agency.** One
 application, one approval, one dashboard — not a second programme. The capability is still
 granted on its own, because buying inventory is where fraud and laundering land, and an
