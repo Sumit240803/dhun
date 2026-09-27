@@ -128,6 +128,37 @@ individual hosts and us. It must:
 - assist with host management and payout processing;
 - watch the productivity and performance of its hosts.
 
+### The hierarchy
+
+One agency holds many agents; each agent holds their own hosts.
+
+```
+Agency
+   │
+   ├── Agent 1
+   │     ├── Host
+   │     ├── Host
+   │     └── Host
+   │
+   ├── Agent 2
+   │     ├── Host
+   │     └── Host
+   │
+   └── Agent 3
+         └── Host
+```
+
+Three links, each with `effective_from` / `effective_to` rather than a mutable column, so a
+host who moves between agents mid-month has their earnings split by **gift timestamp** and
+not by wherever they happen to sit on payout day: host→agent, agent→agency, and the
+host→agency link that falls out of the two.
+
+**Money does not follow that tree.** The platform pays each **host** directly, and pays
+commission to the **agency** only — never to an agent, never to a "sub-agent" (hard rule
+#2, ledger-decisions § agency). An agent's cut is settled by their agency, off-platform,
+out of the agency's own funds. What we owe the agency's dashboard is the per-agent
+breakdown that makes that settlement possible.
+
 ### Three places these definitions meet an existing rule
 
 1. **"Assist with payout processing" means paperwork, never money.** Hard rule #2: the
