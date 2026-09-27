@@ -377,6 +377,56 @@ cannot send the coins twice.
 one-directional, from a verified agency's inventory to a user, and there is deliberately no
 route back — a user cannot send coins to an agency, to another user, or to anyone else.
 
+### The payout flow — host, agent, agency
+
+Settled 2026-09-27, and it **overturns one earlier note**: the platform pays each party
+directly — host, sub-agent and agency — rather than paying the agency and leaving it to
+settle its own people. An agency that never handles anyone else's money is further from
+being a payment aggregator, not closer, and each payee is then our own service provider.
+Cost is unchanged: the total is set by the top agency's rate, and the split only decides
+who receives it.
+
+Six things the obvious version of this flow gets wrong:
+
+1. **Tax is a step, not a detail.** Between approval and payment: compute withholding from
+   a rate strategy (section and rate in config, pending the CA), write the net to the bank
+   and the withheld amount to `tds_payable`, and bump a per-payee, per-financial-year total.
+   Crossing the yearly threshold withholds on **everything paid that year so far**, not the
+   excess. Hosts and agencies sit under different sections, so two strategies.
+
+2. **Commission cannot be final at gift time.** Per gift, write only an ATTRIBUTION row —
+   host, agent, agency, eligible earning, gift timestamp, no rate and no money. At period
+   close a job resolves each party's rate and posts **one commission transaction per payee
+   per period**. That is what makes "recalculated monthly, never retroactive" literal, and
+   the attribution row is what survives a host moving between agents. *(If the rate for a
+   period is set by the PREVIOUS period's volume — see the open decision below — the rate is
+   known in advance and no true-up is ever needed.)*
+
+3. **A reversal never edits a closed period.** Every derived record points at its source
+   gift. Period still open: drop the attribution row from the running sum, since no
+   commission exists yet. Period closed and paid: post a negative accrual in the CURRENT
+   period that nets against what the payee is about to earn.
+   *Policy, still to confirm:* an agency keeps commission on a charged-back gift (the
+   platform bears that loss per C23, and the agency did its job) but not on one reversed for
+   fraud or ban forfeiture, where the earning was never real.
+
+4. **Approval is its own state.** One person assembles a batch, a DIFFERENT person approves
+   it, and the database refuses both being the same user. Below a configurable amount,
+   auto-approve so a small host withdrawal does not wait on a human.
+
+5. **Agent↔agency moves need the same dated link as host↔agent.**
+   `agent_agency_assignments(agent, agency, effective_from, effective_to)`. Resolution walks
+   gift timestamp → the host's agent then → that agent's agency then. Two dated lookups, and
+   history is never touched.
+
+6. **A direct host is not a special case.** The agency owner holds an agent row of their own
+   (`agencies.owner_agent_id`), so a host attached "directly to the agency" is simply a host
+   assigned to that agent. Every host has an agent; every agent has an agency.
+
+**Open — how the commission RATE is set.** Fixed bands on trailing earnings (today's
+5/8/12/16/20%) versus a level that an agency holds and carries. Under discussion; nothing is
+built until it lands here.
+
 ## D. Derived values — from the ledger, or separate counters?
 
 | # | Item | Status |
