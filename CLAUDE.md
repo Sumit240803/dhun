@@ -96,6 +96,53 @@ still incurs 20%. The web recharge portal must therefore be **independently disc
 
 ---
 
+## Roles — host, agent, agency
+
+Set by the founder, 2026-09-27. These words are load-bearing: they become role names,
+tables and permissions. `role_assignments` already carries `coin_reseller`; M12 adds the
+rest.
+
+### Host
+
+A user who goes live to show a skill, talk to an audience and complete daily tasks. Hosts
+entertain, engage, and receive virtual gifts bought with real money — the core of the
+revenue model. A host keeps a significant share of the gifts they earn, **up to 70%**, and
+**joins an agency with an Agent ID to start earning officially**.
+
+### Agent
+
+The person who runs and supervises a team of hosts: finding, inviting, onboarding and
+supporting new streamers, helping them be more productive, and keeping them inside the
+platform's rules. An agent earns commission on the **total earnings and productivity of the
+hosts under them**.
+
+### Agency
+
+The organisation an agent creates and manages on the platform — the guild layer between
+individual hosts and us. It must:
+
+- manage and support its roster of hosts;
+- recruit and onboard new hosts;
+- keep its hosts compliant with platform policy;
+- never poach hosts from another agency;
+- assist with host management and payout processing;
+- watch the productivity and performance of its hosts.
+
+### Three places these definitions meet an existing rule
+
+1. **"Assist with payout processing" means paperwork, never money.** Hard rule #2: the
+   platform pays every host directly, and agency commission is paid separately out of
+   platform funds. An agency helping a host finish KYC is support; an agency receiving a
+   host's earnings to pass on is an RBI payment aggregator.
+2. **"Up to 70%" is the advertised dial, not the paid one — and it is not yet decided.**
+   The economy below advertises **60% of the coin count** and pays ~30% in rupees, because a
+   point is worth half a coin. Moving the advertised number to 70% at today's point rate
+   takes the real payout to ~35% and costs about five points of margin. Settle it before
+   any host is told a number.
+3. **"Must join an agency to earn" collides with platform-seeded hosts.** The growth plan
+   has us recruiting the first 30–50 hosts ourselves, months before an agency network
+   exists. Either those hosts sit in an in-house default agency, or they cannot be paid.
+
 ## Economy — as decided (supersedes `economy-design-v1.pdf` where they differ)
 
 The source doc had **one** spendable currency with a paid/bonus split. That was replaced in
