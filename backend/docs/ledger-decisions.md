@@ -456,9 +456,49 @@ A remainder therefore always stays in the balance — someone holding ₹10,500 
 ₹10,000 and keeps ₹500. The screen has to say so plainly, or it reads as money going
 missing.
 
-**Open — how the commission RATE is set.** Fixed bands on trailing earnings (today's
-5/8/12/16/20%) versus a level that an agency holds and carries. Under discussion; nothing is
-built until it lands here.
+**The commission RATE comes from a LEVEL** (founder, 2026-09-27), replacing the five fixed
+bands in CLAUDE.md. A level is a range of points earned, and it carries a rate:
+
+| Level | Team points in the period | ≈ host earnings | Rate |
+|---|---|---|---|
+| 1 | up to 6.5M | up to ₹25,000 | 5.0% |
+| 2 | 6.5M – 13M | ₹25,000 – ₹50,000 | 6.5% |
+| 3 | 13M – 26M | ₹50,000 – ₹1,00,000 | 8.0% |
+| 4 | 26M – 52M | ₹1L – ₹2L | 10.0% |
+| 5 | 52M – 91M | ₹2L – ₹3.5L | 12.0% |
+| 6 | 91M – 130M | ₹3.5L – ₹5L | 13.5% |
+| 7 | 130M – 260M | ₹5L – ₹10L | 15.0% |
+| 8 | 260M – 390M | ₹10L – ₹15L | 17.0% |
+| 9 | 390M and above | ₹15L+ | 20.0% |
+
+Point figures are at **260 points = ₹1**, the rate after the ×2 redenomination. Rates are
+stored in basis points, bands in points, all in `app_config`.
+
+The rules around it:
+
+- **Bands are counted in POINTS, not rupees.** A rupee band would move every agency's level
+  silently the next time the point rate is retuned. The corollary: a retune must rescale the
+  bands with it — doubling the point rate doubles every band, or every agency drops a level
+  overnight for no reason.
+- **The previous period sets this period's rate.** October's team total fixes the rate that
+  applies to every gift in November, so the rate is known before the period starts, every
+  gift is priced the moment it lands, and no true-up or retroactive repricing ever happens
+  (§ G1, and "never retroactive"). The cost is a one-period lag on a breakout month — which
+  also protects a bad one. Shorten the period before ever making it retroactive.
+- **A level may fall, but by at most one step per period.** Rates that only ratchet up are
+  not a ladder; a single bad month that erases a year's progress loses the agency.
+- **A new agency starts at level 1** and has no previous period to be measured on.
+- **An agency's level counts its whole team**, sub-agents and direct hosts alike. A
+  sub-agent's own level counts only their own hosts.
+- **A sub-agent's rate is capped at their agency's.** Team volume normally makes the
+  agency's level the higher of the two automatically; the cap matters in the one case where
+  it does not — the agency slipped a step while the sub-agent climbed one — and without it
+  the agency's differential goes negative and it would owe money on its own team's work.
+- **The rate is shown in the app** on the agency's and the sub-agent's own page, alongside
+  progress towards the level they are currently earning for the next period. With the rate
+  fixed in advance there is a real number to show, and an agency can tell a sub-agent what
+  they will earn without guessing.
+
 
 ## D. Derived values — from the ledger, or separate counters?
 
