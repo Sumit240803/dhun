@@ -159,6 +159,40 @@ commission to the **agency** only — never to an agent, never to a "sub-agent" 
 out of the agency's own funds. What we owe the agency's dashboard is the per-agent
 breakdown that makes that settlement possible.
 
+### Roles and capabilities
+
+```
+User
+ └── Roles
+      ├── Host
+      └── Agent / Agency
+
+Agent / Agency
+ └── Capabilities
+      ├── Host Management
+      ├── Agent Management
+      ├── Commission
+      └── Coin Trading
+```
+
+A person is a **user** first; host and agent/agency are roles they hold on top, and one
+person can hold both. Agent and agency are **the same role wearing different capabilities**
+rather than two role names — an agent manages hosts, an agency also manages agents — which
+keeps the permission model flat and stops "is this an agent or an agency" from being asked
+in fifty places.
+
+| Capability | What it grants | Who normally has it |
+|---|---|---|
+| **Host management** | Recruit, onboard, support and watch a roster of hosts | Every agent |
+| **Agent management** | Add and remove agents, see their rosters | The agency at the top of the tree |
+| **Commission** | See and earn commission on hosts' earnings | Agency (paid), agents (visible only — settled by their agency) |
+| **Coin trading** | Buy coin inventory from the platform and transfer it to users | Granted separately, and the only capability that touches money directly |
+
+**Coin trading settles the open question: the coin reseller IS the agency.** One
+application, one approval, one dashboard — not a second programme. The capability is still
+granted on its own, because buying inventory is where fraud and laundering land, and an
+agency that only manages hosts should not automatically be able to move currency.
+
 ### Three places these definitions meet an existing rule
 
 1. **"Assist with payout processing" means paperwork, never money.** Hard rule #2: the
