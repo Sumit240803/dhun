@@ -423,6 +423,39 @@ Six things the obvious version of this flow gets wrong:
    (`agencies.owner_agent_id`), so a host attached "directly to the agency" is simply a host
    assigned to that agent. Every host has an agent; every agent has an agency.
 
+**Everyone earns POINTS, and withdraws points** (founder, 2026-09-27). Commission is not a
+rupee payable: an agency and a sub-agent hold a point balance exactly as a host does, with
+one Withdraw button and one payout pipeline behind it. This overturns the `paise` commission
+accounts sketched in A4 — `agency_commission_payable` and `expense:agency_commission` stay
+for the rupee side of the payout itself, but the entitlement now lands in points.
+
+Three things that follow:
+
+- **Scoped point accounts for agencies.** `ledger_accounts.scope_type` gains `agency`
+  alongside `user`, `host` and `system`, with `agency:{id}:points_held` /
+  `points_withdrawable` / `points_pending_payout`. `system:point_float` then mirrors host AND
+  agency balances, and reconciliation check E-points covers both.
+- **The unit of the balance does not change the tax.** A payout is still rupees leaving a
+  bank account, and an agency is still supplying us a service — so GST and TDS under 194H
+  apply to the agency's payout, and the host's sits under its own section. The point→rupee
+  conversion is frozen on the payout transaction (§ G1), so a later retune of the point rate
+  never rewrites what was paid.
+- **The minimum and the ladder.**
+
+| | Minimum | Steps |
+|---|---|---|
+| Host | ₹1,000 (≈ $10) | ₹1,000 |
+| Agency / sub-agent | ₹2,000 (≈ $20) | ₹1,000 |
+
+Withdrawals are whole steps only — ₹1,000, ₹2,000, ₹3,000 — never ₹1,250 or ₹3,811. Defined
+in **rupees, not dollars**: the app may display a dollar figure, but a dollar-denominated
+floor drifts with the exchange rate and would quietly move every payout threshold. The
+ladder converts to points exactly at the point rate, so no rounding residue is ever created.
+
+A remainder therefore always stays in the balance — someone holding ₹10,500 withdraws
+₹10,000 and keeps ₹500. The screen has to say so plainly, or it reads as money going
+missing.
+
 **Open — how the commission RATE is set.** Fixed bands on trailing earnings (today's
 5/8/12/16/20%) versus a level that an agency holds and carries. Under discussion; nothing is
 built until it lands here.
