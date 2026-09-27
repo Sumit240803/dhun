@@ -459,20 +459,23 @@ missing.
 **The commission RATE comes from a LEVEL** (founder, 2026-09-27), replacing the five fixed
 bands in CLAUDE.md. A level is a range of points earned, and it carries a rate:
 
-| Level | Team points in the period | ≈ host earnings | Rate |
-|---|---|---|---|
-| 1 | up to 6.5M | up to ₹25,000 | 5.0% |
-| 2 | 6.5M – 13M | ₹25,000 – ₹50,000 | 6.5% |
-| 3 | 13M – 26M | ₹50,000 – ₹1,00,000 | 8.0% |
-| 4 | 26M – 52M | ₹1L – ₹2L | 10.0% |
-| 5 | 52M – 91M | ₹2L – ₹3.5L | 12.0% |
-| 6 | 91M – 130M | ₹3.5L – ₹5L | 13.5% |
-| 7 | 130M – 260M | ₹5L – ₹10L | 15.0% |
-| 8 | 260M – 390M | ₹10L – ₹15L | 17.0% |
-| 9 | 390M and above | ₹15L+ | 20.0% |
+| Level | Team points in the period | Rate |
+|---|---|---|
+| 1 | up to 5,000,000 | 5.0% |
+| 2 | 5M – 10M | 6.5% |
+| 3 | 10M – 25M | 8.0% |
+| 4 | 25M – 50M | 10.0% |
+| 5 | 50M – 100M | 12.0% |
+| 6 | 100M – 150M | 13.5% |
+| 7 | 150M – 250M | 15.0% |
+| 8 | 250M – 400M | 17.0% |
+| 9 | 400M and above | 20.0% |
 
-Point figures are at **260 points = ₹1**, the rate after the ×2 redenomination. Rates are
-stored in basis points, bands in points, all in `app_config`.
+**Points are the only unit here.** The bands were derived from the five rupee tiers they
+replace and then rounded to whole point figures, because points are what an agency is shown
+and what the engine counts — a rupee figure beside them would be a second number to keep in
+step, and it would drift the moment the point rate moved. Rates are stored in basis points,
+bands in points, all in `app_config`.
 
 The rules around it:
 
