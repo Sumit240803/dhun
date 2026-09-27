@@ -377,6 +377,55 @@ cannot send the coins twice.
 one-directional, from a verified agency's inventory to a user, and there is deliberately no
 route back — a user cannot send coins to an agency, to another user, or to anyone else.
 
+### C28 · Points → coins exchange
+
+A host (or agency) turns earned points back into coins to spend on gifts. Decided
+2026-09-27; the competitor surfaces it as "Exchange Points for Coins" beside Withdraw.
+
+**Why it is worth building: it is the cheapest liability we can offer.** Points worth ₹100
+are a ₹100 cash obligation. Exchanged into coins they become coin float, and when those
+coins are gifted only ~30% comes back as a new point obligation. Every ₹100 exchanged
+instead of withdrawn turns a ₹100 cash payout into roughly ₹30 of future liability — and
+the host stays inside the economy instead of taking money out of it.
+
+**Rate.** One point is worth exactly **half a coin** at accounting face value — the same
+invariant that makes an advertised 60% split a real 30% payout. So the neutral exchange is
+`coins = points ÷ 2`, and at that rate the paise legs balance with no gain or loss to book.
+A **bonus is affordable and is a config dial** (`point_to_coin_bonus_bp`, default 0): even
+at +20% the exchange still costs far less than paying the cash.
+
+**Legs** — 1,000 points exchanged at parity into 500 coins (₹3.85 of value at 260 points/₹
+and 130 coin-units/₹):
+
+```
+point   host:{h}:points_withdrawable    −1,000
+        system:point_float              +1,000        → 0 ✓
+
+coin    user:{h}:coins                    +500
+        system:coin_float                 −500        → 0 ✓
+
+paise   liability:points_payable          +385        (cash obligation released)
+        liability:deferred_revenue        −385        (coin float takes its place)
+                                                      → 0 ✓
+```
+
+With a bonus the extra coins are minted the way the coins→gems bonus is: the difference
+goes to a contra-revenue account, never to thin air.
+
+**Rules.**
+
+- **Withdrawable points only.** Held and pending-payout points are inside the risk window —
+  the whole point of the hold is that the earning might still be reversed.
+- **One way, forever.** Coins never become points. The reverse would be a cash-out route
+  around KYC and the hold period, and it would let bought coins be turned into a
+  withdrawable balance — which is money laundering with extra steps.
+- **No TDS at exchange**, because no payment leaves. The income arose when the points were
+  credited; this is the host spending it. Worth one line to the CA, since taking value in
+  kind rather than cash is exactly the sort of thing they will want to have an opinion on.
+- **No new laundering surface.** A round trip destroys value fast — coins gifted return only
+  60% of their count as points, each worth half a coin — so there is nothing to farm, and
+  cash still leaves only through a KYC'd withdrawal.
+
 ### The payout flow — host, agent, agency
 
 Settled 2026-09-27, and it **overturns one earlier note**: the platform pays each party
