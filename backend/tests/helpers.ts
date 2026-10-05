@@ -15,7 +15,7 @@ export async function resetLedger(): Promise<void> {
   await resetRateLimits();
 
   await withTransaction(async (c) => {
-    await c.query('TRUNCATE ledger_entries, outbox, agency_transfers, agency_prepays, ledger_txns CASCADE');
+    await c.query('TRUNCATE ledger_entries, outbox, agency_transfers, agency_prepays, commission_accruals, ledger_txns CASCADE');
     await c.query('DELETE FROM account_balances');
     await c.query('DELETE FROM ledger_accounts WHERE scope_id IS NOT NULL');
     await c.query('DELETE FROM purchases');
@@ -50,6 +50,10 @@ export async function resetLedger(): Promise<void> {
     await c.query('DELETE FROM user_cosmetics');
     await c.query('DELETE FROM agency_quit_requests');
     await c.query('DELETE FROM host_agent_assignments');
+    await c.query('DELETE FROM commission_accruals');
+    await c.query('DELETE FROM commission_attributions');
+    await c.query('DELETE FROM commission_levels');
+    await c.query('DELETE FROM commission_periods');
     await c.query('DELETE FROM agency_status_changes');
     await c.query('DELETE FROM agent_invites');
     await c.query('DELETE FROM agency_join_requests');

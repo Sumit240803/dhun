@@ -505,6 +505,48 @@ Built 2026-10-05. No money moves; these are the links the commission engine will
   earning — they joined an agency, not its conduct). Every change is recorded in
   `agency_status_changes` rather than overwriting the last reason. `closed` is final.
 
+### M12 commission · migration 024
+
+Built 2026-10-05. The engine the levels and the tree were always for.
+
+**One deviation from the design above, deliberate.** The doc writes an attribution row per
+gift; this derives them at period close from `gift_sends` joined to the two dated links by
+gift timestamp. Same record, same audit trail, three gains: the gift hot path is untouched
+(gifting is the one endpoint that must never slow down), an attribution cannot be *missing*
+because it is derived rather than remembered, and a gift reversed while the period is still
+open simply never becomes one — which is what the doc's own reversal rule asks for.
+
+How a period runs:
+
+1. **Opening** writes every payee's rate from the PREVIOUS period's volume, with the
+   one-step-per-period floor applied and recorded (`cushioned`). A new agency starts at D.
+   A sub-agent's rate is capped at their agency's, which matters only when the agency
+   slipped while the sub-agent climbed — without it the agency's differential goes negative
+   and it would owe money on its own team's work.
+2. **Closing** derives the attributions, aggregates per agent and per agency, and posts
+   **one transaction per payee**, keyed `commission:{period}:{type}:{id}` — derived from the
+   close, never a client header, so a resumed close credits once.
+3. **The split:** a sub-agent earns their own hosts at their own rate; the agency earns the
+   differential on those plus the full rate on hosts the owner's seat holds directly. The
+   total is always `team points × the agency's rate`. The owner's seat earns nothing
+   separately — that would pay twice for the same work. There is a test asserting the two
+   halves sum to exactly the agency's rate on the whole team.
+4. **Points land in `_held`.** A chargeback can still arrive after a period closes, which is
+   what the hold window is for. Release to withdrawable is M8's, covering all three account
+   types.
+5. The in-house agency is skipped entirely, and gifts to a host in no agency produce no
+   attribution.
+
+The close job runs **daily at 05:00 IST**, not monthly: a monthly cron that misses its one
+firing leaves a month unpaid until an agency asks. It closes whatever has ended and is still
+open, so a missed day costs nothing. It pages on failure — an unpaid period is a bill the
+platform owes and has not written down. Deliberately not at 03:00 with reconciliation, so
+the night's checks never see a half-written period.
+
+**Still open:** the closed-period half of the reversal rule. A gift reversed AFTER its period
+closed should post a negative accrual in the current period; today it is simply left behind.
+Nothing posts gift reversals yet, so there is no live gap — build it with M8's clawback path.
+
 ### C28 · Points → coins exchange
 
 A host (or agency) turns earned points back into coins to spend on gifts. Decided

@@ -4925,6 +4925,42 @@
               }
             }
           ]
+        },
+        {
+          "name": "My commission",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/commission",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "commission"
+              ]
+            },
+            "description": "What the caller earns. The agency owner sees the AGENCY figures; a sub-agent sees their own.\n\n`current` is **this period's rate, already fixed** — set by the previous period's team total, so it cannot move and can be quoted to a sub-agent today. `earningNow` is the volume building up this period, which sets the NEXT one, and `projected` is the level that volume currently earns.\n\nCommission is credited as POINTS at period close, which the payee withdraws themselves (hard rule #2). Null `current` means the first period has not closed yet — they earn at level D until it does.\n\n**Errors:** `NOT_AN_AGENT` 403 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         }
       ]
     }

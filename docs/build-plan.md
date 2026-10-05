@@ -565,10 +565,21 @@ agency in full (counts, stock, prepay totals, suspension history), suspend/reins
 with a recorded reason, and the transfer audit searchable from either side. App: the roster,
 the invite form and the invitation a prospective agent answers.
 
-**M12 is functionally complete.** What remains is not a feature: there is **no admin web
-app** in this repo — it is backend and mobile only — so every back-office action is an API
-call. Standing up an admin panel is its own decision (framework, hosting, auth) and is not
-scoped here.
+**Built 2026-10-05 — the commission engine (migration 024):** levels fixed a period in
+advance from the previous period's volume, with the one-step floor and the sub-agent cap; the
+period close deriving attributions through the dated links and posting one transaction per
+payee; the agency/sub-agent differential split; a daily close job that pages on failure. App:
+the commission card showing the rate already fixed for this month and the volume setting the
+next. Ledger-decisions § M12 commission.
+
+**M12 is complete.** Two things remain that are not features of it:
+
+- **No admin web app** in this repo — it is backend and mobile only — so every back-office
+  action is an API call. Standing up an admin panel is its own decision (framework, hosting,
+  auth) and is not scoped here.
+- **Commission points cannot be withdrawn yet.** They accrue into `_held` and wait for M8's
+  hold release and payout pipeline, which is blocked on the CA's TDS decision and a
+  RazorpayX account.
 
 **Schema: migration 019** — agencies, agents, the two dated links, host join codes, join
 requests, maker-checker prepays, the append-only transfer log and the `agency` config block;

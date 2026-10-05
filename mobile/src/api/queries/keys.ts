@@ -78,6 +78,7 @@ export const queryKeys = {
     received: () => [...queryKeys.agency.all, 'received'] as const,
     agents: () => [...queryKeys.agency.all, 'agents'] as const,
     agentInvites: () => [...queryKeys.agency.all, 'agent-invites'] as const,
+    commission: () => [...queryKeys.agency.all, 'commission'] as const,
   },
 
   config: {

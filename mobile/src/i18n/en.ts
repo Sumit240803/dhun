@@ -800,6 +800,24 @@ export const en = {
     revokeManage: 'Stop them adding agents',
   },
 
+  commission: {
+    title: 'Commission',
+    thisPeriod: 'This month',
+    level: 'Level {level}',
+    rate: '{rate}% of your team’s earnings',
+    fixedInAdvance: 'Set by last month’s team total, so it will not change.',
+    noLevelYet: 'Your rate is set once your first month closes. Until then you earn at level D.',
+
+    earningTowards: 'Earning towards next month',
+    teamPoints: '{points} points so far',
+    projected: 'At this rate you will be level {level} — {rate}%',
+
+    historyTitle: 'Paid so far',
+    historyEmpty: 'Nothing yet. Commission is paid once a month ends.',
+    historyRow: '{period} · {rate}%',
+    heldNote: 'Commission is paid as points, which you withdraw yourself.',
+  },
+
   agencyErrors: {
     alreadyInAgency: 'You are already in an agency. Leave it before joining another.',
     agentNotFound: 'No active agent has that Agent ID.',

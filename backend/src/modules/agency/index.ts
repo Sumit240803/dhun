@@ -12,6 +12,17 @@ export type { AgencyDetail, AgencySummary, TransferAudit } from './admin.service
 export { listAgents } from './agents.service.js';
 export type { AgentInvite, RosterAgent } from './agents.service.js';
 
+export {
+  bandFor,
+  closePeriod,
+  commissionSummary,
+  istMonth,
+  levelBands,
+  openPeriod,
+  previousMonth,
+} from './commission.service.js';
+export type { CloseResult, CommissionSummary, LevelBand } from './commission.service.js';
+
 export { channelConfig, coinsForPrepay, rateFor } from './coins.service.js';
 export type { ChannelConfig, Inventory, Prepay, Transfer, TransferCaps } from './coins.service.js';
 

@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useProfileSummary } from '@/api/queries/useFeed';
 import { useMyAgency } from '@/api/queries/useAgency';
 import { AgentInviteCard, AgentRoster, InviteAgentCard } from '@/features/agency/AgentRoster';
+import { CommissionCard } from '@/features/agency/CommissionCard';
 import {
   AgentSeatCard,
   CoinStockCard,
@@ -85,6 +86,7 @@ export default function AgencyScreen() {
           {agency.data.seat !== null && (
             <>
               <AgentSeatCard seat={agency.data.seat} />
+              <CommissionCard visible />
               {agency.data.seat.isOwner && <CoinStockCard />}
               <JoinApplications />
               <InviteHostCard />

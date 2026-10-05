@@ -64,6 +64,15 @@ export function useReceivedCoins(enabled: boolean) {
   });
 }
 
+export function useCommission(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.agency.commission(),
+    queryFn: agencyApi.commission,
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
 export function useAgents(enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.agency.agents(),

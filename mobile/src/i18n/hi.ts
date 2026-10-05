@@ -789,6 +789,24 @@ export const hi: Messages = {
     revokeManage: 'एजेंट जोड़ना बंद करें',
   },
 
+  commission: {
+    title: 'कमीशन',
+    thisPeriod: 'इस महीने',
+    level: 'लेवल {level}',
+    rate: 'आपकी टीम की कमाई का {rate}%',
+    fixedInAdvance: 'पिछले महीने के टीम टोटल से तय, इसलिए यह नहीं बदलेगा।',
+    noLevelYet: 'आपका रेट पहला महीना पूरा होने पर तय होगा। तब तक आप लेवल D पर कमाते हैं।',
+
+    earningTowards: 'अगले महीने के लिए कमाई',
+    teamPoints: 'अब तक {points} पॉइंट',
+    projected: 'इसी रफ़्तार से आप लेवल {level} होंगे — {rate}%',
+
+    historyTitle: 'अब तक मिला',
+    historyEmpty: 'अभी कुछ नहीं। कमीशन महीना पूरा होने पर मिलता है।',
+    historyRow: '{period} · {rate}%',
+    heldNote: 'कमीशन पॉइंट में मिलता है, जिसे आप खुद निकालते हैं।',
+  },
+
   agencyErrors: {
     alreadyInAgency: 'आप पहले से एक एजेंसी में हैं। दूसरी जॉइन करने से पहले उसे छोड़ें।',
     agentNotFound: 'इस एजेंट ID का कोई सक्रिय एजेंट नहीं है।',

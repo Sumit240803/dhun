@@ -805,3 +805,13 @@ export interface AgentInvite {
   agency: AgencyRef;
   invited: AgencyPerson & { userId: string };
 }
+
+export interface CommissionSummary {
+  payeeType: 'agency' | 'agent';
+  /** This period's rate, fixed before the period began. */
+  current: { period: string; level: string; rateBp: number; measuredPoints: number } | null;
+  /** Team points so far this period: what sets NEXT period's rate. */
+  earningNow: number;
+  projected: { level: string; rateBp: number } | null;
+  history: { period: string; points: number; basePoints: number; rateBp: number }[];
+}

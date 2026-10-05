@@ -7,6 +7,7 @@ import type {
   AgencyPerson,
   AgentInvite,
   CoinTransfer,
+  CommissionSummary,
   JoinRequest,
   MyAgency,
   QuitRequest,
@@ -47,6 +48,7 @@ export const agencyApi = {
   transfers: () => api.get<{ transfers: CoinTransfer[] }>('agency/transfers?limit=50'),
   received: () => api.get<{ transfers: CoinTransfer[] }>('agency/received?limit=50'),
 
+  commission: () => api.get<CommissionSummary>('agency/commission'),
   agents: () => api.get<{ agents: RosterAgent[] }>('agency/agents'),
   agentHosts: (agentId: string) =>
     api.get<{ hosts: (AgencyPerson & { userId: string })[] }>(`agency/agents/${agentId}/hosts`),

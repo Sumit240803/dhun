@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { AppError } from '../../infra/errors.js';
 import {
   authGuard,
   requireAdult,
@@ -10,6 +11,7 @@ import { rateLimit } from '../../middleware/rateLimit.js';
 import { validate } from '../../middleware/validate.js';
 import { createAgency, setCoinTrading } from './agency.admin.js';
 import { agencyDetail, auditTransfers, listAgencies, setAgencyStatus } from './admin.service.js';
+import { commissionSummary } from './commission.service.js';
 import {
   agencyAgentInvites,
   agentHosts,
@@ -316,6 +318,28 @@ export function buildAgencyRouter(): Router {
   router.get('/received', readLimit, validate({ query: limitQuery }), async (req, res, next) => {
     try {
       res.json({ transfers: await receivedTransfers(req.userId!, Number(req.query.limit ?? 50)) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /**
+   * What the caller earns, and what they are earning towards.
+   *
+   * The owner sees the AGENCY's figures; a sub-agent sees their own. Both get
+   * this period's rate — fixed before the period began, so it is a real number
+   * rather than an estimate — alongside the volume that will set the next one.
+   */
+  router.get('/commission', readLimit, async (req, res, next) => {
+    try {
+      const seat = await agentSeat(req.userId!);
+      if (!seat) throw new AppError('NOT_AN_AGENT', 'Only an agent can see commission', 403);
+      res.json(
+        await commissionSummary(
+          seat.isOwner ? 'agency' : 'agent',
+          seat.isOwner ? seat.agency.id : seat.id,
+        ),
+      );
     } catch (err) {
       next(err);
     }

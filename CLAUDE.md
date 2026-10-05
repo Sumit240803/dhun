@@ -386,7 +386,8 @@ into levels via daily check-ins. Small deviation from the source doc's wording, 
 (founder, 2026-09-28). Each level is a range of team points earned in a period — the table
 lives in `backend/docs/ledger-decisions.md` and in `app_config.commission_levels`.
 The previous period's volume sets this period's rate, so the rate is known before the period
-starts and nothing is ever repriced retroactively. Bands are counted in **points**, which is
+starts and nothing is ever repriced retroactively — built in migration 024, and a level falls
+by at most one step a period. Bands are counted in **points**, which is
 why the ×2 redenomination doubled them too: a rupee band would have moved every agency's
 level the moment a rate was retuned. No commission on daily/task/reward earnings. Credited
 by the platform **as points** — to the agency owner too — never deducted from the host, and
@@ -550,7 +551,7 @@ external accounts (CA + RazorpayX, Hive) and neither is skipped.
 | **Gifting** | `POST /v1/gifts/send`: one ledger transaction per tap whatever the combo, registered 18+ only, `Idempotency-Key` required. Recipient is the host or anyone seated; self-gifts, off-stage recipients, blocks, bans, ended rooms and a price the user never saw are refused. Published to the room on commit. Each send writes a `gift_sends` row inside the ledger's own transaction, which the room leaderboard reads. |
 | **Cosmetics** | Frames, chat bubbles, nickname colours and entry effects, bought with GEMS only. Time stacks onto an active item; buying equips; one worn per kind; expiry evaluated on read. Ownership and a purchase record are written inside the ledger's transaction. A `look` rides on seats, chat lines, gift senders and profiles; entry effects are announced over the gateway. Styles are validated light/dark data. |
 | **Discovery & daily hooks** | Welcome bonus, 7-day check-in ladder, watch reward measured by the gateway, referrals paid on a friend's first ₹99+ purchase — all ordinary coins, all once-only by a claim-derived ledger key, all in `app_config.free_coins`. Search by name prefix or public ID. Followed-host-is-live push via Expo, driven by a `room_started` outbox event, capped and cooled down. Cold-start dials in `app_config.cold_start`. |
-| **Workers** | `npm run worker`. Outbox shipper (LISTEN/NOTIFY + 2s poll floor) that also runs consumers (referral payouts, live notifications), nightly reconciliation at 03:00 IST with 12 checks and zero tolerance, the daily `spend_mix` measure at 03:30, five retention purges. Advisory-lock job locking. |
+| **Workers** | `npm run worker`. Outbox shipper (LISTEN/NOTIFY + 2s poll floor) that also runs consumers (referral payouts, live notifications), nightly reconciliation at 03:00 IST with 12 checks and zero tolerance, the daily `spend_mix` measure at 03:30, the agency membership sweep every 15 minutes, the commission period close at 05:00 IST, five retention purges. Advisory-lock job locking. |
 | **Security** | Rate limiting by IP/device/user, security headers, CORS allowlist, 18+ gate on every money endpoint, strict validation of body/query/params, sanitised client errors. |
 
 **Invariants worth never breaking:**
