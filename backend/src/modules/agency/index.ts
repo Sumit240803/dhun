@@ -6,6 +6,9 @@
 
 export { buildAgencyAdminRouter, buildAgencyRouter } from './agency.routes.js';
 
+export { channelConfig, coinsForPrepay, rateFor } from './coins.service.js';
+export type { ChannelConfig, Inventory, Prepay, Transfer, TransferCaps } from './coins.service.js';
+
 export {
   agentSeat,
   autoLeaveOverdue,

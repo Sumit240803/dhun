@@ -286,15 +286,17 @@ Two paths reach a user's coin balance, and most users take the second.
 
 | Path | Who really uses it | Money reaches us | Built |
 |---|---|---|---|
-| **Direct top-up** — IAP, web gateway, (crypto: open) | **Agencies buying inventory**, at a ₹10,000 floor. A retail user buying a ₹99 pack in the app is the Play-billing path and stays | Directly, up front | Packs yes, agency prepay M12 |
-| **Agency resale** | Almost every user. Pays the agency by UPI/Paytm/bank **off-platform**, receives coins in-app | Earlier, when the agency prepaid | M12 |
+| **Direct top-up** — IAP, web gateway, (crypto: open) | **Agencies buying inventory**, at a ₹10,000 floor. A retail user buying a ₹99 pack in the app is the Play-billing path and stays | Directly, up front | ✅ both |
+| **Agency resale** | Almost every user. Pays the agency by UPI/Paytm/bank **off-platform**, receives coins in-app | Earlier, when the agency prepaid | ✅ transfer; listings and messaging still to come |
 
 The platform's spread is taken once, at wholesale. The agency's margin is whatever it
 charges above that. Revenue is still recognised only when a coin is **spent**, so a transfer
 from an agency to a user moves no money on our books (ledger-decisions § C3/C4).
 
-**Wholesale rate — OPEN, and it sets the payout ratio.** Payout ratio is `coins per ₹ ÷
-433.4`, so the wholesale rate does to the agency channel what the pack rate does to retail:
+**Wholesale rate — 124 / 132 / 140 coins per ₹ in volume tiers** (₹10,000 / ₹50,000 /
+₹2,00,000+), live in `app_config.agency.wholesaleTiers` since migration 019. It sets the
+payout ratio on agency-channel coins exactly as the pack rate does on retail — `coins per ₹
+÷ 433.4`:
 
 | Wholesale rate | Agency margin reselling at 110/₹ | Our payout ratio on those coins |
 |---|---|---|
@@ -303,10 +305,9 @@ from an agency to a user moves no money on our books (ledger-decisions § C3/C4)
 | 140 coins/₹ | 27% | 32.3% |
 | ~176 coins/₹ *(an earlier note, not a decision)* | 60% | **40.6% — do not** |
 
-Recommended: **124 / 132 / 140 coins per ₹ in volume tiers** (₹10,000 / ₹50,000 / ₹2,00,000+),
-config-driven like every other rate. It keeps the blended payout near the 30% the model
-assumes while leaving an agency a real margin for collecting small payments and doing the
-support that comes with them.
+It keeps the blended payout near the 30% the model assumes while leaving an agency a real
+margin for collecting small payments and doing the support that comes with them. Retune it
+in config, never in code.
 
 ### Coin packs
 

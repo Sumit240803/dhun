@@ -1,7 +1,14 @@
 // Agency membership — the M12 surface. No money moves through any of these.
 
 import { api } from '@/api/client';
-import type { AgencyMembership, JoinRequest, MyAgency, QuitRequest } from '@/api/types';
+import type {
+  AgencyInventory,
+  AgencyMembership,
+  CoinTransfer,
+  JoinRequest,
+  MyAgency,
+  QuitRequest,
+} from '@/api/types';
 
 export const agencyApi = {
   me: () => api.get<MyAgency>('agency/me'),
@@ -29,4 +36,11 @@ export const agencyApi = {
     api.post<{ request: QuitRequest }>(`agency/quit-requests/${id}/approve`, {}),
   rejectQuit: (id: string) =>
     api.post<{ request: QuitRequest }>(`agency/quit-requests/${id}/reject`, {}),
+
+  inventory: () => api.get<AgencyInventory>('agency/inventory'),
+  // requestId is the idempotency: the same one retried moves the coins once.
+  transfer: (body: { userId: number; coins: number; requestId: string; note?: string }) =>
+    api.post<{ transfer: CoinTransfer }>('agency/transfers', body),
+  transfers: () => api.get<{ transfers: CoinTransfer[] }>('agency/transfers?limit=50'),
+  received: () => api.get<{ transfers: CoinTransfer[] }>('agency/received?limit=50'),
 };

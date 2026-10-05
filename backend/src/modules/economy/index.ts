@@ -34,6 +34,8 @@ export type { CoinPack, Gift, Cosmetic } from './catalog.service.js';
 
 export {
   purchaseLegs,
+  resellerPrepayLegs,
+  agencyTransferLegs,
   giftLegs,
   cosmeticPurchaseLegs,
   conversionLegs,

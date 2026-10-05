@@ -8,7 +8,17 @@ import {
 } from '../../middleware/authGuard.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { validate } from '../../middleware/validate.js';
-import { createAgency } from './agency.admin.js';
+import { createAgency, setCoinTrading } from './agency.admin.js';
+import {
+  agencyTransfers,
+  confirmPrepay,
+  inventory,
+  listPrepays,
+  receivedTransfers,
+  recordPrepay,
+  rejectPrepay,
+  transfer,
+} from './coins.service.js';
 import {
   agentSeat,
   answerRequest,
@@ -29,6 +39,7 @@ import {
 const publicId = z.number().int().min(1).max(99_999_999);
 const message = z.string().trim().min(1).max(300).optional();
 const idParam = { params: z.object({ id: z.string().uuid() }).strict() };
+const limitQuery = z.object({ limit: z.coerce.number().int().min(1).max(100).optional() }).strict();
 
 export function buildAgencyRouter(): Router {
   const router = Router();
@@ -227,6 +238,70 @@ export function buildAgencyRouter(): Router {
     },
   );
 
+  // ── Coin trading ──────────────────────────────────────────────────────────
+  //
+  // Owner only, and only with the coin-trading grant. requireAdult, because
+  // these move money like every other money endpoint.
+
+  router.get('/inventory', requireAdult(), readLimit, async (req, res, next) => {
+    try {
+      res.json(await inventory(req.userId!));
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post(
+    '/transfers',
+    requireAdult(),
+    // Deliberately tighter than the other writes: this is the one endpoint in
+    // the module that moves currency.
+    rateLimit({ scope: 'agency:transfer', limit: 60, windowMs: 60_000, by: 'user' }),
+    validate(
+      z
+        .object({
+          userId: publicId,
+          coins: z.number().int().min(1).max(100_000_000),
+          // Generated once per transfer by the client; a retry reuses it and
+          // the ledger collapses the duplicate.
+          requestId: z.string().uuid(),
+          note: z.string().trim().min(1).max(140).optional(),
+        })
+        .strict(),
+    ),
+    async (req, res, next) => {
+      try {
+        res.status(201).json({
+          transfer: await transfer(req.userId!, {
+            recipientPublicId: req.body.userId,
+            coins: req.body.coins,
+            requestId: req.body.requestId,
+            note: req.body.note,
+          }),
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  router.get('/transfers', readLimit, validate({ query: limitQuery }), async (req, res, next) => {
+    try {
+      res.json({ transfers: await agencyTransfers(req.userId!, Number(req.query.limit ?? 50)) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /** The user's own side of the record — coins they were sent, and by whom. */
+  router.get('/received', readLimit, validate({ query: limitQuery }), async (req, res, next) => {
+    try {
+      res.json({ transfers: await receivedTransfers(req.userId!, Number(req.query.limit ?? 50)) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   return router;
 }
 
@@ -235,14 +310,16 @@ export function buildAgencyAdminRouter(): Router {
   const router = Router();
   router.use(authGuard(), requireStaff(['super_admin', 'ops_manager']));
 
+  const adminWriteLimit = rateLimit({
+    scope: 'admin:agency:write',
+    limit: 120,
+    windowMs: 3_600_000,
+    by: 'user',
+  });
+
   router.post(
     '/',
-    rateLimit({
-      scope: 'admin:agency:create',
-      limit: 30,
-      windowMs: 3_600_000,
-      by: 'user',
-    }),
+    adminWriteLimit,
     validate(
       z
         .object({
@@ -262,6 +339,118 @@ export function buildAgencyAdminRouter(): Router {
           isHouse: req.body.isHouse,
         });
         res.status(201).json({ agency: seat.agency, ownerSeat: seat });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  /**
+   * The coin-trading grant, on its own.
+   *
+   * Separate from creating the agency because buying inventory is where fraud
+   * and laundering land: an agency that only manages hosts should never be
+   * able to move currency by default.
+   */
+  router.post(
+    '/:id/coin-trading',
+    adminWriteLimit,
+    validate({
+      params: z.object({ id: z.string().uuid() }).strict(),
+      body: z.object({ enabled: z.boolean() }).strict(),
+    }),
+    async (req, res, next) => {
+      try {
+        res.json({
+          agency: await setCoinTrading(req.userId!, req.params.id, req.body.enabled),
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  // ── Prepay, maker-checker ─────────────────────────────────────────────────
+
+  router.post(
+    '/prepays',
+    adminWriteLimit,
+    validate(
+      z
+        .object({
+          agencyId: publicId,
+          amountPaise: z.number().int().min(1).max(10_000_000_000),
+          method: z.enum(['bank_transfer', 'upi', 'gateway']),
+          paymentReference: z.string().trim().min(4).max(64),
+        })
+        .strict(),
+    ),
+    async (req, res, next) => {
+      try {
+        res.status(201).json({
+          prepay: await recordPrepay(req.userId!, {
+            agencyPublicId: req.body.agencyId,
+            amountPaise: req.body.amountPaise,
+            method: req.body.method,
+            paymentReference: req.body.paymentReference,
+          }),
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  router.get(
+    '/prepays',
+    validate({
+      query: z
+        .object({
+          status: z.enum(['pending', 'confirmed', 'rejected']).optional(),
+          limit: z.coerce.number().int().min(1).max(200).optional(),
+        })
+        .strict(),
+    }),
+    async (req, res, next) => {
+      try {
+        res.json({
+          prepays: await listPrepays({
+            status: req.query.status as 'pending' | 'confirmed' | 'rejected' | undefined,
+            limit: Number(req.query.limit ?? 50),
+          }),
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  /** The checker. The database refuses the admin who recorded it. */
+  router.post(
+    '/prepays/:id/confirm',
+    adminWriteLimit,
+    validate(idParam),
+    async (req, res, next) => {
+      try {
+        res.json({ prepay: await confirmPrepay(req.userId!, req.params.id) });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  router.post(
+    '/prepays/:id/reject',
+    adminWriteLimit,
+    validate({
+      params: z.object({ id: z.string().uuid() }).strict(),
+      body: z.object({ reason: z.string().trim().min(1).max(500) }).strict(),
+    }),
+    async (req, res, next) => {
+      try {
+        res.json({
+          prepay: await rejectPrepay(req.userId!, req.params.id, req.body.reason),
+        });
       } catch (err) {
         next(err);
       }

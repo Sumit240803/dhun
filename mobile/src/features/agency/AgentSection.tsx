@@ -1,4 +1,6 @@
+import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -6,6 +8,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
   useAnswerRequest,
   useDecideQuit,
+  useInventory,
   useInviteHost,
   useJoinRequests,
   useQuitRequests,
@@ -14,8 +17,10 @@ import type { AgentSeat } from '@/api/types';
 import { useTranslation } from '@/i18n';
 import { errorMessage, fieldError } from '@/lib/errors';
 import { haptic } from '@/lib/haptics';
+import { formatCoins } from '@/lib/money';
+import { coins as asCoins } from '@/lib/units';
 import { colors, radius, spacing } from '@/theme';
-import { Banner, Button, Card, Column, Divider, Input, Row, Skeleton, Text } from '@/ui';
+import { Banner, Button, Card, Column, Divider, Input, ListItem, Row, Skeleton, Text } from '@/ui';
 
 import { formatDay, personName } from './format';
 
@@ -62,6 +67,41 @@ export function AgentSeatCard({ seat }: { seat: AgentSeat }) {
         </Column>
       </Card>
     </Animated.View>
+  );
+}
+
+/**
+ * The way through to coin trading.
+ *
+ * Shown to every owner, including one without the grant: the screen behind it
+ * explains why there is nothing there, which beats hiding the feature and
+ * leaving them to wonder whether we have it at all.
+ */
+export function CoinStockCard() {
+  const { t } = useTranslation();
+  const inventory = useInventory(true);
+  const enabled = inventory.data !== undefined;
+
+  return (
+    <Card padded={false}>
+      <ListItem
+        title={t('agencyCoins.inventoryTitle')}
+        subtitle={
+          enabled
+            ? formatCoins(asCoins(inventory.data.coins))
+            : inventory.isError
+              ? t('agencyCoins.notTradingTitle')
+              : undefined
+        }
+        left={<Ionicons name="server-outline" size={20} color={colors.currency.coin} />}
+        right={<Ionicons name="chevron-forward" size={18} color={colors.text.faint} />}
+        onPress={() => {
+          haptic.selection();
+          router.push('/(app)/agency/coins');
+        }}
+        testID="coin-stock-row"
+      />
+    </Card>
   );
 }
 

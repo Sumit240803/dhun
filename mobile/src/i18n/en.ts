@@ -730,6 +730,39 @@ export const en = {
     reject: 'Decline',
   },
 
+  agencyCoins: {
+    inventoryTitle: 'Coin stock',
+    inventoryBody: 'Coins you have bought from Dhun and can sell on.',
+    notEnoughStock: 'You do not have that many coins in stock.',
+    newAgencyCaps: 'New agency limits apply for your first 30 days.',
+    usedToday: '{coins} sent today in {count} transfers',
+    perTransfer: 'Up to {coins} per transfer',
+
+    transferTitle: 'Send coins',
+    transferBody:
+      'Send coins to a user who has already paid you. Check their User ID before you send — this cannot be undone.',
+    recipientLabel: 'User ID',
+    coinsLabel: 'Coins',
+    noteLabel: 'Note (optional)',
+    noteHelper: 'Both of you will see this on the receipt.',
+    send: 'Send coins',
+    confirmTitle: 'Send {coins}?',
+    confirmBody: 'To User ID {id}. Coins cannot be taken back once sent.',
+    confirmSend: 'Yes, send',
+    cancel: 'Cancel',
+    sent: 'Sent {coins} to {id}',
+
+    historyTitle: 'Transfers sent',
+    historyEmpty: 'You have not sent any coins yet.',
+    receivedTitle: 'Coins received',
+    receivedEmpty: 'No agency has sent you coins.',
+    receivedFrom: 'From {agency}',
+    sentTo: 'To {name} · ID {id}',
+
+    notTradingTitle: 'Coin trading is not switched on',
+    notTradingBody: 'Your agency can manage hosts. To buy and sell coins, contact Dhun support.',
+  },
+
   agencyErrors: {
     alreadyInAgency: 'You are already in an agency. Leave it before joining another.',
     agentNotFound: 'No active agent has that Agent ID.',
@@ -745,6 +778,9 @@ export const en = {
     quitCooldown: 'You applied to leave recently. Try again later.',
     notOwner: 'Only the agency owner can decide this.',
     decisionClosed: 'This application can no longer be changed.',
+    recipientNotFound: 'No active account has that User ID.',
+    transferToSelf: 'You cannot send coins to yourself.',
+    coinTradingDisabled: 'Your agency is not approved for coin trading.',
   },
 
   legal: {

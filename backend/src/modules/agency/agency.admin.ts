@@ -7,7 +7,7 @@
 import { uuidv7 } from 'uuidv7';
 import { pool, withTransaction } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
-import { agentSeat, type AgentSeat } from './agency.service.js';
+import { agentSeat, type AgencyRef, type AgentSeat } from './agency.service.js';
 
 export interface CreateAgencyInput {
   ownerPublicId: number;
@@ -15,6 +15,35 @@ export interface CreateAgencyInput {
   contactEmail?: string;
   /** The single in-house agency for platform-seeded hosts. Earns no commission. */
   isHouse?: boolean;
+}
+
+/**
+ * Grant or withdraw coin trading.
+ *
+ * Withdrawing it stops new transfers at once; it does not touch inventory the
+ * agency has already paid for, which is theirs and is settled off-platform if
+ * the relationship ends.
+ */
+export async function setCoinTrading(
+  adminUserId: string,
+  agencyId: string,
+  enabled: boolean,
+): Promise<AgencyRef> {
+  const { rows } = await pool.query(
+    `UPDATE agencies
+        SET coin_trading_enabled_at = CASE WHEN $2 THEN now() END,
+            coin_trading_enabled_by = CASE WHEN $2 THEN $3::uuid END
+      WHERE id = $1
+      RETURNING id, public_id, name, is_house`,
+    [agencyId, enabled, adminUserId],
+  );
+  if (!rows[0]) throw new AppError('AGENCY_NOT_FOUND', 'That agency does not exist', 404);
+  return {
+    id: rows[0].id,
+    publicId: Number(rows[0].public_id),
+    name: rows[0].name,
+    isHouse: rows[0].is_house,
+  };
 }
 
 export async function createAgency(

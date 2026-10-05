@@ -6,6 +6,7 @@ import { useProfileSummary } from '@/api/queries/useFeed';
 import { useMyAgency } from '@/api/queries/useAgency';
 import {
   AgentSeatCard,
+  CoinStockCard,
   InviteHostCard,
   JoinApplications,
   QuitApplications,
@@ -15,6 +16,7 @@ import {
   HostRequests,
   JoinCard,
   MembershipCard,
+  ReceivedCoinsCard,
 } from '@/features/agency/HostSection';
 import { useTranslation } from '@/i18n';
 import { errorMessage } from '@/lib/errors';
@@ -78,11 +80,14 @@ export default function AgencyScreen() {
           {agency.data.seat !== null && (
             <>
               <AgentSeatCard seat={agency.data.seat} />
+              {agency.data.seat.isOwner && <CoinStockCard />}
               <JoinApplications />
               <InviteHostCard />
               {agency.data.seat.isOwner && <QuitApplications />}
             </>
           )}
+
+          <ReceivedCoinsCard />
 
           {agency.data.membership !== null ? (
             <MembershipCard

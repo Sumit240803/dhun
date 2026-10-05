@@ -718,6 +718,40 @@ export const hi: Messages = {
     reject: 'मना करें',
   },
 
+  agencyCoins: {
+    inventoryTitle: 'कॉइन स्टॉक',
+    inventoryBody: 'वे कॉइन जो आपने Dhun से खरीदे हैं और आगे बेच सकते हैं।',
+    notEnoughStock: 'आपके स्टॉक में इतने कॉइन नहीं हैं।',
+    newAgencyCaps: 'आपके पहले 30 दिनों तक नई एजेंसी की लिमिट लागू रहेगी।',
+    usedToday: 'आज {count} ट्रांसफ़र में {coins} भेजे',
+    perTransfer: 'एक ट्रांसफ़र में ज़्यादा से ज़्यादा {coins}',
+
+    transferTitle: 'कॉइन भेजें',
+    transferBody:
+      'उस यूज़र को कॉइन भेजें जिसने आपको पैसे दे दिए हैं। भेजने से पहले उनकी यूज़र ID जाँच लें — इसे वापस नहीं लिया जा सकता।',
+    recipientLabel: 'यूज़र ID',
+    coinsLabel: 'कॉइन',
+    noteLabel: 'नोट (ज़रूरी नहीं)',
+    noteHelper: 'यह आप दोनों को रसीद पर दिखेगा।',
+    send: 'कॉइन भेजें',
+    confirmTitle: '{coins} भेजें?',
+    confirmBody: 'यूज़र ID {id} को। भेजे गए कॉइन वापस नहीं लिए जा सकते।',
+    confirmSend: 'हाँ, भेजें',
+    cancel: 'रद्द करें',
+    sent: '{id} को {coins} भेजे',
+
+    historyTitle: 'भेजे गए ट्रांसफ़र',
+    historyEmpty: 'आपने अभी तक कोई कॉइन नहीं भेजे।',
+    receivedTitle: 'मिले हुए कॉइन',
+    receivedEmpty: 'किसी एजेंसी ने आपको कॉइन नहीं भेजे हैं।',
+    receivedFrom: '{agency} से',
+    sentTo: '{name} को · ID {id}',
+
+    notTradingTitle: 'कॉइन ट्रेडिंग चालू नहीं है',
+    notTradingBody:
+      'आपकी एजेंसी होस्ट मैनेज कर सकती है। कॉइन ख़रीदने और बेचने के लिए Dhun सपोर्ट से संपर्क करें।',
+  },
+
   agencyErrors: {
     alreadyInAgency: 'आप पहले से एक एजेंसी में हैं। दूसरी जॉइन करने से पहले उसे छोड़ें।',
     agentNotFound: 'इस एजेंट ID का कोई सक्रिय एजेंट नहीं है।',
@@ -733,6 +767,9 @@ export const hi: Messages = {
     quitCooldown: 'आपने हाल ही में छोड़ने का आवेदन किया था। बाद में फिर कोशिश करें।',
     notOwner: 'यह फ़ैसला सिर्फ़ एजेंसी मालिक कर सकते हैं।',
     decisionClosed: 'इस आवेदन को अब बदला नहीं जा सकता।',
+    recipientNotFound: 'इस यूज़र ID का कोई चालू अकाउंट नहीं है।',
+    transferToSelf: 'आप अपने आप को कॉइन नहीं भेज सकते।',
+    coinTradingDisabled: 'आपकी एजेंसी कॉइन ट्रेडिंग के लिए अप्रूव्ड नहीं है।',
   },
 
   legal: {

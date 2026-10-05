@@ -532,8 +532,25 @@ steps. Points→coins exchange at **parity** (value-neutral, no bonus) to launch
 
 **Built 2026-10-05 — membership slice:** admin agency creation, both join routes, the Host
 Code, the full quit flow with owner decisions and the auto-leave sweep (backend, Postman,
-tests), and the app's My Agency screen for host, agent and owner. **Not yet:** adding
-sub-agents, prepay and transfers, listings, user↔agency messaging, the admin UI.
+tests), and the app's My Agency screen for host, agent and owner.
+
+**Built 2026-10-05 — coin channel:** the coin-trading grant; prepay under maker-checker
+(the database refuses the admin who recorded it) minting into `agency:{id}:inventory` at the
+124/132/140 wholesale tiers; agency→user transfer with per-transfer, per-recipient and
+per-agency IST-daily caps, reduced for an agency's first 30 days; the append-only transfer
+log read from both ends; migration 021 switching both txn types live. App: the agency
+owner's coin stock, a confirm-then-send transfer sheet, transfers sent, and the user's own
+record of coins received. Ledger-decisions § M12 coin channel.
+
+**Exit criteria met:** an agency prepays and its inventory matches the rupees to the paisa ·
+a transfer moves coins with no revenue booked and the float still reconciles · an agency
+cannot transfer coins it has not bought · every transfer is auditable from both sides.
+**Not met yet:** a user cannot find an agency by price or message it — that needs listings
+and user↔agency threads.
+
+**Not yet:** agency listings and the public list, user↔agency messaging, adding sub-agents,
+the admin UI (the API is the admin surface for now), and reconciliation checks for the
+agency channel.
 
 **Schema: migration 019** — agencies, agents, the two dated links, host join codes, join
 requests, maker-checker prepays, the append-only transfer log, listings and the `agency`

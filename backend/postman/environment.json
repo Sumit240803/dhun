@@ -187,6 +187,24 @@
       "value": "",
       "type": "default",
       "enabled": true
+    },
+    {
+      "key": "agencyId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "prepayId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "transferId",
+      "value": "",
+      "type": "default",
+      "enabled": true
     }
   ],
   "_postman_variable_scope": "environment"

@@ -61,6 +61,63 @@ export function purchaseLegs(p: {
 }
 
 /**
+ * Agency prepay — coins bought wholesale, paid for up front (§ C3).
+ *
+ * The same shape as a pack purchase with two differences: the coins land in the
+ * agency's inventory account rather than a user's balance, and there are no
+ * gems — an agency resells coins, and gems would be dead stock.
+ *
+ * The discount leg is SIGNED, and at the recommended wholesale rates it is
+ * negative. A pack hands over more face value than it collects (110 coins/₹
+ * against a 130/₹ accounting rate), but wholesale is the other way round: at
+ * 124 coins/₹ the agency pays ₹1 for coins worth ₹0.95 of face, so the leg
+ * books a PREMIUM rather than a discount. Either direction keeps every coin
+ * worth exactly 1/130 of a rupee, which is the invariant that matters.
+ *
+ * Never on credit (hard rule #3). These legs are posted by the CONFIRMATION of
+ * a payment received, never by the recording of one.
+ */
+export function resellerPrepayLegs(p: {
+  agencyId: string;
+  coins: number;
+  cashPaise: number;
+}): Leg[] {
+  const faceValuePaise = unitsToPaise(p.coins);
+
+  return nonZero([
+    { accountCode: 'agency_inventory', scopeId: p.agencyId, unit: 'coin', amount: p.coins },
+    { accountCode: 'system_coin_float', unit: 'coin', amount: -p.coins },
+
+    { accountCode: 'cash_reseller', unit: 'paise', amount: p.cashPaise },
+    { accountCode: 'discount_reseller', unit: 'paise', amount: faceValuePaise - p.cashPaise },
+    { accountCode: 'deferred_revenue', unit: 'paise', amount: -faceValuePaise },
+  ]);
+}
+
+/**
+ * Agency → user coin transfer (§ C4). Two legs, coins only.
+ *
+ * The user paid the agency OFF-PLATFORM, and our books never see that money —
+ * which is precisely what keeps us a distributor rather than a payment
+ * aggregator. The rupees were booked as deferred revenue when the agency
+ * prepaid, and become revenue when the user eventually SPENDS the coins, exactly
+ * like every other coin. A paise leg here would count them twice.
+ *
+ * Pay-first needs no check of its own: `agency_inventory` is non-negative, so
+ * the same code path that stops a user overdrafting stops an agency selling
+ * coins it has not bought.
+ *
+ * One direction only. There is no reverse of this function, and there must
+ * never be one — hard rule #7.
+ */
+export function agencyTransferLegs(p: { agencyId: string; userId: string; coins: number }): Leg[] {
+  return nonZero([
+    { accountCode: 'agency_inventory', scopeId: p.agencyId, unit: 'coin', amount: -p.coins },
+    { accountCode: 'user_coins', scopeId: p.userId, unit: 'coin', amount: p.coins },
+  ]);
+}
+
+/**
  * Gift sent to a host — eight legs across all three books.
  *
  * This is where "coin float is a liability, revenue is recognised on spend"

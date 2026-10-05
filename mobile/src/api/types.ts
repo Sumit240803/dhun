@@ -130,6 +130,15 @@ export const ApiErrorCode = {
   NOT_AGENCY_OWNER: 'NOT_AGENCY_OWNER',
   QUIT_DECISION_CLOSED: 'QUIT_DECISION_CLOSED',
 
+  // agency coin channel
+  /** 402. The agency has not bought that many coins. */
+  TRANSFER_TOO_LARGE: 'TRANSFER_TOO_LARGE',
+  TRANSFER_DAILY_LIMIT: 'TRANSFER_DAILY_LIMIT',
+  RECIPIENT_DAILY_LIMIT: 'RECIPIENT_DAILY_LIMIT',
+  RECIPIENT_NOT_FOUND: 'RECIPIENT_NOT_FOUND',
+  TRANSFER_TO_SELF: 'TRANSFER_TO_SELF',
+  COIN_TRADING_DISABLED: 'COIN_TRADING_DISABLED',
+
   // cosmetics
   COSMETIC_NOT_FOUND: 'COSMETIC_NOT_FOUND',
   /** Repriced while the store was open. Refetch; nothing was charged. */
@@ -737,4 +746,29 @@ export interface JoinRequest {
   host: AgencyPerson & { userId: string };
   agent: AgencyPerson & { id: string };
   agency: AgencyRef;
+}
+
+export interface TransferCaps {
+  perTransferMaxCoins: number;
+  perRecipientDailyCoins: number;
+  perAgencyDailyCoins: number;
+  perAgencyDailyCount: number;
+}
+
+export interface AgencyInventory {
+  agency: { id: string; publicId: number; name: string };
+  coins: number;
+  coinTradingEnabled: boolean;
+  caps: TransferCaps;
+  isNewAgency: boolean;
+  usedToday: { coins: number; count: number };
+}
+
+export interface CoinTransfer {
+  id: string;
+  coins: number;
+  note: string | null;
+  createdAt: string;
+  agency: { id: string; publicId: number; name: string };
+  recipient: { userId: string; publicId: number; displayName: string | null };
 }

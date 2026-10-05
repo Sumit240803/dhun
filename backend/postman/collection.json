@@ -2469,6 +2469,224 @@
               }
             }
           ]
+        },
+        {
+          "name": "Grant coin trading",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/admin/agencies/{{agencyId}}/coin-trading",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "admin",
+                "agencies",
+                "{{agencyId}}",
+                "coin-trading"
+              ]
+            },
+            "description": "Granted separately from creating the agency, because buying inventory is where fraud and laundering land. Withdrawing it (`enabled: false`) stops new transfers at once and leaves the inventory alone.\n\n**Errors:** `AGENCY_NOT_FOUND` 404 · `VALIDATION_FAILED` 422 · `NOT_FOUND` 404 (not staff)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Record a prepay (maker)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/admin/agencies/prepays",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "admin",
+                "agencies",
+                "prepays"
+              ]
+            },
+            "description": "Records that money arrived. **Mints nothing** — only the confirmation does. The wholesale rate (124 / 132 / 140 coins per ₹ by size) and the coin count are frozen here, so a tier retune before confirmation cannot change what the agency was quoted. One bank reference can only be recorded once per method.\n\n**Errors:** `AGENCY_NOT_FOUND` 404 · `COIN_TRADING_DISABLED` 409 · `PREPAY_TOO_SMALL` 422 · `PREPAY_REFERENCE_USED` 409 · `VALIDATION_FAILED` 422 · `NOT_FOUND` 404 (not staff)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agencyId\": 700001,\n  \"amountPaise\": 10000000,\n  \"method\": \"bank_transfer\",\n  \"paymentReference\": \"UTR123456789012\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('prepayId', pm.response.json().prepay.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Prepays",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/admin/agencies/prepays?status=pending&limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "admin",
+                "agencies",
+                "prepays?status=pending&limit=50"
+              ]
+            },
+            "description": "The confirmation queue. `status` is optional.\n\n**Errors:** `VALIDATION_FAILED` 422 · `NOT_FOUND` 404 (not staff)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Confirm a prepay (checker)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/admin/agencies/prepays/{{prepayId}}/confirm",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "admin",
+                "agencies",
+                "prepays",
+                "{{prepayId}}",
+                "confirm"
+              ]
+            },
+            "description": "Mints the coins into the agency's inventory. **The database refuses the admin who recorded it** — maker-checker is a constraint, not a policy. Never on credit (hard rule #3). The ledger key is derived from the prepay, so a raced or retried confirmation can only ever mint once.\n\n**Errors:** `PREPAY_NOT_FOUND` 404 · `PREPAY_DECIDED` 409 · `CONSTRAINT_VIOLATION` 422 (maker = checker) · `TXN_TYPE_INACTIVE` 503 · `NOT_FOUND` 404 (not staff)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject a prepay",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/admin/agencies/prepays/{{prepayId}}/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "admin",
+                "agencies",
+                "prepays",
+                "{{prepayId}}",
+                "reject"
+              ]
+            },
+            "description": "A decided prepay is final either way — correcting one is a compensating transaction, never an edit.\n\n**Errors:** `PREPAY_NOT_FOUND` 404 · `PREPAY_DECIDED` 409 · `VALIDATION_FAILED` 422 · `NOT_FOUND` 404 (not staff)",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"No matching credit in the statement\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -4021,6 +4239,160 @@
               ]
             },
             "description": "The host stays and cannot apply again for 30 days from their application.\n\n**Errors:** `NOT_AGENCY_OWNER` 403 · `REQUEST_NOT_FOUND` 404 · `QUIT_DECISION_CLOSED` 409 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Coin inventory",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/inventory",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "inventory"
+              ]
+            },
+            "description": "The agency's coin stock, its current transfer caps, and what it has already moved today (IST). Owner only, and only with the coin-trading grant. `isNewAgency` is true while the reduced opening-window caps apply.\n\n**Errors:** `NOT_AGENCY_OWNER` 403 · `COIN_TRADING_DISABLED` 403 · `DOB_REQUIRED` 403 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Transfer coins to a user",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/transfers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "transfers"
+              ]
+            },
+            "description": "Moves coins from the agency's inventory to a user. Coins only — the rupees were booked when the agency prepaid, and the user paid the agency OFF-PLATFORM, which our books never see. One direction only (hard rule #7).\n\n`requestId` is generated once per transfer by the client, so a retry over a dropped connection cannot send twice. An agency cannot send coins it has not bought: the inventory account is non-negative (hard rule #3).\n\n**Errors:** `INSUFFICIENT_BALANCE` 402 · `TRANSFER_TOO_LARGE` 422 · `TRANSFER_DAILY_LIMIT` 429 · `RECIPIENT_DAILY_LIMIT` 429 · `RECIPIENT_NOT_FOUND` 404 · `TRANSFER_TO_SELF` 400 · `NOT_AGENCY_OWNER` 403 · `COIN_TRADING_DISABLED` 403 · `TXN_TYPE_INACTIVE` 503 · `VALIDATION_FAILED` 422 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 10000002,\n  \"coins\": 11000,\n  \"requestId\": \"{{$guid}}\",\n  \"note\": \"UPI received\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('transferId', pm.response.json().transfer.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Transfers sent",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/transfers?limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "transfers?limit=50"
+              ]
+            },
+            "description": "The agency's side of the permanent record.\n\n**Errors:** `NOT_AGENCY_OWNER` 403 · `COIN_TRADING_DISABLED` 403 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Coins received",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/received?limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "received?limit=50"
+              ]
+            },
+            "description": "The user's own side of the same record — coins they were sent, and by which agency.\n\n**Errors:** `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
           },
           "response": [],
           "event": [

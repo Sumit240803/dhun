@@ -73,6 +73,9 @@ export const queryKeys = {
     hostCode: () => [...queryKeys.agency.all, 'host-code'] as const,
     requests: () => [...queryKeys.agency.all, 'requests'] as const,
     quitRequests: () => [...queryKeys.agency.all, 'quit-requests'] as const,
+    inventory: () => [...queryKeys.agency.all, 'inventory'] as const,
+    transfers: () => [...queryKeys.agency.all, 'transfers'] as const,
+    received: () => [...queryKeys.agency.all, 'received'] as const,
   },
 
   config: {

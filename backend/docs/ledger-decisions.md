@@ -441,6 +441,35 @@ to the agent and agency the host was with at that moment.
 (`app_config.agency.newAgency`) — fraud and laundering cluster in a new agency's first weeks.
 Enforced when the transfer service is built.
 
+### M12 coin channel · migration 021
+
+Built 2026-10-05, to the leg structure in C3/C4 above. What the code adds to it:
+
+- **The prepay's ledger key is `prepay:{id}`**, derived from the record, never a client
+  header — the same reasoning as a purchase keying off its receipt. A raced or retried
+  confirmation therefore mints once; the test fires four at a time and asserts one credit.
+- **The transfer's key is `transfer:{agency}:{request_id}`**, with `UNIQUE (agency_id,
+  request_id)` on `agency_transfers` behind it, so neither layer is the only thing holding
+  that guarantee.
+- **The discount leg is SIGNED, and at our wholesale rates it is a premium.** A pack hands
+  over more face value than it collects (110 coins/₹ against the 130/₹ accounting rate);
+  wholesale is the other way (124 coins/₹), so `discount_reseller` is credited rather than
+  debited. Either direction keeps every coin worth exactly 1/130 of a rupee, which is the
+  invariant that matters.
+- **Caps are read inside the posting transaction**, under the same row lock the balance
+  check takes, so two simultaneous transfers cannot both pass the last one. They are
+  counted per **IST** day — a cap resetting at 05:30 is not the cap anyone agreed to.
+- **Coin trading is a grant per agency** (`agencies.coin_trading_enabled_at`), operated by
+  the **owner only**. Withdrawing it stops new transfers at once and leaves the inventory
+  alone: those coins were paid for and are the agency's.
+- **Both txn types are now `is_active = true`.** That column remains the money-layer kill
+  switch — set either false and the flow stops platform-wide, atomically, with no deploy.
+
+Still open: the **reconciliation checks do not yet cover the agency channel**. E3 (coin
+float) holds structurally because inventory is inside it, but there is no check asserting
+that confirmed prepays equal coins minted, or that `cash_reseller` equals the sum of
+confirmed prepay amounts. Add both with the commission engine.
+
 ### C28 · Points → coins exchange
 
 A host (or agency) turns earned points back into coins to spend on gifts. Decided

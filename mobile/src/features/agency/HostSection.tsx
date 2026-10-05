@@ -10,6 +10,7 @@ import {
   useHostCode,
   useJoinAgent,
   useJoinRequests,
+  useReceivedCoins,
   useRotateHostCode,
 } from '@/api/queries/useAgency';
 import type { AgencyMembership, QuitRequest } from '@/api/types';
@@ -26,9 +27,11 @@ import {
   Divider,
   Input,
   Row,
+  Skeleton,
   Text,
   type SheetHandle,
 } from '@/ui';
+import { TransferRow } from '@/features/agency/TransferRow';
 
 import { formatDay, personName } from './format';
 import { QuitSheet } from './QuitSheet';
@@ -239,6 +242,39 @@ export function HostCodeCard({ userPublicId }: { userPublicId: string | undefine
             size="sm"
           />
         </Row>
+      </Column>
+    </Card>
+  );
+}
+
+/**
+ * Coins an agency has sent this user.
+ *
+ * Their half of a record neither side can edit — which is the only thing we
+ * can offer someone who paid an agency off-platform, and so is worth showing
+ * even when it is empty of anything but an explanation.
+ */
+export function ReceivedCoinsCard() {
+  const { t, locale } = useTranslation();
+  const received = useReceivedCoins(true);
+  if (received.data !== undefined && received.data.length === 0) return null;
+
+  return (
+    <Card>
+      <Column gap="md">
+        <Text variant="heading">{t('agencyCoins.receivedTitle')}</Text>
+        {received.isError ? (
+          <Banner message={errorMessage(received.error)} onRetry={() => void received.refetch()} />
+        ) : received.data === undefined ? (
+          <Skeleton height={44} rounding="md" />
+        ) : (
+          received.data.map((transfer, i) => (
+            <Column key={transfer.id} gap="sm">
+              {i > 0 && <Divider />}
+              <TransferRow transfer={transfer} locale={locale} outgoing={false} />
+            </Column>
+          ))
+        )}
       </Column>
     </Card>
   );

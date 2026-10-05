@@ -187,16 +187,18 @@ describe('agency ledger wiring', () => {
     );
   });
 
-  it('books an agency transfer in coins only, and keeps both off until the service ships', async () => {
+  it('books an agency transfer in coins only, and has both live now the service ships', async () => {
     const { rows } = await pool.query(
       "SELECT code, units_touched, is_active FROM ledger_txn_types WHERE code IN ('purchase_reseller', 'reseller_prepay') ORDER BY code",
     );
+    // Switched on by migration 021. is_active stays the money-layer kill
+    // switch: either one set false stops that flow platform-wide, no deploy.
     expect(rows).toEqual([
-      { code: 'purchase_reseller', units_touched: ['coin'], is_active: false },
+      { code: 'purchase_reseller', units_touched: ['coin'], is_active: true },
       {
         code: 'reseller_prepay',
         units_touched: ['coin', 'paise'],
-        is_active: false,
+        is_active: true,
       },
     ]);
   });

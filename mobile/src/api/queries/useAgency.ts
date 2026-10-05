@@ -38,6 +38,32 @@ function useAgencyMutation<A, R>(fn: (arg: A) => Promise<R>) {
   });
 }
 
+export function useInventory(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.agency.inventory(),
+    queryFn: agencyApi.inventory,
+    enabled,
+    // Stock and the day's usage both move with every transfer.
+    staleTime: 10_000,
+  });
+}
+
+export function useAgencyTransfers(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.agency.transfers(),
+    queryFn: async () => (await agencyApi.transfers()).transfers,
+    enabled,
+  });
+}
+
+export function useReceivedCoins(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.agency.received(),
+    queryFn: async () => (await agencyApi.received()).transfers,
+    enabled,
+  });
+}
+
 export const useJoinAgent = () => useAgencyMutation(agencyApi.join);
 export const useInviteHost = () =>
   useAgencyMutation((v: { userId: number; hostCode: string }) =>
@@ -50,6 +76,18 @@ export const useAnswerRequest = () =>
   );
 export const useCancelRequest = () => useAgencyMutation(agencyApi.cancel);
 export const useQuitAgency = () => useAgencyMutation(agencyApi.quit);
+/** A transfer moves coins, so the wallet is stale as well as the agency views. */
+export function useTransferCoins() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: agencyApi.transfer,
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.agency.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.wallet.all });
+    },
+  });
+}
+
 export const useDecideQuit = () =>
   useAgencyMutation((v: { id: string; approve: boolean }) =>
     v.approve ? agencyApi.approveQuit(v.id) : agencyApi.rejectQuit(v.id),

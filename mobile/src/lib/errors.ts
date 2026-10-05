@@ -96,6 +96,11 @@ const codeMessages: Partial<Record<string, MessageKey>> = {
   [ApiErrorCode.QUIT_COOLDOWN]: 'agencyErrors.quitCooldown',
   [ApiErrorCode.NOT_AGENCY_OWNER]: 'agencyErrors.notOwner',
   [ApiErrorCode.QUIT_DECISION_CLOSED]: 'agencyErrors.decisionClosed',
+  // TRANSFER_TOO_LARGE and the two daily limits are deliberately absent: the
+  // transfer screen has the cap to hand and says which one was hit.
+  [ApiErrorCode.RECIPIENT_NOT_FOUND]: 'agencyErrors.recipientNotFound',
+  [ApiErrorCode.TRANSFER_TO_SELF]: 'agencyErrors.transferToSelf',
+  [ApiErrorCode.COIN_TRADING_DISABLED]: 'agencyErrors.coinTradingDisabled',
 };
 
 /** The sentence to show. Never the raw `error.message` for an unknown code. */
