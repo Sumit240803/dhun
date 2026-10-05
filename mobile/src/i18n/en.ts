@@ -763,6 +763,43 @@ export const en = {
     notTradingBody: 'Your agency can manage hosts. To buy and sell coins, contact Dhun support.',
   },
 
+  agents: {
+    title: 'Agents',
+    meSubtitle: '{count} in your agency',
+    rosterTitle: 'Your agents',
+    owner: 'Owner',
+    canManage: 'Can add agents',
+    hostCount: '{count} hosts',
+    noHosts: 'No hosts yet',
+    agentId: 'Agent ID {id}',
+
+    inviteTitle: 'Invite an agent',
+    inviteBody:
+      'They run their own team of hosts and earn commission on it. Nothing happens until they accept.',
+    userIdLabel: 'User ID',
+    canManageLabel: 'Let them add agents too',
+    sendInvite: 'Send invitation',
+    inviteSent: 'Invitation sent.',
+    pendingTitle: 'Waiting to accept',
+    withdraw: 'Withdraw',
+
+    myInviteTitle: 'You have been invited',
+    myInviteBody: '{agency} wants you to run a team of hosts as an agent.',
+    myInviteManage: 'You would also be able to add agents.',
+    accept: 'Accept',
+    decline: 'Decline',
+
+    manage: 'Manage',
+    removeTitle: 'Remove {name}?',
+    removeBody: 'Their {count} hosts move to you. Nobody leaves the agency.',
+    removeBodyNoHosts: 'They hold no hosts right now.',
+    remove: 'Remove from agency',
+    removed: 'Removed. {count} hosts moved to you.',
+    cancel: 'Cancel',
+    grantManage: 'Let them add agents',
+    revokeManage: 'Stop them adding agents',
+  },
+
   agencyErrors: {
     alreadyInAgency: 'You are already in an agency. Leave it before joining another.',
     agentNotFound: 'No active agent has that Agent ID.',
@@ -781,6 +818,14 @@ export const en = {
     recipientNotFound: 'No active account has that User ID.',
     transferToSelf: 'You cannot send coins to yourself.',
     coinTradingDisabled: 'Your agency is not approved for coin trading.',
+    cannotManageAgents: 'You cannot add or remove agents.',
+    userNotFound: 'No active account has that User ID.',
+    alreadyAnAgent: 'That person already holds an agent seat.',
+    userIsHost: 'They are a host and must leave their agency first.',
+    invitePending: 'They already have an invitation waiting.',
+    inviteClosed: 'That invitation is no longer open.',
+    agentNotInAgency: 'That agent is not in your agency.',
+    cannotRemoveOwner: 'The agency owner cannot be removed.',
   },
 
   legal: {

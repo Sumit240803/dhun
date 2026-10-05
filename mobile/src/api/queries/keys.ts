@@ -76,6 +76,8 @@ export const queryKeys = {
     inventory: () => [...queryKeys.agency.all, 'inventory'] as const,
     transfers: () => [...queryKeys.agency.all, 'transfers'] as const,
     received: () => [...queryKeys.agency.all, 'received'] as const,
+    agents: () => [...queryKeys.agency.all, 'agents'] as const,
+    agentInvites: () => [...queryKeys.agency.all, 'agent-invites'] as const,
   },
 
   config: {

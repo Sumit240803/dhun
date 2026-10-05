@@ -2687,6 +2687,164 @@
               }
             }
           ]
+        },
+        {
+          "name": "Agencies",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/admin/agencies?status=active&limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "admin",
+                "agencies?status=active&limit=50"
+              ]
+            },
+            "description": "The back-office list, with agent and host counts and current coin stock. `q` searches name, Agency ID or owner User ID.\n\n**Errors:** `NOT_FOUND` 404 (not staff) · `VALIDATION_FAILED` 422"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('agencyId', pm.response.json().agencies[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "One agency in full",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/admin/agencies/{{agencyId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "admin",
+                "agencies",
+                "{{agencyId}}"
+              ]
+            },
+            "description": "Owner, counts, stock, prepay totals, coins transferred, and the suspension history.\n\n**Errors:** `AGENCY_NOT_FOUND` 404 · `NOT_FOUND` 404 (not staff) · `VALIDATION_FAILED` 422"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Suspend or reinstate an agency",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/admin/agencies/{{agencyId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "admin",
+                "agencies",
+                "{{agencyId}}",
+                "status"
+              ]
+            },
+            "description": "Blunt on purpose: a suspended agency loses coin trading, host recruitment and agent management in one move, immediately.\n\n**What it does not touch:** the inventory coins, which the agency paid for and which are settled off-platform; and its hosts, who keep earning — they joined an agency, not its conduct.\n\nEach change is recorded rather than overwritten. `closed` is final.\n\n**Errors:** `AGENCY_NOT_FOUND` 404 · `STATUS_UNCHANGED` 409 · `AGENCY_CLOSED` 409 · `NOT_FOUND` 404 (not staff) · `VALIDATION_FAILED` 422",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"suspended\",\n  \"reason\": \"Payment complaints from three users\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Transfer audit",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/admin/agencies/transfers?userId=10000002&limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "admin",
+                "agencies",
+                "transfers?userId=10000002&limit=50"
+              ]
+            },
+            "description": "Somebody paid an agency off-platform and says the coins never arrived. We never saw that payment, so what the agency did or did not send is the only thing we can establish. Filter by `agencyId`, `userId`, or neither.\n\n**Errors:** `NOT_FOUND` 404 (not staff) · `VALIDATION_FAILED` 422"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -4393,6 +4551,367 @@
               ]
             },
             "description": "The user's own side of the same record — coins they were sent, and by which agency.\n\n**Errors:** `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agents in my agency",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/agents",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "agents"
+              ]
+            },
+            "description": "The roster, owner first, each with the number of hosts they currently hold. Needs agent management — the owner, or a sub-agent granted it.\n\n**Errors:** `CANNOT_MANAGE_AGENTS` 403 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('subAgentId', pm.response.json().agents.slice(-1)[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Agent invitations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/agents/invites",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "agents",
+                "invites"
+              ]
+            },
+            "description": "`mine` is what the caller has been offered; `sent` is what their agency has outstanding (empty unless they manage agents).\n\n**Errors:** `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invite an agent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/agents/invites",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "agents",
+                "invites"
+              ]
+            },
+            "description": "Offers someone an agent seat. **Nothing exists until they accept** — a sub-agent earns commission points and withdraws directly, so nobody is enrolled into an earning relationship by someone else filling in a form.\n\nBy User ID alone, with no Host Code: a mistaken agent invite reaches a stranger who sees an offer to run a team for an agency they have never heard of, and declines.\n\n**Errors:** `CANNOT_MANAGE_AGENTS` 403 · `USER_NOT_FOUND` 404 · `ALREADY_AN_AGENT` 409 · `USER_IS_HOST` 409 · `INVITE_ALREADY_PENDING` 409 · `VALIDATION_FAILED` 422 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 10000003,\n  \"canManageAgents\": false,\n  \"message\": \"Run the Bhojpuri team\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('agentInviteId', pm.response.json().invite.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Accept an agent invitation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/agents/invites/{{agentInviteId}}/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "agents",
+                "invites",
+                "{{agentInviteId}}",
+                "accept"
+              ]
+            },
+            "description": "Only by the person invited; anyone else gets `INVITE_NOT_FOUND`. Accepting cancels every other agency's offer. Someone who was removed from an agency before keeps their original Agent ID.\n\n**Errors:** `INVITE_NOT_FOUND` 404 · `INVITE_CLOSED` 409 · `ALREADY_AN_AGENT` 409 · `USER_IS_HOST` 409 · `AGENCY_UNAVAILABLE` 409 · `DOB_REQUIRED` 403 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Decline an agent invitation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/agents/invites/{{agentInviteId}}/decline",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "agents",
+                "invites",
+                "{{agentInviteId}}",
+                "decline"
+              ]
+            },
+            "description": "**Errors:** `INVITE_NOT_FOUND` 404 · `INVITE_CLOSED` 409 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Withdraw an agent invitation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/agents/invites/{{agentInviteId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "agents",
+                "invites",
+                "{{agentInviteId}}",
+                "cancel"
+              ]
+            },
+            "description": "By the agency that sent it.\n\n**Errors:** `CANNOT_MANAGE_AGENTS` 403 · `INVITE_NOT_FOUND` 404 · `INVITE_CLOSED` 409 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "An agent's hosts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/agents/{{subAgentId}}/hosts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "agents",
+                "{{subAgentId}}",
+                "hosts"
+              ]
+            },
+            "description": "Who this agent currently holds — the question asked immediately before removing them.\n\n**Errors:** `CANNOT_MANAGE_AGENTS` 403 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove an agent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/agents/{{subAgentId}}/remove",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "agents",
+                "{{subAgentId}}",
+                "remove"
+              ]
+            },
+            "description": "Closes their seat and **moves their hosts to the agency owner**. The hosts joined an agency, not a person, and dropping them would stop their earnings through no act of their own. Returns `hostsMoved`.\n\nThe old dated link is closed rather than deleted, so a host moved on the 14th has the first half of the month still attributed to the agent who actually held them.\n\n**Errors:** `CANNOT_MANAGE_AGENTS` 403 · `AGENT_NOT_IN_AGENCY` 404 · `CANNOT_REMOVE_OWNER` 409 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Grant or withdraw agent management",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/agents/{{subAgentId}}/management",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "agents",
+                "{{subAgentId}}",
+                "management"
+              ]
+            },
+            "description": "Owner only. This grant is what separates a main agent from a sub-agent — it is per account, not a second role, so one trusted sub-agent can recruit agents without inventing a tier.\n\n**Errors:** `NOT_AGENCY_OWNER` 403 · `CANNOT_MANAGE_AGENTS` 403 · `AGENT_NOT_IN_AGENCY` 404 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"canManageAgents\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           },
           "response": [],
           "event": [

@@ -101,6 +101,15 @@ const codeMessages: Partial<Record<string, MessageKey>> = {
   [ApiErrorCode.RECIPIENT_NOT_FOUND]: 'agencyErrors.recipientNotFound',
   [ApiErrorCode.TRANSFER_TO_SELF]: 'agencyErrors.transferToSelf',
   [ApiErrorCode.COIN_TRADING_DISABLED]: 'agencyErrors.coinTradingDisabled',
+  [ApiErrorCode.CANNOT_MANAGE_AGENTS]: 'agencyErrors.cannotManageAgents',
+  [ApiErrorCode.USER_NOT_FOUND]: 'agencyErrors.userNotFound',
+  [ApiErrorCode.ALREADY_AN_AGENT]: 'agencyErrors.alreadyAnAgent',
+  [ApiErrorCode.USER_IS_HOST]: 'agencyErrors.userIsHost',
+  [ApiErrorCode.INVITE_ALREADY_PENDING]: 'agencyErrors.invitePending',
+  [ApiErrorCode.INVITE_NOT_FOUND]: 'agencyErrors.inviteClosed',
+  [ApiErrorCode.INVITE_CLOSED]: 'agencyErrors.inviteClosed',
+  [ApiErrorCode.AGENT_NOT_IN_AGENCY]: 'agencyErrors.agentNotInAgency',
+  [ApiErrorCode.CANNOT_REMOVE_OWNER]: 'agencyErrors.cannotRemoveOwner',
 };
 
 /** The sentence to show. Never the raw `error.message` for an unknown code. */

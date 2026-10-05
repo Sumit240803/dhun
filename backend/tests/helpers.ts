@@ -50,6 +50,8 @@ export async function resetLedger(): Promise<void> {
     await c.query('DELETE FROM user_cosmetics');
     await c.query('DELETE FROM agency_quit_requests');
     await c.query('DELETE FROM host_agent_assignments');
+    await c.query('DELETE FROM agency_status_changes');
+    await c.query('DELETE FROM agent_invites');
     await c.query('DELETE FROM agency_join_requests');
     await c.query('DELETE FROM host_join_codes');
     await c.query('DELETE FROM agent_agency_assignments');

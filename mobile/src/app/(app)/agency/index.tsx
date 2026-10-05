@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useProfileSummary } from '@/api/queries/useFeed';
 import { useMyAgency } from '@/api/queries/useAgency';
+import { AgentInviteCard, AgentRoster, InviteAgentCard } from '@/features/agency/AgentRoster';
 import {
   AgentSeatCard,
   CoinStockCard,
@@ -77,12 +78,18 @@ export default function AgencyScreen() {
         </Column>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          {/* An offer to become an agent reaches someone who is not in the
+              agency yet, so it sits above everything else. */}
+          <AgentInviteCard />
+
           {agency.data.seat !== null && (
             <>
               <AgentSeatCard seat={agency.data.seat} />
               {agency.data.seat.isOwner && <CoinStockCard />}
               <JoinApplications />
               <InviteHostCard />
+              <AgentRoster canManage={agency.data.seat.canManageAgents} />
+              <InviteAgentCard canManage={agency.data.seat.canManageAgents} />
               {agency.data.seat.isOwner && <QuitApplications />}
             </>
           )}

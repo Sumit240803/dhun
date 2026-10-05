@@ -64,6 +64,34 @@ export function useReceivedCoins(enabled: boolean) {
   });
 }
 
+export function useAgents(enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.agency.agents(),
+    queryFn: async () => (await agencyApi.agents()).agents,
+    enabled,
+  });
+}
+
+export function useAgentInvites(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.agency.agentInvites(),
+    queryFn: agencyApi.agentInvites,
+    enabled,
+  });
+}
+
+export const useInviteAgent = () => useAgencyMutation(agencyApi.inviteAgent);
+export const useAnswerAgentInvite = () =>
+  useAgencyMutation((v: { id: string; accept: boolean }) =>
+    agencyApi.answerAgentInvite(v.id, v.accept),
+  );
+export const useCancelAgentInvite = () => useAgencyMutation(agencyApi.cancelAgentInvite);
+export const useRemoveAgent = () => useAgencyMutation(agencyApi.removeAgent);
+export const useSetAgentManagement = () =>
+  useAgencyMutation((v: { id: string; canManageAgents: boolean }) =>
+    agencyApi.setAgentManagement(v.id, v.canManageAgents),
+  );
+
 export const useJoinAgent = () => useAgencyMutation(agencyApi.join);
 export const useInviteHost = () =>
   useAgencyMutation((v: { userId: number; hostCode: string }) =>

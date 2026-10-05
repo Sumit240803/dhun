@@ -6,6 +6,12 @@
 
 export { buildAgencyAdminRouter, buildAgencyRouter } from './agency.routes.js';
 
+export { agencyDetail, listAgencies } from './admin.service.js';
+export type { AgencyDetail, AgencySummary, TransferAudit } from './admin.service.js';
+
+export { listAgents } from './agents.service.js';
+export type { AgentInvite, RosterAgent } from './agents.service.js';
+
 export { channelConfig, coinsForPrepay, rateFor } from './coins.service.js';
 export type { ChannelConfig, Inventory, Prepay, Transfer, TransferCaps } from './coins.service.js';
 

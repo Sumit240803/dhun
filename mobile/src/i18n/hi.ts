@@ -752,6 +752,43 @@ export const hi: Messages = {
       'आपकी एजेंसी होस्ट मैनेज कर सकती है। कॉइन ख़रीदने और बेचने के लिए Dhun सपोर्ट से संपर्क करें।',
   },
 
+  agents: {
+    title: 'एजेंट',
+    meSubtitle: 'आपकी एजेंसी में {count}',
+    rosterTitle: 'आपके एजेंट',
+    owner: 'मालिक',
+    canManage: 'एजेंट जोड़ सकते हैं',
+    hostCount: '{count} होस्ट',
+    noHosts: 'अभी कोई होस्ट नहीं',
+    agentId: 'एजेंट ID {id}',
+
+    inviteTitle: 'एजेंट को इनवाइट करें',
+    inviteBody:
+      'वे अपनी होस्ट टीम चलाते हैं और उस पर कमीशन कमाते हैं। उनके स्वीकार करने तक कुछ नहीं होगा।',
+    userIdLabel: 'यूज़र ID',
+    canManageLabel: 'उन्हें भी एजेंट जोड़ने दें',
+    sendInvite: 'इनविटेशन भेजें',
+    inviteSent: 'इनविटेशन भेज दिया गया।',
+    pendingTitle: 'स्वीकार करने का इंतज़ार',
+    withdraw: 'वापस लें',
+
+    myInviteTitle: 'आपको इनवाइट किया गया है',
+    myInviteBody: '{agency} चाहती है कि आप एजेंट बनकर होस्ट की एक टीम चलाएँ।',
+    myInviteManage: 'आप एजेंट भी जोड़ सकेंगे।',
+    accept: 'स्वीकार करें',
+    decline: 'मना करें',
+
+    manage: 'मैनेज करें',
+    removeTitle: '{name} को हटाएँ?',
+    removeBody: 'उनके {count} होस्ट आपके पास आ जाएँगे। कोई एजेंसी नहीं छोड़ेगा।',
+    removeBodyNoHosts: 'उनके पास अभी कोई होस्ट नहीं है।',
+    remove: 'एजेंसी से हटाएँ',
+    removed: 'हटा दिया गया। {count} होस्ट आपके पास आ गए।',
+    cancel: 'रद्द करें',
+    grantManage: 'उन्हें एजेंट जोड़ने दें',
+    revokeManage: 'एजेंट जोड़ना बंद करें',
+  },
+
   agencyErrors: {
     alreadyInAgency: 'आप पहले से एक एजेंसी में हैं। दूसरी जॉइन करने से पहले उसे छोड़ें।',
     agentNotFound: 'इस एजेंट ID का कोई सक्रिय एजेंट नहीं है।',
@@ -770,6 +807,14 @@ export const hi: Messages = {
     recipientNotFound: 'इस यूज़र ID का कोई चालू अकाउंट नहीं है।',
     transferToSelf: 'आप अपने आप को कॉइन नहीं भेज सकते।',
     coinTradingDisabled: 'आपकी एजेंसी कॉइन ट्रेडिंग के लिए अप्रूव्ड नहीं है।',
+    cannotManageAgents: 'आप एजेंट नहीं जोड़ या हटा सकते।',
+    userNotFound: 'इस यूज़र ID का कोई चालू अकाउंट नहीं है।',
+    alreadyAnAgent: 'यह व्यक्ति पहले से एजेंट है।',
+    userIsHost: 'वे होस्ट हैं और उन्हें पहले अपनी एजेंसी छोड़नी होगी।',
+    invitePending: 'उनके पास पहले से एक इनविटेशन इंतज़ार में है।',
+    inviteClosed: 'यह इनविटेशन अब खुला नहीं है।',
+    agentNotInAgency: 'यह एजेंट आपकी एजेंसी में नहीं है।',
+    cannotRemoveOwner: 'एजेंसी मालिक को हटाया नहीं जा सकता।',
   },
 
   legal: {

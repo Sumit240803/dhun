@@ -139,6 +139,17 @@ export const ApiErrorCode = {
   TRANSFER_TO_SELF: 'TRANSFER_TO_SELF',
   COIN_TRADING_DISABLED: 'COIN_TRADING_DISABLED',
 
+  // agents
+  CANNOT_MANAGE_AGENTS: 'CANNOT_MANAGE_AGENTS',
+  USER_NOT_FOUND: 'USER_NOT_FOUND',
+  ALREADY_AN_AGENT: 'ALREADY_AN_AGENT',
+  USER_IS_HOST: 'USER_IS_HOST',
+  INVITE_ALREADY_PENDING: 'INVITE_ALREADY_PENDING',
+  INVITE_NOT_FOUND: 'INVITE_NOT_FOUND',
+  INVITE_CLOSED: 'INVITE_CLOSED',
+  AGENT_NOT_IN_AGENCY: 'AGENT_NOT_IN_AGENCY',
+  CANNOT_REMOVE_OWNER: 'CANNOT_REMOVE_OWNER',
+
   // cosmetics
   COSMETIC_NOT_FOUND: 'COSMETIC_NOT_FOUND',
   /** Repriced while the store was open. Refetch; nothing was charged. */
@@ -771,4 +782,26 @@ export interface CoinTransfer {
   createdAt: string;
   agency: { id: string; publicId: number; name: string };
   recipient: { userId: string; publicId: number; displayName: string | null };
+}
+
+export interface RosterAgent {
+  id: string;
+  publicId: number;
+  userId: string;
+  displayName: string | null;
+  canManageAgents: boolean;
+  isOwner: boolean;
+  joinedAt: string;
+  hostCount: number;
+}
+
+export interface AgentInvite {
+  id: string;
+  status: string;
+  canManageAgents: boolean;
+  message: string | null;
+  createdAt: string;
+  expiresAt: string;
+  agency: AgencyRef;
+  invited: AgencyPerson & { userId: string };
 }

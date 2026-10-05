@@ -557,8 +557,18 @@ an agency prepays and its inventory matches the rupees to the paisa · a transfe
 with no revenue booked and the float still reconciles · an agency cannot transfer coins it
 has not bought · every transfer is auditable from both sides.
 
-**Still to come in M12:** adding sub-agents to an agency, the admin UI (the API is the admin
-surface for now), and reconciliation checks for the agency channel.
+**Built 2026-10-05 — sub-agents and the back office (migration 023):** an agency manager
+invites someone to an agent seat and they accept; the roster with each agent's host count;
+removing an agent, which **moves their hosts to the owner** rather than stranding them;
+granting and withdrawing agent management. Back office: the agency list with search, one
+agency in full (counts, stock, prepay totals, suspension history), suspend/reinstate/close
+with a recorded reason, and the transfer audit searchable from either side. App: the roster,
+the invite form and the invitation a prospective agent answers.
+
+**M12 is functionally complete.** What remains is not a feature: there is **no admin web
+app** in this repo — it is backend and mobile only — so every back-office action is an API
+call. Standing up an admin panel is its own decision (framework, hosting, auth) and is not
+scoped here.
 
 **Schema: migration 019** — agencies, agents, the two dated links, host join codes, join
 requests, maker-checker prepays, the append-only transfer log and the `agency` config block;
@@ -574,8 +584,9 @@ listings table. See ledger-decisions § M12 schema.
   prices, no contact.
 - **Agency-side app:** inventory balance, transfer by user public ID, transfer history.
   Gated on the coin-trading grant and the agency owner.
-- **Admin:** agency creation, the coin-trading grant, prepay confirmation (maker-checker),
-  suspension, transfer audit.
+- **Admin (API):** agency creation, the coin-trading grant, prepay confirmation
+  (maker-checker), the agency list and detail, suspension with a recorded reason, and the
+  transfer audit. No admin UI — see above.
 
 **Deliberately NOT in M12:**
 - **Any in-app agency directory, rate card or user↔agency messaging** (founder,

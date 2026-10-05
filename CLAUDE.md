@@ -205,6 +205,12 @@ management. "Generally" is why this is a grant per account and not a second role
 agency can hand one trusted sub-agent the ability to recruit agents without inventing a
 tier for them.
 
+**An agent seat is offered and accepted, never assigned** (M12, migration 023), because a
+sub-agent earns commission points and withdraws them directly. **Removing an agent moves
+their hosts to the agency owner** — they joined an agency, not a person — with the dated
+link closed rather than rewritten, so past gifts stay attributed to whoever held them at the
+time.
+
 **A sub-agent is a payee in their own right.** They earn commission points on their own
 hosts at their own level, capped at their agency's rate, and withdraw them directly. The
 agency earns the differential on its whole team. Nobody is paid through anybody else.

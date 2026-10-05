@@ -482,6 +482,29 @@ both paging):
 Inventory going negative is already caught by `no_negative_user_balances`, which covers every
 tracked account, and the coin float by E3 — inventory sits inside it.
 
+### M12 sub-agents · migration 023
+
+Built 2026-10-05. No money moves; these are the links the commission engine will walk.
+
+- **An agent seat needs consent.** A sub-agent earns commission points and withdraws
+  directly, so nobody is enrolled into an earning relationship by someone else filling in a
+  form. Invitation, then acceptance — the same shape as a host joining.
+- **A seat is per person and outlives any one agency.** `agents.user_id` is unique, which is
+  what keeps "which agency is this agent in" a question with one answer. Someone removed and
+  later invited elsewhere revives their row and keeps the Agent ID hosts already wrote down;
+  the dated assignment records the move.
+- **Removing an agent moves their hosts to the OWNER.** They joined an agency, not a person,
+  and dropping them would stop their earnings through no act of their own. Each dated link is
+  closed and a new one opened at the same instant — permitted by the no-overlap constraint
+  precisely because the ranges touch rather than overlap — so a host moved on the 14th has
+  the first half of the month still attributed to the agent who actually held them. This is
+  the case the dated links were built for.
+- **Suspension is blunt and deliberate.** `agentSeat` requires an ACTIVE agency, so a
+  suspended one loses coin trading, host recruitment and agent management in one move. It
+  does NOT touch the inventory (paid for, settled off-platform) or the hosts (who keep
+  earning — they joined an agency, not its conduct). Every change is recorded in
+  `agency_status_changes` rather than overwriting the last reason. `closed` is final.
+
 ### C28 · Points → coins exchange
 
 A host (or agency) turns earned points back into coins to spend on gifts. Decided

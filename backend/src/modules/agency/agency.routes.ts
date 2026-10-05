@@ -9,6 +9,18 @@ import {
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { validate } from '../../middleware/validate.js';
 import { createAgency, setCoinTrading } from './agency.admin.js';
+import { agencyDetail, auditTransfers, listAgencies, setAgencyStatus } from './admin.service.js';
+import {
+  agencyAgentInvites,
+  agentHosts,
+  answerAgentInvite,
+  cancelAgentInvite,
+  inviteAgent,
+  listAgents,
+  myAgentInvites,
+  removeAgent,
+  setAgentManagement,
+} from './agents.service.js';
 import {
   agencyTransfers,
   confirmPrepay,
@@ -40,6 +52,13 @@ const publicId = z.number().int().min(1).max(99_999_999);
 const message = z.string().trim().min(1).max(300).optional();
 const idParam = { params: z.object({ id: z.string().uuid() }).strict() };
 const limitQuery = z.object({ limit: z.coerce.number().int().min(1).max(100).optional() }).strict();
+const auditQuery = z
+  .object({
+    agencyId: z.coerce.number().int().min(1).max(99_999_999).optional(),
+    userId: z.coerce.number().int().min(1).max(99_999_999).optional(),
+    limit: z.coerce.number().int().min(1).max(200).optional(),
+  })
+  .strict();
 
 export function buildAgencyRouter(): Router {
   const router = Router();
@@ -302,6 +321,128 @@ export function buildAgencyRouter(): Router {
     }
   });
 
+  // ── Agents ────────────────────────────────────────────────────────────────
+  //
+  // For whoever holds agent management — the agency owner, and any sub-agent
+  // they have granted it to. Answering an invitation needs none of that, since
+  // the person answering is not in the agency yet.
+
+  router.get('/agents', readLimit, async (req, res, next) => {
+    try {
+      res.json({ agents: await listAgents(req.userId!) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /** Both sides' view: what the caller was offered, and what this agency offered. */
+  router.get('/agents/invites', readLimit, async (req, res, next) => {
+    try {
+      const mine = await myAgentInvites(req.userId!);
+      // Only an agency manager has outgoing ones; not being one is not an error.
+      const sent = await agencyAgentInvites(req.userId!).catch(() => []);
+      res.json({ mine, sent });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post(
+    '/agents/invites',
+    writeLimit,
+    validate(
+      z.object({ userId: publicId, canManageAgents: z.boolean().optional(), message }).strict(),
+    ),
+    async (req, res, next) => {
+      try {
+        res.status(201).json({
+          invite: await inviteAgent(req.userId!, {
+            invitedPublicId: req.body.userId,
+            canManageAgents: req.body.canManageAgents,
+            message: req.body.message,
+          }),
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  router.post(
+    '/agents/invites/:id/accept',
+    requireAdult(),
+    writeLimit,
+    validate(idParam),
+    async (req, res, next) => {
+      try {
+        res.json({ invite: await answerAgentInvite(req.userId!, req.params.id, true) });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  router.post(
+    '/agents/invites/:id/decline',
+    writeLimit,
+    validate(idParam),
+    async (req, res, next) => {
+      try {
+        res.json({ invite: await answerAgentInvite(req.userId!, req.params.id, false) });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  router.post(
+    '/agents/invites/:id/cancel',
+    writeLimit,
+    validate(idParam),
+    async (req, res, next) => {
+      try {
+        res.json({ invite: await cancelAgentInvite(req.userId!, req.params.id) });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  router.get('/agents/:id/hosts', readLimit, validate(idParam), async (req, res, next) => {
+    try {
+      res.json({ hosts: await agentHosts(req.userId!, req.params.id) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /** Removing an agent moves their hosts to the owner — never off the platform. */
+  router.post('/agents/:id/remove', writeLimit, validate(idParam), async (req, res, next) => {
+    try {
+      res.json(await removeAgent(req.userId!, req.params.id));
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post(
+    '/agents/:id/management',
+    writeLimit,
+    validate({
+      params: z.object({ id: z.string().uuid() }).strict(),
+      body: z.object({ canManageAgents: z.boolean() }).strict(),
+    }),
+    async (req, res, next) => {
+      try {
+        res.json({
+          agent: await setAgentManagement(req.userId!, req.params.id, req.body.canManageAgents),
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
   return router;
 }
 
@@ -363,6 +504,86 @@ export function buildAgencyAdminRouter(): Router {
       try {
         res.json({
           agency: await setCoinTrading(req.userId!, req.params.id, req.body.enabled),
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  router.get(
+    '/',
+    validate({
+      query: z
+        .object({
+          status: z.enum(['active', 'suspended', 'closed']).optional(),
+          q: z.string().trim().min(1).max(60).optional(),
+          limit: z.coerce.number().int().min(1).max(200).optional(),
+        })
+        .strict(),
+    }),
+    async (req, res, next) => {
+      try {
+        res.json({
+          agencies: await listAgencies({
+            status: req.query.status as 'active' | 'suspended' | 'closed' | undefined,
+            query: req.query.q as string | undefined,
+            limit: Number(req.query.limit ?? 50),
+          }),
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  /**
+   * The transfer audit.
+   *
+   * Somebody paid an agency off-platform and says the coins never arrived. We
+   * never saw that payment, so what the agency did or did not send is the only
+   * thing we can establish — searchable from either side's public ID.
+   */
+  router.get('/transfers', validate({ query: auditQuery }), async (req, res, next) => {
+    try {
+      res.json({
+        transfers: await auditTransfers({
+          agencyPublicId: req.query.agencyId ? Number(req.query.agencyId) : undefined,
+          userPublicId: req.query.userId ? Number(req.query.userId) : undefined,
+          limit: Number(req.query.limit ?? 50),
+        }),
+      });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /**
+   * Suspension. Blunt on purpose: a suspended agency loses coin trading, host
+   * recruitment and agent management at once. Its hosts keep earning, and its
+   * inventory is untouched — they paid for it.
+   */
+  router.post(
+    '/:id/status',
+    adminWriteLimit,
+    validate({
+      params: z.object({ id: z.string().uuid() }).strict(),
+      body: z
+        .object({
+          status: z.enum(['active', 'suspended', 'closed']),
+          reason: z.string().trim().min(1).max(500),
+        })
+        .strict(),
+    }),
+    async (req, res, next) => {
+      try {
+        res.json({
+          agency: await setAgencyStatus(
+            req.userId!,
+            req.params.id,
+            req.body.status,
+            req.body.reason,
+          ),
         });
       } catch (err) {
         next(err);
@@ -456,6 +677,16 @@ export function buildAgencyAdminRouter(): Router {
       }
     },
   );
+
+  // Registered LAST: a one-segment pattern would otherwise swallow
+  // GET /prepays and GET /transfers before either is reached.
+  router.get('/:id', validate(idParam), async (req, res, next) => {
+    try {
+      res.json({ agency: await agencyDetail(req.params.id) });
+    } catch (err) {
+      next(err);
+    }
+  });
 
   return router;
 }
