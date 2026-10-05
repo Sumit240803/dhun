@@ -3,7 +3,7 @@ import request from 'supertest';
 import { uuidv7 } from 'uuidv7';
 import { buildApp } from '../src/app.js';
 import { pool } from '../src/infra/db.js';
-import { invalidateCatalogCache } from '../src/modules/economy/index.js';
+import { ECONOMY, invalidateCatalogCache, postTransaction } from '../src/modules/economy/index.js';
 import { closePool } from './helpers.js';
 import { resetRateLimits } from '../src/middleware/rateLimit.js';
 
@@ -272,6 +272,34 @@ describe('profile summary', () => {
 
     expect(mutual.body.summary.friends).toBe(1);
     expect(mutual.body.summary.followers).toBe(1);
+  });
+
+  it('reports what a host has earned, not a balance that is always zero', async () => {
+    const host = await registeredUser();
+
+    // Straight to the ledger: what matters here is that the summary READS the
+    // right accounts. It used to ask for `user_points`, which does not exist,
+    // so a host who had earned thousands was shown nothing.
+    await postTransaction({
+      txnType: 'gift_send',
+      idempotencyKey: uuidv7(),
+      identity: { test: 'summary points' },
+      rates: {
+        faceValueUnitsPerRupee: ECONOMY.faceValueUnitsPerRupee,
+        pointsPerRupee: ECONOMY.pointsPerRupee,
+      },
+      legs: [
+        { accountCode: 'system_point_float', unit: 'point', amount: -540 },
+        { accountCode: 'host_points_held', scopeId: host.userId, unit: 'point', amount: 540 },
+      ],
+    });
+
+    const res = await request(app)
+      .get('/v1/users/me/summary')
+      .set('Authorization', `Bearer ${host.token}`)
+      .expect(200);
+
+    expect(res.body.summary.points).toBe(540);
   });
 
   it('gives every user a short public id that is not their uuid', async () => {

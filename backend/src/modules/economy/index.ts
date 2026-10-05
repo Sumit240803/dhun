@@ -5,6 +5,7 @@
 // with an idempotency key and a set of balanced legs.
 
 export {
+  getHostPoints,
   postTransaction,
   findCompletedTransaction,
   findTransactionByKey,

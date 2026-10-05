@@ -1,6 +1,6 @@
 import { pool } from '../../infra/db.js';
 import { lookFor, type UserLook } from '../cosmetics/index.js';
-import { getBalance } from '../economy/index.js';
+import { getHostPoints } from '../economy/index.js';
 
 export interface ProfileSummary {
   publicId: string;
@@ -68,7 +68,7 @@ export async function getProfileSummary(userId: string): Promise<ProfileSummary>
         WHERE u.id = $1`,
       [userId],
     ),
-    getBalance('user_points', userId),
+    getHostPoints(userId),
     lookFor(userId),
   ]);
 

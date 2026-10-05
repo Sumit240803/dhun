@@ -15,7 +15,7 @@
 
 import { PoolClient } from 'pg';
 import { uuidv7 } from 'uuidv7';
-import { withTransaction } from '../../infra/db.js';
+import { pool, withTransaction } from '../../infra/db.js';
 import {
   IdempotencyKeyReusedError,
   InsufficientBalanceError,
@@ -265,6 +265,25 @@ async function post(client: PoolClient, input: PostTxnInput): Promise<PostTxnRes
   );
 
   return { txnId, replayed: false, response };
+}
+
+/**
+ * Everything a host has earned and not yet been paid: held, withdrawable and
+ * pending payout together.
+ *
+ * All three, because a host asking "what have I earned?" means the total. Held
+ * is inside the 7-day risk window, withdrawable has cleared it, and pending is
+ * already in a payout batch — all of it is theirs, and showing only one of the
+ * three reads as money having gone missing.
+ */
+export async function getHostPoints(hostUserId: string): Promise<number> {
+  const { rows } = await pool.query<{ total: string | null }>(
+    'SELECT SUM(b.balance) AS total FROM account_balances b' +
+      ' JOIN ledger_accounts a ON a.id = b.account_id' +
+      " WHERE a.scope_id = $1 AND a.unit = 'point'",
+    [hostUserId],
+  );
+  return Number(rows[0]?.total ?? 0);
 }
 
 /**
