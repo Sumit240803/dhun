@@ -11,7 +11,8 @@ import request from 'supertest';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { buildApp } from '../src/app.js';
 import { pool } from '../src/infra/db.js';
-import { ECONOMY, unitsToPaise } from '../src/modules/economy/index.js';
+import { ECONOMY, postTransaction, unitsToPaise } from '../src/modules/economy/index.js';
+import { runReconciliation } from '../src/workers/jobs/reconciliation.js';
 import {
   balanceDrift,
   closePool,
@@ -515,5 +516,99 @@ describe('transfer', () => {
     expect(await sumEntries('host_points_held', host.id)).toBe(
       Math.floor((90 * ECONOMY.defaultGiftPayoutRateBp) / 10_000),
     );
+  });
+});
+
+describe('nightly reconciliation of the channel', () => {
+  /** A prepay and a transfer, both clean, as the checks should find them. */
+  async function movedCoins() {
+    const { owner, agency, prepay } = await fundedAgency();
+    const user = await registered('Sunita');
+    await sendTransfer(owner, {
+      userId: user.publicId,
+      coins: 7_000,
+      requestId: randomUUID(),
+    }).expect(201);
+    return { owner, agency, prepay, user };
+  }
+
+  const outcome = async (name: string) => (await runReconciliation()).find((o) => o.name === name);
+
+  it('passes on a channel that has done nothing wrong', async () => {
+    await movedCoins();
+    expect((await outcome('agency_prepays_match_ledger'))?.status).toBe('pass');
+    expect((await outcome('agency_transfers_match_ledger'))?.status).toBe('pass');
+  });
+
+  it('catches a prepay pointing at a transaction that did not mint it', async () => {
+    const { prepay, agency } = await movedCoins();
+    // Everything cheap is already blocked: `prepay_state_consistent` refuses a
+    // confirmed prepay with no transaction, and `prepay_coins_match_rate`
+    // refuses coins that do not match the quote. What a bug CAN still do is
+    // wire up the wrong transaction — so that is what this corrupts, with only
+    // the finality trigger lifted.
+    const { rows } = await pool.query(
+      'SELECT ledger_txn_id FROM agency_transfers WHERE agency_id = $1',
+      [agency.id],
+    );
+    await pool.query('ALTER TABLE agency_prepays DISABLE TRIGGER trg_agency_prepays_final');
+    await pool.query('UPDATE agency_prepays SET ledger_txn_id = $2 WHERE id = $1', [
+      prepay.id,
+      rows[0].ledger_txn_id,
+    ]);
+    await pool.query('ALTER TABLE agency_prepays ENABLE TRIGGER trg_agency_prepays_final');
+
+    const check = await outcome('agency_prepays_match_ledger');
+    expect(check?.status).toBe('fail');
+    expect(check?.detail).toMatchObject({ mismatched: 1 });
+  });
+
+  it('catches reseller cash booked without a prepay behind it', async () => {
+    await movedCoins();
+    // A manual adjustment that credits the reseller cash account with no prepay
+    // to explain it. Perfectly balanced, perfectly postable — and exactly the
+    // kind of entry that makes the bank statement stop agreeing with our books.
+    await postTransaction({
+      txnType: 'admin_credit',
+      idempotencyKey: `stray-cash:${randomUUID()}`,
+      identity: { reason: 'test' },
+      rates: {
+        faceValueUnitsPerRupee: ECONOMY.faceValueUnitsPerRupee,
+        pointsPerRupee: ECONOMY.pointsPerRupee,
+      },
+      legs: [
+        { accountCode: 'cash_reseller', unit: 'paise', amount: 100 },
+        { accountCode: 'deferred_revenue', unit: 'paise', amount: -100 },
+      ],
+    });
+
+    const check = await outcome('agency_prepays_match_ledger');
+    expect(check?.status).toBe('fail');
+    // ₹1 on our books that no prepay accounts for.
+    expect(check?.detail).toMatchObject({ cashDrift: 100 });
+  });
+
+  it('catches a transfer the ledger made but no record shows', async () => {
+    const { agency } = await movedCoins();
+    await pool.query('ALTER TABLE agency_transfers DISABLE TRIGGER trg_agency_transfers_immutable');
+    await pool.query('DELETE FROM agency_transfers WHERE agency_id = $1', [agency.id]);
+    await pool.query('ALTER TABLE agency_transfers ENABLE TRIGGER trg_agency_transfers_immutable');
+
+    const check = await outcome('agency_transfers_match_ledger');
+    expect(check?.status).toBe('fail');
+    expect(check?.detail).toMatchObject({ missing: 1 });
+  });
+
+  it('catches a record claiming different coins from the ones that moved', async () => {
+    const { agency } = await movedCoins();
+    await pool.query('ALTER TABLE agency_transfers DISABLE TRIGGER trg_agency_transfers_immutable');
+    await pool.query('UPDATE agency_transfers SET coins = coins + 1 WHERE agency_id = $1', [
+      agency.id,
+    ]);
+    await pool.query('ALTER TABLE agency_transfers ENABLE TRIGGER trg_agency_transfers_immutable');
+
+    const check = await outcome('agency_transfers_match_ledger');
+    expect(check?.status).toBe('fail');
+    expect(check?.detail).toMatchObject({ mismatched: 1 });
   });
 });

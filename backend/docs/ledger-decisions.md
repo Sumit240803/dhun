@@ -469,10 +469,18 @@ Built 2026-10-05, to the leg structure in C3/C4 above. What the code adds to it:
 - **Both txn types are now `is_active = true`.** That column remains the money-layer kill
   switch — set either false and the flow stops platform-wide, atomically, with no deploy.
 
-Still open: the **reconciliation checks do not yet cover the agency channel**. E3 (coin
-float) holds structurally because inventory is inside it, but there is no check asserting
-that confirmed prepays equal coins minted, or that `cash_reseller` equals the sum of
-confirmed prepay amounts. Add both with the commission engine.
+**Reconciliation covers the channel** (two checks added 2026-10-05, both zero-tolerance and
+both paging):
+
+- `agency_prepays_match_ledger` — every confirmed prepay has a transaction behind it, minted
+  exactly the coins it was quoted, and `cash_reseller` equals the sum of confirmed prepay
+  amounts. That last figure is the one a CA reconciles against the bank statement.
+- `agency_transfers_match_ledger` — every completed transfer has one record, for exactly the
+  coins the ledger moved. The record is the only evidence either side has about a payment we
+  never saw, so a missing one is a dispute nobody can settle.
+
+Inventory going negative is already caught by `no_negative_user_balances`, which covers every
+tracked account, and the coin float by E3 — inventory sits inside it.
 
 ### C28 · Points → coins exchange
 

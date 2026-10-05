@@ -99,7 +99,7 @@ const CHECKS: Check[] = [
       // different rounding rule here would invent mismatches that are not real.
       const { rows } = await client.query<{ count: string }>(
         'SELECT count(*) FROM (' +
-          "  SELECT t.id," +
+          '  SELECT t.id,' +
           "         SUM(CASE WHEN a.code = 'user_coins' THEN -e.amount ELSE 0 END) AS coins," +
           "         SUM(CASE WHEN a.code = 'host_points_held' THEN e.amount ELSE 0 END) AS points," +
           "         MAX((t.rates->>'payoutRateBp')::numeric) AS rate_bp" +
@@ -142,7 +142,8 @@ const CHECKS: Check[] = [
   },
   {
     name: 'gift_sends_match_ledger',
-    description: 'Every gift transaction has exactly one gift record, and the two agree on the money',
+    description:
+      'Every gift transaction has exactly one gift record, and the two agree on the money',
     run: async (client) => {
       // gift_sends is written in the same transaction as the entries, so these
       // cannot disagree unless a write path skipped one of them. Both halves are
@@ -203,6 +204,90 @@ const CHECKS: Check[] = [
       return missing + mismatched === 0
         ? pass('cosmetic_purchases_match_ledger')
         : fail('cosmetic_purchases_match_ledger', missing + mismatched, { missing, mismatched });
+    },
+  },
+  {
+    name: 'agency_prepays_match_ledger',
+    description:
+      'Every confirmed prepay minted exactly the coins it was quoted, and the cash agrees',
+    run: async (client) => {
+      // Three ways this can be wrong, and only one of them is cosmetic:
+      //   · a prepay marked confirmed with no transaction behind it — coins
+      //     promised to an agency that do not exist;
+      //   · coins minted that differ from the frozen quote — the agency was
+      //     given more or less than it paid for;
+      //   · cash_reseller not equal to the confirmed prepays that caused it,
+      //     which is the figure a CA will reconcile against the bank.
+      const { rows } = await client.query<{
+        missing: string;
+        mismatched: string;
+        booked: string;
+        recorded: string;
+      }>(
+        'SELECT' +
+          '  count(*) FILTER (WHERE p.ledger_txn_id IS NULL) AS missing,' +
+          '  count(*) FILTER (WHERE p.ledger_txn_id IS NOT NULL' +
+          '                   AND p.coins IS DISTINCT FROM m.coins) AS mismatched,' +
+          '  (SELECT COALESCE(SUM(e.amount), 0) FROM ledger_entries e' +
+          '     JOIN ledger_accounts a ON a.id = e.account_id' +
+          "    WHERE a.code = 'cash_reseller') AS booked," +
+          '  (SELECT COALESCE(SUM(amount_paise), 0) FROM agency_prepays' +
+          "    WHERE status = 'confirmed') AS recorded" +
+          ' FROM agency_prepays p' +
+          ' LEFT JOIN (' +
+          '   SELECT t.id,' +
+          "          SUM(CASE WHEN a.code = 'agency_inventory' THEN e.amount ELSE 0 END) AS coins" +
+          '     FROM ledger_txns t' +
+          '     JOIN ledger_entries e ON e.txn_id = t.id' +
+          '     JOIN ledger_accounts a ON a.id = e.account_id' +
+          "    WHERE t.txn_type = 'reseller_prepay' AND t.status = 'completed'" +
+          '      AND t.reverses_txn_id IS NULL' +
+          '    GROUP BY t.id' +
+          ' ) m ON m.id = p.ledger_txn_id' +
+          "  WHERE p.status = 'confirmed'",
+      );
+      const missing = Number(rows[0].missing);
+      const mismatched = Number(rows[0].mismatched);
+      const cashDrift = Number(rows[0].booked) - Number(rows[0].recorded);
+      const count = missing + mismatched + (cashDrift === 0 ? 0 : 1);
+
+      return count === 0
+        ? pass('agency_prepays_match_ledger')
+        : fail('agency_prepays_match_ledger', count, { missing, mismatched, cashDrift });
+    },
+  },
+  {
+    name: 'agency_transfers_match_ledger',
+    description: 'Every agency transfer has one record, for exactly the coins the ledger moved',
+    run: async (client) => {
+      // The same guarantee as gifts and cosmetics: the record is written inside
+      // the ledger's own transaction, so neither can exist without the other.
+      // This one matters more than most — the transfer record is the ONLY
+      // evidence either side has about a payment we never saw, made
+      // off-platform, and it is what a disputed top-up is argued from.
+      const { rows } = await client.query<{ missing: string; mismatched: string }>(
+        'SELECT' +
+          '  count(*) FILTER (WHERE tr.ledger_txn_id IS NULL) AS missing,' +
+          '  count(*) FILTER (WHERE tr.ledger_txn_id IS NOT NULL' +
+          '                   AND tr.coins <> m.coins) AS mismatched' +
+          ' FROM (' +
+          '   SELECT t.id,' +
+          "          SUM(CASE WHEN a.code = 'user_coins' THEN e.amount ELSE 0 END) AS coins" +
+          '     FROM ledger_txns t' +
+          '     JOIN ledger_entries e ON e.txn_id = t.id' +
+          '     JOIN ledger_accounts a ON a.id = e.account_id' +
+          "    WHERE t.txn_type = 'purchase_reseller' AND t.status = 'completed'" +
+          '      AND t.reverses_txn_id IS NULL' +
+          '    GROUP BY t.id' +
+          ' ) m' +
+          ' LEFT JOIN agency_transfers tr ON tr.ledger_txn_id = m.id',
+      );
+      const missing = Number(rows[0].missing);
+      const mismatched = Number(rows[0].mismatched);
+
+      return missing + mismatched === 0
+        ? pass('agency_transfers_match_ledger')
+        : fail('agency_transfers_match_ledger', missing + mismatched, { missing, mismatched });
     },
   },
   {
