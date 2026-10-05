@@ -112,6 +112,24 @@ export const ApiErrorCode = {
   REFERRAL_WINDOW_CLOSED: 'REFERRAL_WINDOW_CLOSED',
   REFERRAL_NOT_ALLOWED: 'REFERRAL_NOT_ALLOWED',
 
+  // agency
+  ALREADY_IN_AGENCY: 'ALREADY_IN_AGENCY',
+  AGENT_NOT_FOUND: 'AGENT_NOT_FOUND',
+  CANNOT_JOIN_SELF: 'CANNOT_JOIN_SELF',
+  REQUEST_ALREADY_PENDING: 'REQUEST_ALREADY_PENDING',
+  INVITE_NOT_MATCHED: 'INVITE_NOT_MATCHED',
+  HOST_IN_AGENCY: 'HOST_IN_AGENCY',
+  NOT_AN_AGENT: 'NOT_AN_AGENT',
+  REQUEST_NOT_FOUND: 'REQUEST_NOT_FOUND',
+  REQUEST_CLOSED: 'REQUEST_CLOSED',
+  AGENCY_UNAVAILABLE: 'AGENCY_UNAVAILABLE',
+  NOT_IN_AGENCY: 'NOT_IN_AGENCY',
+  QUIT_ALREADY_PENDING: 'QUIT_ALREADY_PENDING',
+  /** details.nextAllowedAt says when the host may apply again. */
+  QUIT_COOLDOWN: 'QUIT_COOLDOWN',
+  NOT_AGENCY_OWNER: 'NOT_AGENCY_OWNER',
+  QUIT_DECISION_CLOSED: 'QUIT_DECISION_CLOSED',
+
   // cosmetics
   COSMETIC_NOT_FOUND: 'COSMETIC_NOT_FOUND',
   /** Repriced while the store was open. Refetch; nothing was charged. */
@@ -655,4 +673,68 @@ export interface PurchaseResult {
   gemsGranted: number;
   balances: { coins: number; gems: number };
   userLevel: number;
+}
+
+// ── Agency (M12) ────────────────────────────────────────────────────────────
+
+export interface AgencyRef {
+  id: string;
+  publicId: number;
+  name: string;
+  isHouse: boolean;
+}
+
+export interface AgencyPerson {
+  publicId: number;
+  displayName: string | null;
+}
+
+export interface AgencyMembership {
+  assignmentId: string;
+  joinedAt: string;
+  agency: AgencyRef;
+  agent: AgencyPerson & { id: string };
+  owner: AgencyPerson & { userId: string };
+}
+
+export interface AgentSeat {
+  id: string;
+  publicId: number;
+  canManageAgents: boolean;
+  isOwner: boolean;
+  agency: AgencyRef;
+}
+
+export type QuitStatus = 'pending' | 'approved' | 'rejected' | 'auto_left' | 'direct' | 'void';
+
+export interface QuitRequest {
+  id: string;
+  status: QuitStatus;
+  reason: string;
+  createdAt: string;
+  rejectedAt: string | null;
+  resolvedAt: string | null;
+  autoLeaveAt: string | null;
+  approvableUntil: string | null;
+  /** When the host may apply to leave again. */
+  nextApplyAt: string;
+  host: AgencyPerson & { userId: string };
+}
+
+export interface MyAgency {
+  membership: AgencyMembership | null;
+  seat: AgentSeat | null;
+  quitRequest: QuitRequest | null;
+}
+
+export interface JoinRequest {
+  id: string;
+  direction: 'host_applied' | 'agent_invited';
+  status: string;
+  message: string | null;
+  createdAt: string;
+  expiresAt: string;
+  host: AgencyPerson & { userId: string };
+  agent: AgencyPerson & { id: string };
+  agency: AgencyRef;
 }

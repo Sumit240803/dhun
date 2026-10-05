@@ -2423,7 +2423,54 @@
     {
       "name": "Admin",
       "description": "Ships with every milestone rather than as a phase of its own — the docs are explicit that the admin panel is part of the MVP.\n\nPlanned: catalog editing (M4), room monitoring (M5), payout approval (M8), moderator dashboard (M9), and transaction-type kill switches (`PATCH /v1/admin/txn-types/{code}` — flipping `is_active` stops a money flow platform-wide with no deploy).",
-      "item": []
+      "item": [
+        {
+          "name": "Create an agency",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/admin/agencies",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "admin",
+                "agencies"
+              ]
+            },
+            "description": "Staff only (`super_admin` / `ops_manager`); anyone else gets 404. Agencies are never created in the app — the row IS the approval. The owner gets an agent seat with agent management. `isHouse: true` creates the single in-house agency for platform-seeded hosts (earns no commission).\n\n**Errors:** `OWNER_NOT_FOUND` 404 · `ALREADY_AN_AGENT` 409 · `OWNER_IS_HOST` 409 · `HOUSE_AGENCY_EXISTS` 409 · `VALIDATION_FAILED` 422 · `NOT_FOUND` 404 · `RATE_LIMITED` 429",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ownerUserId\": 10000001,\n  \"name\": \"Sur Talent\",\n  \"contactEmail\": \"owner@example.com\",\n  \"isHouse\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('agentId', pm.response.json().ownerSeat.publicId);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     },
     {
       "name": "Social",
@@ -3457,6 +3504,523 @@
                 }
               }
             }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Agency — M12",
+      "description": "Agency membership: both join routes and the quit flow. Agencies are created by an admin only (see Admin). Joining needs consent from both sides; a host in one agency cannot apply to or be invited by another (no poaching). Quitting: immediate if the host never attempted face auth or joined under 24h ago; otherwise the agency OWNER decides, an undecided application lets the host go after 7 days, one application per 30 days, and a rejection may still be approved for 14 days.",
+      "item": [
+        {
+          "name": "My agency",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "me"
+              ]
+            },
+            "description": "Everything the My Agency screen needs: `membership` (or null), the caller's agent `seat` (or null), and their latest `quitRequest`.\n\n**Errors:** `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "My Host Code",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/host-code",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "host-code"
+              ]
+            },
+            "description": "The host's 6-character code, created on first ask. Shared with an agent the host WANTS to be invited by.\n\n**Errors:** `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('hostCode', pm.response.json().code);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rotate Host Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/host-code/rotate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "host-code",
+                "rotate"
+              ]
+            },
+            "description": "New code; every copy of the old one stops working.\n\n**Errors:** `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('hostCode', pm.response.json().code);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Apply with an Agent ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/join",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "join"
+              ]
+            },
+            "description": "Route 1. The agent accepts or declines. An agency invite link is this call with the Agent ID pre-filled. 18+ only.\n\n**Errors:** `ALREADY_IN_AGENCY` 409 · `AGENT_NOT_FOUND` 404 · `CANNOT_JOIN_SELF` 400 · `REQUEST_ALREADY_PENDING` 409 · `DOB_REQUIRED` 403 · `FORBIDDEN` 403 · `VALIDATION_FAILED` 422 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"agentId\": 80000001,\n  \"message\": \"I sing ghazals most evenings\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('joinRequestId', pm.response.json().request.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invite a host (User ID + Host Code)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/invites",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "invites"
+              ]
+            },
+            "description": "Route 2, by an agent. A wrong code and an unknown user get the same `INVITE_NOT_MATCHED`, so ids and codes cannot be probed. Limited to 20 an hour.\n\n**Errors:** `NOT_AN_AGENT` 403 · `INVITE_NOT_MATCHED` 404 · `HOST_IN_AGENCY` 409 · `CANNOT_JOIN_SELF` 400 · `REQUEST_ALREADY_PENDING` 409 · `VALIDATION_FAILED` 422 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": 10000002,\n  \"hostCode\": \"{{hostCode}}\",\n  \"message\": \"Join Sur Talent\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('joinRequestId', pm.response.json().request.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pending join requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "requests"
+              ]
+            },
+            "description": "Open requests the caller can answer or withdraw, split `asHost` / `asAgent`.\n\n**Errors:** `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Accept a join request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/requests/{{joinRequestId}}/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "requests",
+                "{{joinRequestId}}",
+                "accept"
+              ]
+            },
+            "description": "Only the side that did not start it: the agent accepts an application, the host accepts an invite. Accepting cancels the host's other open requests. Returns the new `membership`.\n\n**Errors:** `REQUEST_NOT_FOUND` 404 · `REQUEST_CLOSED` 409 · `ALREADY_IN_AGENCY` 409 · `HOST_IN_AGENCY` 409 · `AGENCY_UNAVAILABLE` 409 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Decline a join request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/requests/{{joinRequestId}}/decline",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "requests",
+                "{{joinRequestId}}",
+                "decline"
+              ]
+            },
+            "description": "**Errors:** `REQUEST_NOT_FOUND` 404 · `REQUEST_CLOSED` 409 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Withdraw a join request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/requests/{{joinRequestId}}/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "requests",
+                "{{joinRequestId}}",
+                "cancel"
+              ]
+            },
+            "description": "Only by the side that started it.\n\n**Errors:** `REQUEST_NOT_FOUND` 404 · `REQUEST_CLOSED` 409 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Apply to quit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/quit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "quit"
+              ]
+            },
+            "description": "`outcome: \"left\"` when the host never attempted face auth or joined under 24h ago; otherwise `\"pending\"` with `autoLeaveAt`. Reason 1–100 characters.\n\n**Errors:** `NOT_IN_AGENCY` 409 · `QUIT_ALREADY_PENDING` 409 · `QUIT_COOLDOWN` 409 (`details.nextAllowedAt`) · `VALIDATION_FAILED` 422 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Moving to another city\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('quitRequestId', pm.response.json().request.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Quit applications (owner)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/quit-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "quit-requests"
+              ]
+            },
+            "description": "Agency owner only: pending applications, plus rejected ones still approvable (`approvableUntil`).\n\n**Errors:** `NOT_AGENCY_OWNER` 403 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Approve a quit (owner)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/quit-requests/{{quitRequestId}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "quit-requests",
+                "{{quitRequestId}}",
+                "approve"
+              ]
+            },
+            "description": "Pending, or rejected within the last 14 days. The host leaves at once.\n\n**Errors:** `NOT_AGENCY_OWNER` 403 · `REQUEST_NOT_FOUND` 404 · `QUIT_DECISION_CLOSED` 409 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject a quit (owner)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/agency/quit-requests/{{quitRequestId}}/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "agency",
+                "quit-requests",
+                "{{quitRequestId}}",
+                "reject"
+              ]
+            },
+            "description": "The host stays and cannot apply again for 30 days from their application.\n\n**Errors:** `NOT_AGENCY_OWNER` 403 · `REQUEST_NOT_FOUND` 404 · `QUIT_DECISION_CLOSED` 409 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
           },
           "response": [],
           "event": [

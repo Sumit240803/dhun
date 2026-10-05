@@ -3,7 +3,7 @@ import { setContextUser } from '../infra/context.js';
 import { AppError, ForbiddenError, UnauthenticatedError } from '../infra/errors.js';
 import { pool } from '../infra/db.js';
 import { verifyAccessToken } from '../modules/auth/tokens.js';
-import { assertRole, ScopeType } from '../modules/auth/permissions.js';
+import { assertRole, hasRole, ScopeType } from '../modules/auth/permissions.js';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -180,6 +180,26 @@ export function requireRole(
         await assertRole(req.userId, roleCode, { type: scope.type, id: scopeId });
       }
       next();
+    } catch (err) {
+      next(err);
+    }
+  };
+}
+
+/**
+ * Internal staff only — any one of the given admin-panel roles.
+ *
+ * Answers 404 rather than 403 to everyone else: an app user has no business
+ * learning that a back-office route exists at this path.
+ */
+export function requireStaff(roleCodes: string[]) {
+  return async (req: Request, _res: Response, next: NextFunction) => {
+    try {
+      if (!req.userId) throw new UnauthenticatedError();
+      for (const code of roleCodes) {
+        if (await hasRole(req.userId, code)) return next();
+      }
+      throw new AppError('NOT_FOUND', 'Not found', 404);
     } catch (err) {
       next(err);
     }

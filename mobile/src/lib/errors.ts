@@ -78,6 +78,24 @@ const codeMessages: Partial<Record<string, MessageKey>> = {
   [ApiErrorCode.COSMETIC_EXPIRED]: 'cosmeticErrors.expired',
   [ApiErrorCode.GIFT_NOT_FOUND]: 'gifting.giftUnavailable',
   [ApiErrorCode.RECIPIENT_NOT_IN_ROOM]: 'gifting.recipientGone',
+
+  [ApiErrorCode.ALREADY_IN_AGENCY]: 'agencyErrors.alreadyInAgency',
+  [ApiErrorCode.AGENT_NOT_FOUND]: 'agencyErrors.agentNotFound',
+  [ApiErrorCode.CANNOT_JOIN_SELF]: 'agencyErrors.cannotJoinSelf',
+  [ApiErrorCode.REQUEST_ALREADY_PENDING]: 'agencyErrors.alreadyPending',
+  [ApiErrorCode.INVITE_NOT_MATCHED]: 'agencyErrors.inviteNotMatched',
+  [ApiErrorCode.HOST_IN_AGENCY]: 'agencyErrors.hostInAgency',
+  [ApiErrorCode.NOT_AN_AGENT]: 'agencyErrors.notAnAgent',
+  [ApiErrorCode.REQUEST_NOT_FOUND]: 'agencyErrors.requestClosed',
+  [ApiErrorCode.REQUEST_CLOSED]: 'agencyErrors.requestClosed',
+  [ApiErrorCode.AGENCY_UNAVAILABLE]: 'agencyErrors.agencyUnavailable',
+  [ApiErrorCode.NOT_IN_AGENCY]: 'agencyErrors.notInAgency',
+  [ApiErrorCode.QUIT_ALREADY_PENDING]: 'agencyErrors.quitPending',
+  // The quit sheet names the date from details.nextAllowedAt itself; this is
+  // the fallback for anywhere else.
+  [ApiErrorCode.QUIT_COOLDOWN]: 'agencyErrors.quitCooldown',
+  [ApiErrorCode.NOT_AGENCY_OWNER]: 'agencyErrors.notOwner',
+  [ApiErrorCode.QUIT_DECISION_CLOSED]: 'agencyErrors.decisionClosed',
 };
 
 /** The sentence to show. Never the raw `error.message` for an unknown code. */

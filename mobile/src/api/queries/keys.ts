@@ -67,6 +67,14 @@ export const queryKeys = {
     public: (userId: string) => [...queryKeys.profile.all, 'public', userId] as const,
   },
 
+  agency: {
+    all: ['agency'] as const,
+    me: () => [...queryKeys.agency.all, 'me'] as const,
+    hostCode: () => [...queryKeys.agency.all, 'host-code'] as const,
+    requests: () => [...queryKeys.agency.all, 'requests'] as const,
+    quitRequests: () => [...queryKeys.agency.all, 'quit-requests'] as const,
+  },
+
   config: {
     all: ['config'] as const,
     banners: () => [...queryKeys.config.all, 'banners'] as const,

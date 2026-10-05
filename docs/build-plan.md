@@ -513,7 +513,27 @@ can rotate it, which revokes every copy handed out.
 
 **Commission levels D/C/B/A/S at 4/8/12/16/20%** (founder, 2026-09-28). **Everyone earns
 points and withdraws directly** — host from $10, agency and sub-agent from $20, in $10
-steps. Points→coins exchange at **parity** (value-neutral, no bonus) is an assumed default.
+steps. Points→coins exchange at **parity** (value-neutral, no bonus) to launch.
+
+**Membership rules** (founder, 2026-10-05; migration 020, ledger-decisions § M12 membership):
+
+- **Quitting** follows the competitor flow: an undecided application lets the host go after
+  7 days; a host who never attempted face auth, or joined under a day ago, leaves at once;
+  one application per 30 days whatever the outcome; a rejection can still be approved for 14
+  days. **Only the agency owner decides. The platform plays no part in a host leaving.**
+- **One in-house agency** ("Dhun Official"), created by an admin like any other, holds the
+  30–50 hosts we seed ourselves. It earns no commission; its hosts move to a real agency
+  through the ordinary quit and join flow.
+- **60% stays the base gift split.** "Up to 70%" is used only for top performers or events,
+  so the claim is true without moving the base payout.
+- **New agencies start on lower transfer caps** for 30 days.
+- **A bad agency** (a user paid and got no coins): a published policy, a report button and
+  suspension. Any refund from us is goodwill, never a promise — we hold no escrow, by design.
+
+**Built 2026-10-05 — membership slice:** admin agency creation, both join routes, the Host
+Code, the full quit flow with owner decisions and the auto-leave sweep (backend, Postman,
+tests), and the app's My Agency screen for host, agent and owner. **Not yet:** adding
+sub-agents, prepay and transfers, listings, user↔agency messaging, the admin UI.
 
 **Schema: migration 019** — agencies, agents, the two dated links, host join codes, join
 requests, maker-checker prepays, the append-only transfer log, listings and the `agency`

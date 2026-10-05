@@ -27,6 +27,7 @@ import {
   purgeShippedOutboxJob,
   reapStuckJobRunsJob,
 } from './jobs/retention.js';
+import { agencyMembershipSweepJob } from './jobs/agency.js';
 import { withConsumers } from './consumers.js';
 import { getEventPublisher, setEventPublisher } from './publisher.js';
 import { Job, Scheduler, runJobOnce } from './scheduler.js';
@@ -42,6 +43,7 @@ export const JOBS: Job[] = [
   purgeRefreshTokensJob,
   purgeRoomMessagesJob,
   reapStuckJobRunsJob,
+  agencyMembershipSweepJob,
 ];
 
 /**

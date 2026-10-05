@@ -9,6 +9,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useProfileSummary } from '@/api/queries/useFeed';
+import { useMyAgency } from '@/api/queries/useAgency';
 import { useRewards } from '@/api/queries/useGrowth';
 import { useWallet } from '@/api/queries/useWallet';
 import { signOut } from '@/features/auth/session';
@@ -55,6 +56,7 @@ export default function MeTab() {
   const summary = useProfileSummary();
   const wallet = useWallet();
   const rewards = useRewards(user?.status === 'active');
+  const agency = useMyAgency(user?.status === 'active');
   // Something is waiting to be claimed — the dot is what brings a user in.
   const rewardWaiting =
     rewards.data !== undefined &&
@@ -232,6 +234,26 @@ export default function MeTab() {
                 router.push('/(app)/rewards');
               }}
               testID="rewards-row"
+            />
+            <Divider />
+            <ListItem
+              title={t('agency.title')}
+              subtitle={
+                agency.data === undefined
+                  ? undefined
+                  : (agency.data.membership ?? agency.data.seat) !== null
+                    ? t('agency.meSubtitleIn', {
+                        agency: (agency.data.membership ?? agency.data.seat)!.agency.name,
+                      })
+                    : t('agency.meSubtitleOut')
+              }
+              left={<Ionicons name="people-outline" size={20} color={colors.text.secondary} />}
+              right={<Ionicons name="chevron-forward" size={18} color={colors.text.faint} />}
+              onPress={() => {
+                haptic.selection();
+                router.push('/(app)/agency');
+              }}
+              testID="agency-row"
             />
             <Divider />
             <ListItem

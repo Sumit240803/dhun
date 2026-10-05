@@ -409,6 +409,38 @@ everyone — host, sub-agent, agency — earns points and withdraws them directl
 `commission_levels` and `withdrawals`, and adds `agent`-scoped point accounts alongside the
 agency ones. CLAUDE.md hard rule #2 was reworded to match.
 
+### M12 membership · migration 020
+
+Built 2026-10-05. No money moves; these are the rules the commission engine will read
+through the dated links.
+
+**Joining** needs both sides: an application to an Agent ID the agent accepts, or an invite
+by User ID + Host Code the host accepts. A host in an agency cannot apply elsewhere or be
+invited elsewhere (no poaching). Accepting cancels the host's other open requests. Every
+membership change locks the host's user row first, so two concurrent accepts queue rather
+than one failing on the no-overlap constraint.
+
+**Quitting** — the founder's rules, taken from the competitor flow:
+
+1. An application nobody acts on for **7 days** lets the host go automatically
+   (`agency_membership_sweep`, every 15 minutes).
+2. A host who has **never attempted face authentication** leaves at once.
+   (`users.face_auth_attempted_at`, set by M8. Until then every quit is immediate — the
+   honest reading of the rule.)
+3. A host who **joined under 24 hours ago** leaves at once.
+4. **One application per 30 days**, whatever became of the last one.
+5. After rejecting, the owner may still **approve within 14 days**.
+
+Only the **agency owner** decides — never a sub-agent, never the platform. The platform plays
+no part in a host leaving. All four timings are in `app_config.agency.quit`.
+
+**Commission is unaffected by leaving mid-period.** Each gift is attributed by its timestamp
+to the agent and agency the host was with at that moment.
+
+**New agencies get lower transfer caps** for their first 30 days
+(`app_config.agency.newAgency`) — fraud and laundering cluster in a new agency's first weeks.
+Enforced when the transfer service is built.
+
 ### C28 · Points → coins exchange
 
 A host (or agency) turns earned points back into coins to spend on gifts. Decided
@@ -423,7 +455,8 @@ the host stays inside the economy instead of taking money out of it.
 **Rate.** One point is worth exactly **half a coin** at accounting face value — the same
 invariant that makes an advertised 60% split a real 30% payout. So the neutral exchange is
 `coins = points ÷ 2`, and at that rate the paise legs balance with no gain or loss to book.
-A **bonus is affordable and is a config dial** (`point_to_coin_bonus_bp`, default 0): even
+A **bonus is affordable and is a config dial** (`point_to_coin_bonus_bp`, seeded 0 by
+migration 020 — launch at parity, founder 2026-10-05): even
 at +20% the exchange still costs far less than paying the cash.
 
 **Legs** — 1,000 points exchanged at parity into 500 coins (₹3.85 of value at 260 points/₹
@@ -551,15 +584,21 @@ period, and it carries a rate:
 
 | Level | Team points in the period | Rate |
 |---|---|---|
-| D | up to 5,000,000 | 4% |
-| C | 5M – 25M | 8% |
-| B | 25M – 100M | 12% |
-| A | 100M – 250M | 16% |
-| S | 250M and above | 20% |
+| D | up to 2,000,000 (≈ ₹7.7K of team earnings) | 4% |
+| C | 2M – 10M (≈ ₹38K) | 8% |
+| B | 10M – 50M (≈ ₹1.9L) | 12% |
+| A | 50M – 150M (≈ ₹5.8L) | 16% |
+| S | 150M and above | 20% |
 
-The rates are the founder's; the **bands are starting values** carried over from the
-nine-level table's breakpoints and should be checked against real team volumes before
-launch. Rates in basis points and bands in points, in `app_config.commission_levels`.
+The rates are the founder's. The bands were retuned in migration 020 (founder accepted the
+recommendation, 2026-10-05) so that **C is within reach of an agency with 5–10 active hosts
+in its first months** — an agency stuck at D leaves. Still starting values: check them
+against real team volumes ~3 months after launch. Rates in basis points and bands in points,
+in `app_config.commission_levels`.
+
+**The in-house agency earns no commission.** `agencies.is_house` marks the single agency we
+own for platform-seeded hosts; the commission engine must skip it. Its hosts are paid like
+any other host.
 
 The rules around it:
 

@@ -163,6 +163,30 @@
       "value": "",
       "type": "default",
       "enabled": true
+    },
+    {
+      "key": "agentId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "hostCode",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "joinRequestId",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "quitRequestId",
+      "value": "",
+      "type": "default",
+      "enabled": true
     }
   ],
   "_postman_variable_scope": "environment"

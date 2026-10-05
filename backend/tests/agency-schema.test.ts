@@ -6,7 +6,12 @@ import { uuidv7 } from 'uuidv7';
 import { pool, withTransaction } from '../src/infra/db.js';
 import { closePool, createUser, resetLedger } from './helpers.js';
 
-async function createAgency(): Promise<{ agencyId: string; ownerId: string; agentId: string; adminId: string }> {
+async function createAgency(): Promise<{
+  agencyId: string;
+  ownerId: string;
+  agentId: string;
+  adminId: string;
+}> {
   const adminId = await createUser('active');
   const ownerId = await createUser('active');
   const agencyId = uuidv7();
@@ -29,7 +34,11 @@ async function createAgency(): Promise<{ agencyId: string; ownerId: string; agen
   return { agencyId, ownerId, agentId, adminId };
 }
 
-async function recordPrepay(agencyId: string, makerId: string, reference = 'UTR' + uuidv7().slice(0, 12)) {
+async function recordPrepay(
+  agencyId: string,
+  makerId: string,
+  reference = 'UTR' + uuidv7().slice(0, 12),
+) {
   const id = uuidv7();
   await pool.query(
     `INSERT INTO agency_prepays
@@ -46,7 +55,10 @@ afterAll(closePool);
 describe('agency tree', () => {
   it('lets an agency and its owner seat be created together', async () => {
     const { agencyId, agentId } = await createAgency();
-    const { rows } = await pool.query('SELECT owner_agent_id, public_id FROM agencies WHERE id = $1', [agencyId]);
+    const { rows } = await pool.query(
+      'SELECT owner_agent_id, public_id FROM agencies WHERE id = $1',
+      [agencyId],
+    );
     expect(rows[0].owner_agent_id).toBe(agentId);
     expect(Number(rows[0].public_id)).toBeGreaterThan(700000);
   });
@@ -125,10 +137,10 @@ describe('agency prepay — maker-checker', () => {
     const checker = await createUser('active');
     const id = await recordPrepay(agencyId, adminId);
     await expect(
-      pool.query("UPDATE agency_prepays SET status = 'confirmed', decided_by = $2, decided_at = now() WHERE id = $1", [
-        id,
-        checker,
-      ]),
+      pool.query(
+        "UPDATE agency_prepays SET status = 'confirmed', decided_by = $2, decided_at = now() WHERE id = $1",
+        [id, checker],
+      ),
     ).rejects.toThrow(/prepay_state_consistent/);
   });
 
@@ -143,7 +155,9 @@ describe('agency prepay — maker-checker', () => {
     await expect(
       pool.query("UPDATE agency_prepays SET reject_reason = 'changed' WHERE id = $1", [id]),
     ).rejects.toThrow(/already rejected/);
-    await expect(pool.query('DELETE FROM agency_prepays WHERE id = $1', [id])).rejects.toThrow(/never deleted/);
+    await expect(pool.query('DELETE FROM agency_prepays WHERE id = $1', [id])).rejects.toThrow(
+      /never deleted/,
+    );
   });
 
   it('never records one bank credit twice', async () => {
@@ -179,7 +193,11 @@ describe('agency ledger wiring', () => {
     );
     expect(rows).toEqual([
       { code: 'purchase_reseller', units_touched: ['coin'], is_active: false },
-      { code: 'reseller_prepay', units_touched: ['coin', 'paise'], is_active: false },
+      {
+        code: 'reseller_prepay',
+        units_touched: ['coin', 'paise'],
+        is_active: false,
+      },
     ]);
   });
 
@@ -199,8 +217,12 @@ describe('agency ledger wiring', () => {
       return txnId;
     };
     const id = await insertTransfer(user);
-    await expect(pool.query('UPDATE agency_transfers SET coins = 1 WHERE id = $1', [id])).rejects.toThrow(/append-only/);
-    await expect(pool.query('DELETE FROM agency_transfers WHERE id = $1', [id])).rejects.toThrow(/append-only/);
+    await expect(
+      pool.query('UPDATE agency_transfers SET coins = 1 WHERE id = $1', [id]),
+    ).rejects.toThrow(/append-only/);
+    await expect(pool.query('DELETE FROM agency_transfers WHERE id = $1', [id])).rejects.toThrow(
+      /append-only/,
+    );
     await expect(insertTransfer(ownerId)).rejects.toThrow(/transfer_not_to_sender/);
   });
 
@@ -209,8 +231,17 @@ describe('agency ledger wiring', () => {
       "SELECT key, value FROM app_config WHERE key IN ('commission_levels', 'withdrawals') ORDER BY key",
     );
     const levels = rows[0].value as Array<{ level: string; rateBp: number }>;
-    expect(levels.map((l) => `${l.level}:${l.rateBp}`)).toEqual(['D:400', 'C:800', 'B:1200', 'A:1600', 'S:2000']);
-    expect(rows[1].value.host).toEqual({ minPaise: 100_000, stepPaise: 100_000 });
+    expect(levels.map((l) => `${l.level}:${l.rateBp}`)).toEqual([
+      'D:400',
+      'C:800',
+      'B:1200',
+      'A:1600',
+      'S:2000',
+    ]);
+    expect(rows[1].value.host).toEqual({
+      minPaise: 100_000,
+      stepPaise: 100_000,
+    });
     expect(rows[1].value.agent.minPaise).toBe(200_000);
     expect(rows[1].value.agency.minPaise).toBe(200_000);
   });
@@ -226,8 +257,8 @@ describe('agency ledger wiring', () => {
   it('seeds the agency dials', async () => {
     const { rows } = await pool.query("SELECT value FROM app_config WHERE key = 'agency'");
     expect(rows[0].value.minPrepayPaise).toBe(1_000_000);
-    expect(rows[0].value.wholesaleTiers.map((t: { coinsPerRupee: number }) => t.coinsPerRupee)).toEqual([
-      124, 132, 140,
-    ]);
+    expect(
+      rows[0].value.wholesaleTiers.map((t: { coinsPerRupee: number }) => t.coinsPerRupee),
+    ).toEqual([124, 132, 140]);
   });
 });

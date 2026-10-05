@@ -220,14 +220,18 @@ agency that only manages hosts should not automatically be able to move currency
    platform credits every host, sub-agent and agency their own points, and each redeems
    their own. An agency helping a host finish KYC is support; an agency receiving a
    host's earnings to pass on is an RBI payment aggregator.
-2. **"Up to 70%" is the advertised dial, not the paid one — and it is not yet decided.**
-   The economy below advertises **60% of the coin count** and pays ~30% in rupees, because a
-   point is worth half a coin. Moving the advertised number to 70% at today's point rate
-   takes the real payout to ~35% and costs about five points of margin. Settle it before
-   any host is told a number.
-3. **"Must join an agency to earn" collides with platform-seeded hosts.** The growth plan
-   has us recruiting the first 30–50 hosts ourselves, months before an agency network
-   exists. Either those hosts sit in an in-house default agency, or they cannot be paid.
+2. **"Up to 70%" — settled 2026-10-05: 60% stays the base.** The economy advertises **60%
+   of the coin count** and pays ~30% in rupees, because a point is worth half a coin. 70% is
+   used only for top performers or events, so "up to 70%" is true without moving the base
+   (a 70% base would cost about five points of margin).
+3. **"Must join an agency to earn" — settled 2026-10-05: one in-house agency.** The 30–50
+   hosts we seed ourselves sit in a single admin-created agency (`agencies.is_house`) that
+   earns no commission, and move to a real agency through the ordinary quit and join flow.
+
+**Leaving an agency** follows the founder's rules (build-plan M12): an undecided application
+lets the host go after 7 days; never face-verified or joined under a day ago means immediate;
+one application per 30 days; a rejection can still be approved for 14 days. Only the agency
+owner decides — the platform plays no part.
 
 ## Economy — as decided (supersedes `economy-design-v1.pdf` where they differ)
 

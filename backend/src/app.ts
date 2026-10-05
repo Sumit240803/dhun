@@ -7,6 +7,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { globalRateLimit } from './middleware/rateLimit.js';
 import { requestContext } from './middleware/requestContext.js';
 import { cors, requireJsonBody, securityHeaders } from './middleware/security.js';
+import { buildAgencyAdminRouter, buildAgencyRouter } from './modules/agency/index.js';
 import { buildAuthRouter } from './modules/auth/index.js';
 import { buildMessagesRouter } from './modules/chat/index.js';
 import { buildConfigRouter } from './modules/config/index.js';
@@ -77,6 +78,8 @@ export function buildApp() {
   app.use('/v1/rewards', buildRewardsRouter());
   app.use('/v1/discover', buildDiscoverRouter());
   app.use('/v1/notifications', buildNotificationsRouter());
+  app.use('/v1/agency', buildAgencyRouter());
+  app.use('/v1/admin/agencies', buildAgencyAdminRouter());
 
   app.use(notFoundHandler());
   app.use(errorHandler());
