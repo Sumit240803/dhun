@@ -397,6 +397,10 @@ Built 2026-09-28. What each table guarantees, and where in the database it is en
 | A decided prepay is final; coins match the frozen rate | trigger `agency_prepays_final`; `CHECK coins = paise × rate / 100` |
 | Transfers are a permanent, one-directional record (hard rule #7) | append-only trigger; no column can describe any other direction; no self-transfer |
 
+`agency_listings` was created by 019 for a public agency list and **dropped by 022**: there
+is no in-app directory (founder, 2026-10-05, build-plan M12). An agency's retail price is
+agreed off-platform and we never record it.
+
 `ledger_accounts.scope_type` now allows `agency`. `purchase_reseller` and `reseller_prepay`
 are phase 0 but stay **inactive** — the kill switch is flipped when the service ships.
 

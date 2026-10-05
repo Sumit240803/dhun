@@ -287,11 +287,20 @@ Two paths reach a user's coin balance, and most users take the second.
 | Path | Who really uses it | Money reaches us | Built |
 |---|---|---|---|
 | **Direct top-up** — IAP, web gateway, (crypto: open) | **Agencies buying inventory**, at a ₹10,000 floor. A retail user buying a ₹99 pack in the app is the Play-billing path and stays | Directly, up front | ✅ both |
-| **Agency resale** | Almost every user. Pays the agency by UPI/Paytm/bank **off-platform**, receives coins in-app | Earlier, when the agency prepaid | ✅ transfer; listings and messaging still to come |
+| **Agency resale** | Almost every user. Finds the agency **off the app**, pays it by UPI/Paytm/bank off-platform, receives coins in-app | Earlier, when the agency prepaid | ✅ |
 
 The platform's spread is taken once, at wholesale. The agency's margin is whatever it
 charges above that. Revenue is still recognised only when a coin is **spent**, so a transfer
 from an agency to a user moves no money on our books (ledger-decisions § C3/C4).
+
+**There is no agency directory in the app** (founder, 2026-10-05). No list, no rate card, no
+in-app way to contact an agency — agencies find their own customers through WhatsApp and
+their own channels, and a transfer needs only the user's public ID. The reason is the same
+one behind the store-fee note below: a priced in-app list of ways to buy coins outside Play
+billing is the clearest possible trigger for Google's 20% on a purchase within 24 hours of an
+in-app link click. It also removes a moderation surface we would have had to staff from
+launch. The user keeps their half of the transfer record, which is a receipt, not a
+directory.
 
 **Wholesale rate — 124 / 132 / 140 coins per ₹ in volume tiers** (₹10,000 / ₹50,000 /
 ₹2,00,000+), live in `app_config.agency.wholesaleTiers` since migration 019. It sets the

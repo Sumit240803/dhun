@@ -493,13 +493,23 @@ who will not pay ₹10,000 — which is almost all of them.
    queue: the `agencies` row IS the approval. A main agency cannot be created in-app.
 2. It pays the platform up front and receives coins into an **inventory account it cannot
    gift from**. Never on credit — the non-negative balance is what enforces that.
-3. It appears in the app's agency list with the payment methods it accepts and **its own
-   price**, set by the agency over the wholesale rate.
-4. A user compares prices, contacts an agency by **in-app message or WhatsApp**, and pays it
-   **off-platform**. No platform money is involved on this leg, and no escrow — escrow is
-   what would make us a payment aggregator.
+3. **It finds its own customers, entirely off the app** (scope change, founder,
+   2026-10-05). There is no agency list in the app, no rate card and no in-app way to
+   contact an agency. An agency reaches people through WhatsApp, its own channels and word
+   of mouth, and sets its own price there.
+4. The user pays the agency **off-platform** and gives them their User ID. No platform money
+   is involved on this leg, and no escrow — escrow is what would make us a payment
+   aggregator.
 5. The agency transfers coins from inventory to the user's account. The user gets the coins
    and a receipt; both sides keep a permanent record.
+
+**Why there is no directory.** Two reasons, and the first is the expensive one. A purchase
+within 24 hours of an in-app link click still incurs Google Play's 20% fee even now
+anti-steering is gone worldwide, and a priced in-app list of ways to buy coins outside Play
+billing is the clearest trigger for it — the same reason CLAUDE.md requires the web recharge
+portal to be independently discoverable rather than driven from inside the app. Second, a
+public directory of people soliciting off-platform payment is a moderation surface we would
+have to staff from launch. Migration 022 drops the `agency_listings` table.
 
 **How a host joins** (founder, 2026-09-28). Two routes, both needing consent from both sides:
 
@@ -542,38 +552,35 @@ log read from both ends; migration 021 switching both txn types live. App: the a
 owner's coin stock, a confirm-then-send transfer sheet, transfers sent, and the user's own
 record of coins received. Ledger-decisions § M12 coin channel.
 
-**Exit criteria met:** an agency prepays and its inventory matches the rupees to the paisa ·
-a transfer moves coins with no revenue booked and the float still reconciles · an agency
-cannot transfer coins it has not bought · every transfer is auditable from both sides.
-**Not met yet:** a user cannot find an agency by price or message it — that needs listings
-and user↔agency threads.
+**Exit criteria, all met** (the directory clause was struck by the 2026-10-05 scope change):
+an agency prepays and its inventory matches the rupees to the paisa · a transfer moves coins
+with no revenue booked and the float still reconciles · an agency cannot transfer coins it
+has not bought · every transfer is auditable from both sides.
 
-**Not yet:** agency listings and the public list, user↔agency messaging, adding sub-agents,
-the admin UI (the API is the admin surface for now), and reconciliation checks for the
-agency channel.
+**Still to come in M12:** adding sub-agents to an agency, the admin UI (the API is the admin
+surface for now), and reconciliation checks for the agency channel.
 
 **Schema: migration 019** — agencies, agents, the two dated links, host join codes, join
-requests, maker-checker prepays, the append-only transfer log, listings and the `agency`
-config block. See ledger-decisions § M12 schema.
+requests, maker-checker prepays, the append-only transfer log and the `agency` config block;
+**020** membership and the in-house agency; **021** the coin channel live; **022** drops the
+listings table. See ledger-decisions § M12 schema.
 
 **Ships:**
-- **Backend:** admin-created agencies; `reseller:{id}:inventory` accounts; prepay
-  crediting behind maker-checker; agency→user transfer with per-agency and per-day limits,
-  velocity checks and an append-only transfer log; the public agency list with rate cards;
-  reseller-scoped rate tiers in `app_config`; suspension and clawback.
-- **Messaging:** the send path does not exist yet — `messages` rows can be read but nothing
-  can write one. M12 builds **user↔agency threads only**, not general DM (still Phase 1, and
-  a moderation cost we are not taking on yet).
-- **App:** an agency list with prices and accepted methods, a rate card, "Message" and
-  "WhatsApp" actions, a transfer receipt and history, and a scam warning that names what the
-  platform can and cannot do about a bad agency.
-- **Agency-side app:** inventory balance, transfer by user public ID, transfer history, a
-  price editor. Role-gated on the existing `coin_reseller` role.
-- **Admin:** agency creation, prepay confirmation (maker-checker), limits, suspension
-  and delisting, transfer audit. This is the first real admin surface and closes part of the
-  gap left by M4–M10 shipping without theirs.
+- **Backend:** admin-created agencies; `agency:{id}:inventory` accounts; prepay crediting
+  behind maker-checker; agency→user transfer with per-transfer, per-recipient and per-agency
+  daily limits and an append-only transfer log; wholesale rate tiers in `app_config`;
+  suspension and the coin-trading grant.
+- **App, user side:** their own record of coins received, and nothing else. No list, no
+  prices, no contact.
+- **Agency-side app:** inventory balance, transfer by user public ID, transfer history.
+  Gated on the coin-trading grant and the agency owner.
+- **Admin:** agency creation, the coin-trading grant, prepay confirmation (maker-checker),
+  suspension, transfer audit.
 
 **Deliberately NOT in M12:**
+- **Any in-app agency directory, rate card or user↔agency messaging** (founder,
+  2026-10-05). See "Why there is no directory" above. The general DM send path stays Phase 1
+  as it always was.
 - **The commission engine and withdrawals themselves.** 019 seeds their config and point
   accounts; computing commission and paying it out is M8's payout pipeline.
 - **Escrow or any user→agency payment rail.** See above; also hard rule #7 stays intact —

@@ -1,0 +1,33 @@
+-- ---------------------------------------------------------------------------
+-- 022 · No agency directory in the app
+--
+-- Scope change, founder, 2026-10-05 (docs/build-plan.md M12).
+--
+-- Migration 019 created `agency_listings` for a public list of agencies with
+-- their prices, accepted payment methods and WhatsApp number, which a user
+-- would browse to find someone to buy coins from. That list is not being built,
+-- and neither is the user↔agency messaging that existed only to reach it.
+--
+-- WHY IT IS THE RIGHT CALL, not merely a cut:
+--
+--   · Google Play. A purchase within 24 hours of an in-app link click still
+--     incurs the 20% fee even now anti-steering is gone worldwide. A priced,
+--     in-app directory of ways to buy coins OUTSIDE Play billing is the
+--     clearest possible trigger for it. CLAUDE.md already requires the web
+--     recharge portal to be independently discoverable rather than driven from
+--     inside the app; this is the same rule applied to the agency channel.
+--   · It removes a moderation surface — a public, user-facing directory of
+--     people soliciting off-platform payment — that we would have had to staff
+--     from launch.
+--
+-- Nothing is lost from the channel itself. A transfer needs only the user's
+-- public ID, so an agency reaches its customers off-platform (WhatsApp, word of
+-- mouth, its own channels), is paid off-platform, and sends the coins in-app.
+-- The user keeps their half of the permanent transfer record, which is a
+-- receipt, not a directory.
+--
+-- Pre-launch, so the table is dropped rather than left to describe a feature
+-- that does not exist. No agency has ever been listed; there is no data here.
+-- ---------------------------------------------------------------------------
+
+DROP TABLE IF EXISTS agency_listings;
