@@ -1,7 +1,7 @@
 // Account templates and resolution.
 //
 // System accounts are seeded by migration 002 and only ever looked up. Scoped
-// accounts (per user, per host) are auto-provisioned on first use, so signup
+// accounts (per user, per host, per agency) are auto-provisioned on first use, so signup
 // does not fan out into a pile of empty rows.
 
 import { PoolClient } from 'pg';
@@ -18,7 +18,7 @@ export type AccountType =
 
 interface AccountTemplate {
   accountType: AccountType;
-  scopeType: 'user' | 'host';
+  scopeType: 'user' | 'host' | 'agent' | 'agency';
   unit: Unit;
 }
 
@@ -33,6 +33,17 @@ export const SCOPED_ACCOUNTS = {
   host_points_held: { accountType: 'liability', scopeType: 'host', unit: 'point' },
   host_points_withdrawable: { accountType: 'liability', scopeType: 'host', unit: 'point' },
   host_points_pending_payout: { accountType: 'liability', scopeType: 'host', unit: 'point' },
+  // An agency's prepaid coins (C3/C4). It cannot gift from here — only transfer
+  // to a user — and non-negative is hard rule #3: no coin it has not paid for.
+  agency_inventory: { accountType: 'liability', scopeType: 'agency', unit: 'coin' },
+  // Commission points. Everyone who earns withdraws their own — a sub-agent is
+  // paid directly, never through their agency (hard rule #2).
+  agent_points_held: { accountType: 'liability', scopeType: 'agent', unit: 'point' },
+  agent_points_withdrawable: { accountType: 'liability', scopeType: 'agent', unit: 'point' },
+  agent_points_pending_payout: { accountType: 'liability', scopeType: 'agent', unit: 'point' },
+  agency_points_held: { accountType: 'liability', scopeType: 'agency', unit: 'point' },
+  agency_points_withdrawable: { accountType: 'liability', scopeType: 'agency', unit: 'point' },
+  agency_points_pending_payout: { accountType: 'liability', scopeType: 'agency', unit: 'point' },
 } as const satisfies Record<string, AccountTemplate>;
 
 export type ScopedAccountCode = keyof typeof SCOPED_ACCOUNTS;
@@ -46,7 +57,7 @@ export interface ResolvedAccount {
    */
   id: number;
   code: string;
-  /** True for user/host accounts: they carry a cached balance and can be locked. */
+  /** True for scoped accounts: they carry a cached balance and can be locked. */
   tracked: boolean;
 }
 

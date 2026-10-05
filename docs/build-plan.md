@@ -487,8 +487,10 @@ who will not pay ₹10,000 — which is almost all of them.
 
 **The flow** (ledger-decisions § C3/C4; CLAUDE.md "Coin distribution channels"):
 
-1. An agency applies, is verified (PAN, bank account, GST where applicable) and approved by
-   an admin.
+1. **An admin creates the agency — never the app** (founder, 2026-09-28). Registration is an
+   email to the official address, a conversation, then manual onboarding and verification
+   (PAN, bank account, GST where applicable). There is no application table and no approval
+   queue: the `agencies` row IS the approval. A main agency cannot be created in-app.
 2. It pays the platform up front and receives coins into an **inventory account it cannot
    gift from**. Never on credit — the non-negative balance is what enforces that.
 3. It appears in the app's agency list with the payment methods it accepts and **its own
@@ -499,8 +501,26 @@ who will not pay ₹10,000 — which is almost all of them.
 5. The agency transfers coins from inventory to the user's account. The user gets the coins
    and a receipt; both sides keep a permanent record.
 
+**How a host joins** (founder, 2026-09-28). Two routes, both needing consent from both sides:
+
+- the host types an **Agent ID** and the agent accepts — an agency invite link is this route
+  with the ID pre-filled;
+- the agent enters the host's **User ID + Host Code** and the host accepts.
+
+The Host Code exists because user public IDs are sequential 8-digit numbers: without a second
+factor an agent could invite every user on the platform by typing numbers in order. The host
+can rotate it, which revokes every copy handed out.
+
+**Commission levels D/C/B/A/S at 4/8/12/16/20%** (founder, 2026-09-28). **Everyone earns
+points and withdraws directly** — host from $10, agency and sub-agent from $20, in $10
+steps. Points→coins exchange at **parity** (value-neutral, no bonus) is an assumed default.
+
+**Schema: migration 019** — agencies, agents, the two dated links, host join codes, join
+requests, maker-checker prepays, the append-only transfer log, listings and the `agency`
+config block. See ledger-decisions § M12 schema.
+
 **Ships:**
-- **Backend:** agency applications and approval; `reseller:{id}:inventory` accounts; prepay
+- **Backend:** admin-created agencies; `reseller:{id}:inventory` accounts; prepay
   crediting behind maker-checker; agency→user transfer with per-agency and per-day limits,
   velocity checks and an append-only transfer log; the public agency list with rate cards;
   reseller-scoped rate tiers in `app_config`; suspension and clawback.
@@ -512,13 +532,13 @@ who will not pay ₹10,000 — which is almost all of them.
   platform can and cannot do about a bad agency.
 - **Agency-side app:** inventory balance, transfer by user public ID, transfer history, a
   price editor. Role-gated on the existing `coin_reseller` role.
-- **Admin:** agency approval queue, prepay confirmation (maker-checker), limits, suspension
+- **Admin:** agency creation, prepay confirmation (maker-checker), limits, suspension
   and delisting, transfer audit. This is the first real admin surface and closes part of the
   gap left by M4–M10 shipping without theirs.
 
 **Deliberately NOT in M12:**
-- **Sub-agents.** Agencies manage their own downstream people off-platform. Hard rule #2 —
-  the platform pays the agency only, never a sub-agent.
+- **The commission engine and withdrawals themselves.** 019 seeds their config and point
+  accounts; computing commission and paying it out is M8's payout pipeline.
 - **Escrow or any user→agency payment rail.** See above; also hard rule #7 stays intact —
   transfer is one-directional, agency inventory → user, never back.
 - **Crypto acceptance (USDT/USDC).** Held pending the Track 0 legal opinion; the likely

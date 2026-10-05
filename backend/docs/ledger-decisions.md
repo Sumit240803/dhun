@@ -238,8 +238,9 @@ Unlike cosmetics, these all have a **points leg** — the host earns from them.
 **Agency (3)**
 `agency_commission_accrual` · `agency_commission_payout` · `agency_incentive_payout`
 
-Platform pays the **agency only** — never a sub-agent. The agency settles with its own
-sub-agents off-platform. This is hard rule #2 and must never acquire a transaction type.
+~~Platform pays the agency only.~~ **Superseded 2026-09-28:** host, sub-agent and agency
+each earn points and withdraw directly (§ "The payout flow"). Hard rule #2 now reads: nobody
+is paid through anybody else — an agency never handles a sub-agent's or a host's money.
 
 **Payouts (8)**
 `payout_request` · `payout_settled` · `payout_failed` · `payout_rejected` ·
@@ -369,7 +370,7 @@ Three properties this shape gives for free:
 - **Pay-first is enforced by the balance check.** An agency with 10,000 coins cannot
   transfer 11,000; the same code path that stops a user overdrafting stops this.
 - **`purchase_reseller` touches `coin` only**, not `['coin','paise']` as seeded in
-  migration 002 — that row needs correcting when the flow is built.
+  migration 002. ✅ Corrected in migration 019.
 
 Identity for the idempotency key: `{reseller_id, user_id, coins, request_id}`. The agency's
 client generates the request id once per transfer, so a retry over a dropped connection
@@ -378,6 +379,35 @@ cannot send the coins twice.
 **What this is NOT.** Hard rule #7 stands: no user-to-user transfer. This flow is
 one-directional, from a verified agency's inventory to a user, and there is deliberately no
 route back — a user cannot send coins to an agency, to another user, or to anyone else.
+
+### M12 schema · migration 019
+
+Built 2026-09-28. What each table guarantees, and where in the database it is enforced:
+
+| Guarantee | Enforced by |
+|---|---|
+| An agency exists only because an admin created it | No application table; `agencies.created_by` is the admin |
+| Every agency has an owner seat | `owner_agent_id` FK, deferred so both rows land in one transaction |
+| A host sits with one agent at a time; an agent in one agency at a time | `EXCLUDE USING gist` on each dated link (`btree_gist`) |
+| A join needs both sides' consent | `agency_join_requests`, one pending per host+agent pair |
+| An agent cannot invite users by enumerating IDs | `host_join_codes` — the second factor |
+| No coin exists that an agency did not pay for (hard rule #3) | `agency:{id}` `agency_inventory` account, non-negative |
+| Maker ≠ checker on a prepay | `CHECK (decided_by <> recorded_by)` |
+| One bank credit is minted once | `UNIQUE (method, payment_reference)` |
+| A decided prepay is final; coins match the frozen rate | trigger `agency_prepays_final`; `CHECK coins = paise × rate / 100` |
+| Transfers are a permanent, one-directional record (hard rule #7) | append-only trigger; no column can describe any other direction; no self-transfer |
+
+`ledger_accounts.scope_type` now allows `agency`. `purchase_reseller` and `reseller_prepay`
+are phase 0 but stay **inactive** — the kill switch is flipped when the service ships.
+
+Config `agency`: ₹10,000 prepay floor; wholesale **124 / 132 / 140** coins/₹ at ₹10K / ₹50K /
+₹2L+; transfer caps per transfer 1.1M coins, per recipient per IST day 5.5M, per agency per
+day 22M and 500 transfers; join requests expire after 7 days.
+
+**Settled 2026-09-28 (founder):** commission levels are **D/C/B/A/S**, not nine; and
+everyone — host, sub-agent, agency — earns points and withdraws them directly. 019 seeds
+`commission_levels` and `withdrawals`, and adds `agent`-scoped point accounts alongside the
+agency ones. CLAUDE.md hard rule #2 was reworded to match.
 
 ### C28 · Points → coins exchange
 
@@ -482,10 +512,14 @@ for the rupee side of the payout itself, but the entitlement now lands in points
 
 Three things that follow:
 
-- **Scoped point accounts for agencies.** `ledger_accounts.scope_type` gains `agency`
-  alongside `user`, `host` and `system`, with `agency:{id}:points_held` /
-  `points_withdrawable` / `points_pending_payout`. `system:point_float` then mirrors host AND
-  agency balances, and reconciliation check E-points covers both.
+- **Scoped point accounts for agencies and agents.** `ledger_accounts.scope_type` gains
+  `agency` and `agent` alongside `user`, `host` and `system`, each with `points_held` /
+  `points_withdrawable` / `points_pending_payout`. `system:point_float` then mirrors host,
+  agent AND agency balances, and reconciliation check E-points covers all three.
+- **The agency owner is paid in points too** (founder, 2026-09-28). The agency's commission
+  lands in `agency_points_*`, which the owner redeems like anyone else — there is no direct
+  rupee payment to any party. The owner's own agent seat earns nothing separately; the
+  owner's hosts count in the agency's team.
 - **The unit of the balance does not change the tax.** A payout is still rupees leaving a
   bank account, and an agency is still supplying us a service — so GST and TDS under 194H
   apply to the agency's payout, and the host's sits under its own section. The point→rupee
@@ -495,8 +529,12 @@ Three things that follow:
 
 | | Minimum | Steps |
 |---|---|---|
-| Host | ₹1,000 (≈ $10) | ₹1,000 |
-| Agency / sub-agent | ₹2,000 (≈ $20) | ₹1,000 |
+| Host | ₹1,000 (≈ $10) | ₹1,000 (≈ $10) |
+| Agency / sub-agent | ₹2,000 (≈ $20) | ₹1,000 (≈ $10) |
+
+Confirmed by the founder 2026-09-28 as "$10 for hosts, $20 for agencies and sub-agents,
+multiples of $10", redeemed in-app through the payout methods offered. Stored in
+`app_config.withdrawals`.
 
 Withdrawals are whole steps only — ₹1,000, ₹2,000, ₹3,000 — never ₹1,250 or ₹3,811. Defined
 in **rupees, not dollars**: the app may display a dollar figure, but a dollar-denominated
@@ -507,26 +545,21 @@ A remainder therefore always stays in the balance — someone holding ₹10,500 
 ₹10,000 and keeps ₹500. The screen has to say so plainly, or it reads as money going
 missing.
 
-**The commission RATE comes from a LEVEL** (founder, 2026-09-27), replacing the five fixed
-bands in CLAUDE.md. A level is a range of points earned, and it carries a rate:
+**The commission RATE comes from a LEVEL** — **D / C / B / A / S** (founder, 2026-09-28;
+replaces the nine-level table of 2026-09-27). A level is a range of team points earned in a
+period, and it carries a rate:
 
 | Level | Team points in the period | Rate |
 |---|---|---|
-| 1 | up to 5,000,000 | 5.0% |
-| 2 | 5M – 10M | 6.5% |
-| 3 | 10M – 25M | 8.0% |
-| 4 | 25M – 50M | 10.0% |
-| 5 | 50M – 100M | 12.0% |
-| 6 | 100M – 150M | 13.5% |
-| 7 | 150M – 250M | 15.0% |
-| 8 | 250M – 400M | 17.0% |
-| 9 | 400M and above | 20.0% |
+| D | up to 5,000,000 | 4% |
+| C | 5M – 25M | 8% |
+| B | 25M – 100M | 12% |
+| A | 100M – 250M | 16% |
+| S | 250M and above | 20% |
 
-**Points are the only unit here.** The bands were derived from the five rupee tiers they
-replace and then rounded to whole point figures, because points are what an agency is shown
-and what the engine counts — a rupee figure beside them would be a second number to keep in
-step, and it would drift the moment the point rate moved. Rates are stored in basis points,
-bands in points, all in `app_config`.
+The rates are the founder's; the **bands are starting values** carried over from the
+nine-level table's breakpoints and should be checked against real team volumes before
+launch. Rates in basis points and bands in points, in `app_config.commission_levels`.
 
 The rules around it:
 
@@ -541,7 +574,7 @@ The rules around it:
   also protects a bad one. Shorten the period before ever making it retroactive.
 - **A level may fall, but by at most one step per period.** Rates that only ratchet up are
   not a ladder; a single bad month that erases a year's progress loses the agency.
-- **A new agency starts at level 1** and has no previous period to be measured on.
+- **A new agency starts at level D** and has no previous period to be measured on.
 - **An agency's level counts its whole team**, sub-agents and direct hosts alike. A
   sub-agent's own level counts only their own hosts.
 - **A sub-agent's rate is capped at their agency's.** Team volume normally makes the

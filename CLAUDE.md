@@ -61,8 +61,9 @@ three months after launch.
    Golden Flower, "provably-fair RNG". India's Promotion and Regulation of Online Gaming
    Act 2025 (rules in force 1 May 2026) bans online money games and erased the
    skill-vs-chance distinction. Treated as existential risk.
-2. **An agency never holds a host's money.** The platform pays each host directly;
-   agency commission is paid separately, by the platform, out of platform funds. If money
+2. **An agency never holds anyone else's money.** The platform pays each host, each
+   sub-agent and each agency directly, out of platform funds — nobody's earnings pass
+   through anybody else. If money
    routed through an agency it would become an RBI Payment Aggregator (PSS Act 2007 —
    ₹15cr net worth + escrow).
 3. **A reseller pays before receiving coins.** Never on credit. Pay-first = distributor
@@ -153,11 +154,14 @@ host who moves between agents mid-month has their earnings split by **gift times
 not by wherever they happen to sit on payout day: host→agent, agent→agency, and the
 host→agency link that falls out of the two.
 
-**Money does not follow that tree.** The platform pays each **host** directly, and pays
-commission to the **agency** only — never to an agent, never to a "sub-agent" (hard rule
-#2, ledger-decisions § agency). An agent's cut is settled by their agency, off-platform,
-out of the agency's own funds. What we owe the agency's dashboard is the per-agent
-breakdown that makes that settlement possible.
+**Money does not flow down that tree.** Everyone earns **points** — host, sub-agent and
+agency — and each withdraws their own points from the app to their own payout method
+(founder, 2026-09-28). **Nobody is paid in rupees directly — not even the agency owner:**
+commission is credited as points, and rupees leave only when someone redeems their own
+points. The platform credits every party directly; no one's earnings ever pass
+through an agency (hard rule #2). Minimum withdrawal: **$10 worth of points for a host,
+$20 for an agency or sub-agent, in multiples of $10 only** — held in config as ₹1,000 /
+₹2,000 with ₹1,000 steps (ledger-decisions § payout flow).
 
 ### Roles and capabilities
 
@@ -185,7 +189,7 @@ in fifty places.
 |---|---|---|
 | **Host management** | Recruit, onboard, support and watch a roster of hosts | Every agent |
 | **Agent management** | Add and remove agents, see their rosters | The agency at the top of the tree |
-| **Commission** | See and earn commission on hosts' earnings | Agency (paid), agents (visible only — settled by their agency) |
+| **Commission** | See and earn commission on hosts' earnings, as points | Agency and sub-agents, each paid directly |
 | **Coin trading** | Buy coin inventory from the platform and transfer it to users | Granted separately, and the only capability that touches money directly |
 
 Who may add whom:
@@ -201,9 +205,9 @@ management. "Generally" is why this is a grant per account and not a second role
 agency can hand one trusted sub-agent the ability to recruit agents without inventing a
 tier for them.
 
-**A sub-agent is an org chart, never a payee.** Hard rule #2 holds whatever the tree looks
-like: hosts are paid directly, commission goes to the agency at the top, and the agency
-settles its own sub-agents off-platform out of its own funds.
+**A sub-agent is a payee in their own right.** They earn commission points on their own
+hosts at their own level, capped at their agency's rate, and withdraw them directly. The
+agency earns the differential on its whole team. Nobody is paid through anybody else.
 
 **Coin trading settles the open question: the coin reseller IS the agency.** One
 application, one approval, one dashboard — not a second programme. The capability is still
@@ -213,8 +217,8 @@ agency that only manages hosts should not automatically be able to move currency
 ### Three places these definitions meet an existing rule
 
 1. **"Assist with payout processing" means paperwork, never money.** Hard rule #2: the
-   platform pays every host directly, and agency commission is paid separately out of
-   platform funds. An agency helping a host finish KYC is support; an agency receiving a
+   platform credits every host, sub-agent and agency their own points, and each redeems
+   their own. An agency helping a host finish KYC is support; an agency receiving a
    host's earnings to pass on is an RBI payment aggregator.
 2. **"Up to 70%" is the advertised dial, not the paid one — and it is not yet decided.**
    The economy below advertises **60% of the coin count** and pays ~30% in rupees, because a
@@ -358,14 +362,15 @@ colour, super message.
 **User level** accrues on **purchase**, not on spend — otherwise free coins could be ground
 into levels via daily check-ins. Small deviation from the source doc's wording, same intent.
 
-**Agency commission comes from a LEVEL, not a fixed band.** Nine levels, each a range of
-team points earned in a period, each carrying a rate from 5% to 20% — the table lives in
-`backend/docs/ledger-decisions.md` and supersedes the five rupee bands that used to sit here.
+**Agency commission comes from a LEVEL: D / C / B / A / S at 4 / 8 / 12 / 16 / 20%**
+(founder, 2026-09-28). Each level is a range of team points earned in a period — the table
+lives in `backend/docs/ledger-decisions.md` and in `app_config.commission_levels`.
 The previous period's volume sets this period's rate, so the rate is known before the period
 starts and nothing is ever repriced retroactively. Bands are counted in **points**, which is
 why the ×2 redenomination doubled them too: a rupee band would have moved every agency's
-level the moment a rate was retuned. No commission on daily/task/reward earnings. Paid by
-the platform, never deducted from the host.
+level the moment a rate was retuned. No commission on daily/task/reward earnings. Credited
+by the platform **as points** — to the agency owner too — never deducted from the host, and
+never paid in rupees except through the owner's own withdrawal.
 
 ### Corrections to the source docs' arithmetic
 
