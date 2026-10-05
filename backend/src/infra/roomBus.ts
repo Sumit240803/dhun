@@ -105,7 +105,21 @@ export function publishToRoom(roomId: string, message: unknown, onlyUserId?: str
     .catch((err) => logger.warn('room bus publish failed', { err, room_id: roomId }));
 }
 
+/**
+ * Shut the publisher down without waiting for a connection that may never come.
+ *
+ * `quit()` QUEUES a QUIT command, and a queued command is only sent once the
+ * client is connected — so a client that never reached Redis waits forever, and
+ * whoever called this never exits. That is a hung seed script in development
+ * and, worse, a process that ignores SIGTERM in production on the one day Redis
+ * is already down. Polite shutdown when there is a connection to be polite on;
+ * otherwise drop it.
+ */
 export async function closeRoomBus(): Promise<void> {
-  await publisher?.quit();
+  const open = publisher;
   publisher = null;
+  if (!open) return;
+
+  if (open.status === 'ready') await open.quit();
+  else open.disconnect();
 }

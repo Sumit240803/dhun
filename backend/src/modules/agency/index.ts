@@ -6,10 +6,19 @@
 
 export { buildAgencyAdminRouter, buildAgencyRouter } from './agency.routes.js';
 
-export { agencyDetail, listAgencies } from './admin.service.js';
+export { agencyDetail, auditTransfers, listAgencies, setAgencyStatus } from './admin.service.js';
 export type { AgencyDetail, AgencySummary, TransferAudit } from './admin.service.js';
 
-export { listAgents } from './agents.service.js';
+export { createAgency, setCoinTrading } from './agency.admin.js';
+
+export {
+  answerAgentInvite,
+  cancelAgentInvite,
+  inviteAgent,
+  listAgents,
+  removeAgent,
+  setAgentManagement,
+} from './agents.service.js';
 export type { AgentInvite, RosterAgent } from './agents.service.js';
 
 export {
@@ -23,12 +32,26 @@ export {
 } from './commission.service.js';
 export type { CloseResult, CommissionSummary, LevelBand } from './commission.service.js';
 
-export { channelConfig, coinsForPrepay, rateFor } from './coins.service.js';
+export {
+  channelConfig,
+  coinsForPrepay,
+  confirmPrepay,
+  inventory,
+  listPrepays,
+  rateFor,
+  recordPrepay,
+  rejectPrepay,
+  transfer,
+} from './coins.service.js';
 export type { ChannelConfig, Inventory, Prepay, Transfer, TransferCaps } from './coins.service.js';
 
 export {
   agentSeat,
+  answerRequest,
+  applyToAgent,
+  applyToQuit,
   autoLeaveOverdue,
+  decideQuit,
   currentMembership,
   expireJoinRequests,
   membershipConfig,

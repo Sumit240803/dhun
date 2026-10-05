@@ -181,11 +181,7 @@ export function startFanout(): void {
     // what makes a sender see their own chat line without a Redis round trip.
     if (envelope.from === INSTANCE_ID) return;
 
-    sendLocal(
-      roomIdFromChannel(channel),
-      envelope.message as ServerMessage,
-      envelope.onlyUserId,
-    );
+    sendLocal(roomIdFromChannel(channel), envelope.message as ServerMessage, envelope.onlyUserId);
   });
 
   // Logged rather than fatal. ioredis reconnects on its own, and a gateway
@@ -202,7 +198,14 @@ export function startFanout(): void {
 }
 
 export async function stopFanout(): Promise<void> {
-  await Promise.allSettled([publisher?.quit(), subscriber?.quit()]);
+  // quit() waits for a connection to send QUIT on, so a client that never
+  // reached Redis would hang shutdown forever — see closeRoomBus.
+  const close = async (c: Redis | null) => {
+    if (!c) return;
+    if (c.status === 'ready') await c.quit();
+    else c.disconnect();
+  };
+  await Promise.allSettled([close(publisher), close(subscriber)]);
   publisher = null;
   subscriber = null;
   rooms.clear();

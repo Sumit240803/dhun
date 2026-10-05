@@ -18,7 +18,8 @@
     "docker:down": "docker compose down",
     "worker": "tsx --env-file=.env src/workers/index.ts",
     "worker:run": "tsx --env-file=.env src/workers/index.ts --run",
-    "gateway": "tsx watch --env-file=.env src/gateway/index.ts"
+    "gateway": "tsx watch --env-file=.env src/gateway/index.ts",
+    "seed:testers": "tsx --env-file=.env scripts/seed-testers.ts"
   },
   "dependencies": {
     "express": "^4.19.2",
