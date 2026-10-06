@@ -15,6 +15,7 @@ import { buildCosmeticsRouter } from './modules/cosmetics/index.js';
 import { buildDiscoverRouter } from './modules/discover/index.js';
 import { buildCatalogRouter, buildWalletRouter } from './modules/economy/index.js';
 import { buildGiftsRouter } from './modules/gifting/index.js';
+import { buildMediaRouter } from './modules/media/index.js';
 import { buildModerationRouter } from './modules/moderation/index.js';
 import { buildNotificationsRouter } from './modules/notifications/index.js';
 import { buildWebhooksRouter } from './modules/realtime/index.js';
@@ -80,6 +81,7 @@ export function buildApp() {
   app.use('/v1/notifications', buildNotificationsRouter());
   app.use('/v1/agency', buildAgencyRouter());
   app.use('/v1/admin/agencies', buildAgencyAdminRouter());
+  app.use('/v1/media', buildMediaRouter());
 
   app.use(notFoundHandler());
   app.use(errorHandler());

@@ -1,5 +1,6 @@
 // Sign-in, sign-up, and the guest upgrade.
 
+import { claimUpload } from '../media/index.js';
 import { PoolClient } from 'pg';
 import { uuidv7 } from 'uuidv7';
 import { withTransaction } from '../../infra/db.js';
@@ -291,7 +292,7 @@ export async function updateProfile(
   userId: string,
   patch: {
     displayName?: string;
-    avatarUrl?: string;
+    avatarKey?: string;
     bio?: string;
     gender?: string;
     dateOfBirth?: string;
@@ -318,11 +319,19 @@ export async function updateProfile(
     }
   }
 
+  // Resolved BEFORE the transaction: claiming reaches R2 to confirm the object
+  // is really there, and a network call has no business inside a held row lock.
+  const avatar =
+    patch.avatarKey === undefined
+      ? null
+      : await claimUpload(userId, 'avatar', patch.avatarKey);
+
   return withTransaction(async (client) => {
     await client.query(
       'UPDATE user_profiles SET' +
         '  display_name  = COALESCE($2, display_name),' +
         '  avatar_url    = COALESCE($3, avatar_url),' +
+        '  avatar_key    = COALESCE($8, avatar_key),' +
         '  bio           = COALESCE($4, bio),' +
         '  gender        = COALESCE($5, gender),' +
         '  date_of_birth = COALESCE($6::date, date_of_birth),' +
@@ -331,11 +340,12 @@ export async function updateProfile(
       [
         userId,
         patch.displayName ?? null,
-        patch.avatarUrl ?? null,
+        avatar?.url ?? null,
         patch.bio ?? null,
         patch.gender ?? null,
         patch.dateOfBirth ?? null,
         patch.locale ?? null,
+        avatar?.key ?? null,
       ],
     );
     return loadSessionUser(client, userId);

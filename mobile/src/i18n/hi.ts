@@ -169,6 +169,7 @@ export const hi: Messages = {
   },
 
   profile: {
+    changePhoto: 'फ़ोटो बदलें',
     friends: 'दोस्त',
     following: 'फ़ॉलोइंग',
     followers: 'फ़ॉलोअर',
@@ -477,6 +478,8 @@ export const hi: Messages = {
     registrationRequired: 'लाइव जाने के लिए अकाउंट बनाएँ',
     goLiveSubtitle: 'रूम को नाम दें ताकि लोग जानें कि क्या उम्मीद करनी है।',
     roomTitle: 'रूम का नाम',
+    coverLabel: 'कवर फ़ोटो',
+    coverAdd: 'जोड़ें',
     roomTitlePlaceholder: 'शाम की अड्डेबाज़ी',
     roomTag: 'किस बारे में है?',
     roomType: 'रूम का प्रकार',
@@ -648,6 +651,8 @@ export const hi: Messages = {
 
     memberOf: 'आपकी एजेंसी',
     agencyId: 'एजेंसी ID {id}',
+    idLabel: 'ID {id}',
+    hostsLabel: 'होस्ट',
     agent: 'एजेंट',
     owner: 'मालिक',
     joinedOn: '{date} को जॉइन किया',
@@ -792,6 +797,9 @@ export const hi: Messages = {
   commission: {
     title: 'कमीशन',
     thisPeriod: 'इस महीने',
+    ofTeamEarnings: 'आपकी टीम की कमाई का, इस महीने के लिए तय',
+    toNextLevel: '{points} पॉइंट और — फिर {level} — {rate}%',
+    topLevel: 'आप सबसे ऊपर के लेवल पर हैं।',
     level: 'लेवल {level}',
     rate: 'आपकी टीम की कमाई का {rate}%',
     fixedInAdvance: 'पिछले महीने के टीम टोटल से तय, इसलिए यह नहीं बदलेगा।',

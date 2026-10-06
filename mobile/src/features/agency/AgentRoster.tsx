@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRef, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import {
@@ -18,7 +18,6 @@ import { errorMessage, fieldError } from '@/lib/errors';
 import { haptic } from '@/lib/haptics';
 import { colors, radius, spacing } from '@/theme';
 import {
-  Badge,
   Banner,
   Button,
   Card,
@@ -34,6 +33,7 @@ import {
 } from '@/ui';
 
 import { personName } from './format';
+import { CardTitle, PersonRow, Tag } from './parts';
 
 /** The agency's agents, and what each of them is holding. */
 export function AgentRoster({ canManage }: { canManage: boolean }) {
@@ -48,7 +48,7 @@ export function AgentRoster({ canManage }: { canManage: boolean }) {
     <Animated.View entering={FadeInDown.duration(220)}>
       <Card>
         <Column gap="md">
-          <Text variant="heading">{t('agents.rosterTitle')}</Text>
+          <CardTitle icon="people" title={t('agents.rosterTitle')} />
 
           {agents.isError ? (
             <Banner message={errorMessage(agents.error)} onRetry={() => void agents.refetch()} />
@@ -58,38 +58,61 @@ export function AgentRoster({ canManage }: { canManage: boolean }) {
             agents.data.map((agent, i) => (
               <Column key={agent.id} gap="sm">
                 {i > 0 && <Divider />}
-                <Row justify="between" gap="md">
-                  <Column gap="xs" flex={1}>
-                    <Row gap="sm">
-                      <Text variant="bodyStrong" numberOfLines={1} style={styles.shrink}>
-                        {personName({ displayName: agent.displayName, publicId: agent.publicId })}
-                      </Text>
-                      {agent.isOwner && <Badge label={t('agents.owner')} tone="brand" />}
+                <PersonRow
+                  person={{ displayName: agent.displayName, publicId: agent.publicId }}
+                  subtitle={t('agents.agentId', { id: agent.publicId })}
+                  tags={
+                    <>
+                      {agent.isOwner && (
+                        <Tag
+                          label={t('agents.owner')}
+                          colour={colors.brand.accent}
+                          soft={colors.brand.soft}
+                          icon="star"
+                        />
+                      )}
                       {!agent.isOwner && agent.canManageAgents && (
-                        <Badge label={t('agents.canManage')} tone="neutral" />
+                        <Tag
+                          label={t('agents.canManage')}
+                          colour={colors.text.secondary}
+                          soft={colors.bg.raised}
+                          icon="people"
+                        />
+                      )}
+                    </>
+                  }
+                  right={
+                    <Row gap="sm">
+                      {/* The number of hosts is the one fact that ranks agents,
+                          so it is a figure rather than a sentence. */}
+                      <Column align="center" style={styles.hostPill}>
+                        <Text variant="bodyStrong">{agent.hostCount}</Text>
+                        <Text variant="micro" tone="faint">
+                          {t('agency.hostsLabel')}
+                        </Text>
+                      </Column>
+                      {!agent.isOwner && (
+                        <Pressable
+                          onPress={() => {
+                            haptic.selection();
+                            setSelected(agent);
+                            sheet.current?.present();
+                          }}
+                          accessibilityRole="button"
+                          accessibilityLabel={t('agents.manage')}
+                          hitSlop={spacing.sm}
+                          testID={`manage-${agent.publicId}`}
+                        >
+                          <Ionicons
+                            name="ellipsis-horizontal"
+                            size={20}
+                            color={colors.text.secondary}
+                          />
+                        </Pressable>
                       )}
                     </Row>
-                    <Text variant="micro" tone="faint">
-                      {t('agents.agentId', { id: agent.publicId })} ·{' '}
-                      {agent.hostCount === 0
-                        ? t('agents.noHosts')
-                        : t('agents.hostCount', { count: agent.hostCount })}
-                    </Text>
-                  </Column>
-                  {!agent.isOwner && (
-                    <Button
-                      label={t('agents.manage')}
-                      onPress={() => {
-                        haptic.selection();
-                        setSelected(agent);
-                        sheet.current?.present();
-                      }}
-                      variant="ghost"
-                      size="sm"
-                      testID={`manage-${agent.publicId}`}
-                    />
-                  )}
-                </Row>
+                  }
+                />
               </Column>
             ))
           )}
@@ -229,7 +252,7 @@ export function InviteAgentCard({ canManage }: { canManage: boolean }) {
     <Card>
       <Column gap="md">
         <Column gap="xs">
-          <Text variant="heading">{t('agents.inviteTitle')}</Text>
+          <CardTitle icon="person-add" title={t('agents.inviteTitle')} />
           <Text variant="caption" tone="secondary">
             {t('agents.inviteBody')}
           </Text>
@@ -286,9 +309,11 @@ export function InviteAgentCard({ canManage }: { canManage: boolean }) {
             <Text variant="bodyStrong">{t('agents.pendingTitle')}</Text>
             {pending.map((item) => (
               <Row key={item.id} justify="between" gap="md">
-                <Text variant="caption" tone="secondary" style={styles.shrink}>
-                  {personName(item.invited)}
-                </Text>
+                <PersonRow
+                  person={item.invited}
+                  subtitle={t('agency.idLabel', { id: item.invited.publicId })}
+                  style={styles.shrink}
+                />
                 <Button
                   label={t('agents.withdraw')}
                   onPress={() => {
@@ -319,7 +344,11 @@ export function AgentInviteCard() {
     <Animated.View entering={FadeInDown.duration(220)}>
       <Card>
         <Column gap="md">
-          <Text variant="heading">{t('agents.myInviteTitle')}</Text>
+          <CardTitle
+            icon="mail-open"
+            title={t('agents.myInviteTitle')}
+            colour={colors.brand.accent}
+          />
           {mine.map((invite) => (
             <Column key={invite.id} gap="sm">
               <Row gap="sm" align="start" style={styles.notice}>
@@ -374,6 +403,13 @@ export function AgentInviteCard() {
 
 const styles = StyleSheet.create({
   shrink: { flexShrink: 1 },
+  hostPill: {
+    minWidth: 52,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.bg.raised,
+  },
   notice: {
     padding: spacing.md,
     borderRadius: radius.md,

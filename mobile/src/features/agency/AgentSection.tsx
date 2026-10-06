@@ -2,10 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import {
+  useAgents,
   useAnswerRequest,
   useDecideQuit,
   useInventory,
@@ -20,13 +21,16 @@ import { haptic } from '@/lib/haptics';
 import { formatCoins } from '@/lib/money';
 import { coins as asCoins } from '@/lib/units';
 import { colors, radius, spacing } from '@/theme';
-import { Banner, Button, Card, Column, Divider, Input, ListItem, Row, Skeleton, Text } from '@/ui';
+import { Banner, Button, Card, Column, Divider, Input, Row, Skeleton, Text } from '@/ui';
 
-import { formatDay, personName } from './format';
+import { formatDay } from './format';
+import { CardTitle, PersonRow, Stat, StatRow, Tag } from './parts';
 
 /** The caller's seat: the Agent ID hosts type, and whom they have asked to join. */
 export function AgentSeatCard({ seat }: { seat: AgentSeat }) {
   const { t } = useTranslation();
+  const agents = useAgents(seat.canManageAgents);
+  const inventory = useInventory(seat.isOwner);
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -36,34 +40,88 @@ export function AgentSeatCard({ seat }: { seat: AgentSeat }) {
     setTimeout(() => setCopied(false), 1600);
   }
 
+  const roster = agents.data ?? [];
+  const hostCount = roster.reduce((total, agent) => total + agent.hostCount, 0);
+
   return (
     <Animated.View entering={FadeInDown.duration(220)}>
       <Card>
         <Column gap="md">
-          <Column gap="xs">
-            <Text variant="micro" tone="faint">
-              {t('agency.agentTitle')}
-            </Text>
-            <Text variant="title" numberOfLines={1}>
-              {seat.agency.name}
-            </Text>
-          </Column>
-          <Row justify="between" style={styles.idBox}>
-            <Column gap="xs">
-              <Text variant="heading" selectable testID="my-agent-id">
-                {t('agency.agentIdShare', { id: seat.publicId })}
+          <Row gap="md">
+            <View style={styles.agencyMark}>
+              <Ionicons name="business" size={22} color={colors.brand.accent} />
+            </View>
+            <Column gap="xs" flex={1}>
+              <Text variant="title" numberOfLines={1}>
+                {seat.agency.name}
               </Text>
-              <Text variant="caption" tone="secondary">
+              <Row gap="xs" wrap>
+                {seat.isOwner && (
+                  <Tag
+                    label={t('agents.owner')}
+                    colour={colors.brand.accent}
+                    soft={colors.brand.soft}
+                    icon="star"
+                  />
+                )}
+                {seat.agency.isHouse && (
+                  <Tag
+                    label={t('agency.house')}
+                    colour={colors.text.secondary}
+                    soft={colors.bg.raised}
+                  />
+                )}
+              </Row>
+            </Column>
+          </Row>
+
+          {/* The three numbers that describe an agency, as numbers. */}
+          <StatRow>
+            <Stat
+              value={String(roster.length || (seat.canManageAgents ? 0 : 1))}
+              label={t('agents.title')}
+              icon="people"
+            />
+            <Stat value={String(hostCount)} label={t('agency.hostsLabel')} icon="mic" />
+            {seat.isOwner && (
+              <Stat
+                value={
+                  inventory.data === undefined ? '—' : formatCoins(asCoins(inventory.data.coins))
+                }
+                label={t('agencyCoins.inventoryTitle')}
+                tone="coin"
+                icon="server"
+              />
+            )}
+          </StatRow>
+
+          {/* The Agent ID is the one thing on this screen people copy out. */}
+          <Pressable
+            onPress={() => void copy()}
+            accessibilityRole="button"
+            accessibilityLabel={t('agency.agentIdShare', { id: seat.publicId })}
+            style={styles.idBox}
+            testID="my-agent-id"
+          >
+            <Column gap="xs" flex={1}>
+              <Text variant="micro" tone="faint">
                 {t('agency.agentIdHelp')}
               </Text>
+              <Text variant="heading" selectable>
+                {seat.publicId}
+              </Text>
             </Column>
-            <Button
-              label={copied ? t('agency.copied') : t('agency.copy')}
-              onPress={() => void copy()}
-              variant="ghost"
-              size="sm"
-            />
-          </Row>
+            <Row gap="xs">
+              <Ionicons
+                name={copied ? 'checkmark-circle' : 'copy-outline'}
+                size={18}
+                color={colors.brand.accent}
+              />
+              <Text variant="caption" style={{ color: colors.brand.accent }}>
+                {copied ? t('agency.copied') : t('agency.copy')}
+              </Text>
+            </Row>
+          </Pressable>
         </Column>
       </Card>
     </Animated.View>
@@ -80,27 +138,61 @@ export function AgentSeatCard({ seat }: { seat: AgentSeat }) {
 export function CoinStockCard() {
   const { t } = useTranslation();
   const inventory = useInventory(true);
-  const enabled = inventory.data !== undefined;
+  const data = inventory.data;
 
   return (
-    <Card padded={false}>
-      <ListItem
-        title={t('agencyCoins.inventoryTitle')}
-        subtitle={
-          enabled
-            ? formatCoins(asCoins(inventory.data.coins))
-            : inventory.isError
-              ? t('agencyCoins.notTradingTitle')
-              : undefined
-        }
-        left={<Ionicons name="server-outline" size={20} color={colors.currency.coin} />}
-        right={<Ionicons name="chevron-forward" size={18} color={colors.text.faint} />}
-        onPress={() => {
-          haptic.selection();
-          router.push('/(app)/agency/coins');
-        }}
-        testID="coin-stock-row"
-      />
+    <Card>
+      <Column gap="md">
+        <CardTitle
+          icon="server"
+          title={t('agencyCoins.inventoryTitle')}
+          colour={colors.currency.coin}
+        />
+
+        {inventory.isError ? (
+          <Text variant="caption" tone="secondary">
+            {t('agencyCoins.notTradingTitle')}
+          </Text>
+        ) : data === undefined ? (
+          <Skeleton height={72} rounding="md" />
+        ) : (
+          <>
+            <Row justify="between" align="end" style={styles.coinTile}>
+              <Column gap="xs">
+                <Text variant="display" style={{ color: colors.currency.coin }}>
+                  {formatCoins(asCoins(data.coins))}
+                </Text>
+                <Text variant="micro" tone="faint">
+                  {t('agencyCoins.usedToday', {
+                    coins: formatCoins(asCoins(data.usedToday.coins)),
+                    count: data.usedToday.count,
+                  })}
+                </Text>
+              </Column>
+              <Ionicons name="server" size={32} color={colors.currency.coin} />
+            </Row>
+            {data.isNewAgency && (
+              <Tag
+                label={t('agencyCoins.newAgencyCaps')}
+                colour={colors.status.warning}
+                soft={colors.status.warningSoft}
+                icon="information-circle"
+              />
+            )}
+          </>
+        )}
+
+        <Button
+          label={t('agencyCoins.transferTitle')}
+          onPress={() => {
+            haptic.selection();
+            router.push('/(app)/agency/coins');
+          }}
+          variant="secondary"
+          fullWidth
+          testID="coin-stock-row"
+        />
+      </Column>
     </Card>
   );
 }
@@ -115,7 +207,7 @@ export function JoinApplications() {
   return (
     <Card>
       <Column gap="md">
-        <Text variant="heading">{t('agency.applicationsTitle')}</Text>
+        <CardTitle icon="person-add" title={t('agency.applicationsTitle')} />
         {requests.isError ? (
           <Banner message={errorMessage(requests.error)} onRetry={() => void requests.refetch()} />
         ) : requests.data === undefined ? (
@@ -128,12 +220,10 @@ export function JoinApplications() {
           applications.map((r, i) => (
             <Column key={r.id} gap="sm">
               {i > 0 && <Divider />}
-              <Text variant="bodyStrong">
-                {t('agency.hostLine', { name: personName(r.host), id: r.host.publicId })}
-              </Text>
+              <PersonRow person={r.host} subtitle={t('agency.idLabel', { id: r.host.publicId })} />
               {r.message !== null && (
-                <Text variant="caption" tone="secondary">
-                  {r.message}
+                <Text variant="caption" tone="secondary" style={styles.quote}>
+                  “{r.message}”
                 </Text>
               )}
               <Row gap="sm">
@@ -185,7 +275,7 @@ export function InviteHostCard() {
     <Card>
       <Column gap="md">
         <Column gap="xs">
-          <Text variant="heading">{t('agency.inviteTitle')}</Text>
+          <CardTitle icon="link" title={t('agency.inviteTitle')} />
           <Text variant="caption" tone="secondary">
             {t('agency.inviteBody')}
           </Text>
@@ -247,7 +337,7 @@ export function QuitApplications() {
   return (
     <Card>
       <Column gap="md">
-        <Text variant="heading">{t('agency.leavingTitle')}</Text>
+        <CardTitle icon="exit-outline" title={t('agency.leavingTitle')} />
         {requests.isError ? (
           <Banner message={errorMessage(requests.error)} onRetry={() => void requests.refetch()} />
         ) : requests.data === undefined ? (
@@ -260,18 +350,30 @@ export function QuitApplications() {
           requests.data.map((q, i) => (
             <Column key={q.id} gap="sm">
               {i > 0 && <Divider />}
-              <Text variant="bodyStrong">
-                {t('agency.hostLine', { name: personName(q.host), id: q.host.publicId })}
-              </Text>
-              <Text variant="caption" tone="secondary">
+              <PersonRow
+                person={q.host}
+                subtitle={t('agency.idLabel', { id: q.host.publicId })}
+                tags={
+                  q.status === 'pending' && q.autoLeaveAt !== null ? (
+                    <Tag
+                      label={t('agency.leavesOn', { date: formatDay(q.autoLeaveAt, locale) })}
+                      colour={colors.status.warning}
+                      soft={colors.status.warningSoft}
+                      icon="time-outline"
+                    />
+                  ) : q.approvableUntil !== null ? (
+                    <Tag
+                      label={t('agency.declinedCanApprove', {
+                        date: formatDay(q.approvableUntil, locale),
+                      })}
+                      colour={colors.text.secondary}
+                      soft={colors.bg.raised}
+                    />
+                  ) : undefined
+                }
+              />
+              <Text variant="caption" tone="secondary" style={styles.quote}>
                 “{q.reason}”
-              </Text>
-              <Text variant="micro" tone="faint">
-                {q.status === 'pending' && q.autoLeaveAt !== null
-                  ? t('agency.leavesOn', { date: formatDay(q.autoLeaveAt, locale) })
-                  : q.approvableUntil !== null
-                    ? t('agency.declinedCanApprove', { date: formatDay(q.approvableUntil, locale) })
-                    : ''}
               </Text>
               <Row gap="sm">
                 <Button
@@ -307,6 +409,20 @@ export function QuitApplications() {
 }
 
 const styles = StyleSheet.create({
+  agencyMark: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.brand.soft,
+  },
+  coinTile: {
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.currency.coinSoft,
+  },
+  quote: { fontStyle: 'italic' },
   idBox: {
     padding: spacing.md,
     borderRadius: radius.md,

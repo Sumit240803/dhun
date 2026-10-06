@@ -7,6 +7,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { useGoLive } from '@/api/queries/useRoom';
 import { ApiErrorCode, type RoomTag } from '@/api/types';
+import { CoverPicker } from '@/features/media/CoverPicker';
 import { useTranslation, type MessageKey } from '@/i18n';
 import { track } from '@/lib/analytics';
 import { errorMessage, isErrorCode, traceReference } from '@/lib/errors';
@@ -38,6 +39,8 @@ const PARTY_SEATS = 8;
 export default function GoLiveScreen() {
   const { t } = useTranslation();
   const goLive = useGoLive();
+  const [coverKey, setCoverKey] = useState<string | null>(null);
+  const [coverUri, setCoverUri] = useState<string | null>(null);
   const isRegistered = useIsRegistered();
 
   const [title, setTitle] = useState('');
@@ -54,7 +57,12 @@ export default function GoLiveScreen() {
 
     haptic.tap();
     goLive.mutate(
-      { title: trimmed, tag, ...(party ? { seatCapacity: PARTY_SEATS } : {}) },
+      {
+        title: trimmed,
+        tag,
+        ...(party ? { seatCapacity: PARTY_SEATS } : {}),
+        ...(coverKey !== null ? { coverKey } : {}),
+      },
       {
         onSuccess: (result) => {
           haptic.success();
@@ -149,6 +157,15 @@ export default function GoLiveScreen() {
               returnKeyType="go"
               editable={!goLive.isPending}
               autoFocus
+            />
+
+            <CoverPicker
+              uri={coverUri}
+              disabled={goLive.isPending}
+              onUploaded={(key, localUri) => {
+                setCoverKey(key);
+                setCoverUri(localUri);
+              }}
             />
 
             <Column gap="sm">

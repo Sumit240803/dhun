@@ -152,8 +152,8 @@ async function openRoom(host: Account, title: string, tag: string, seats: number
   const roomId = uuidv7();
   await pool.query(
     `INSERT INTO rooms (id, host_user_id, title, tag, country, is_video,
-                        seat_capacity, seats_taken, viewer_count, started_at)
-          VALUES ($1, $2, $3, $4, 'IN', true, $5, $6, $7, now() - interval '25 minutes')`,
+                        seat_capacity, seats_taken, viewer_count, cover_url, started_at)
+          VALUES ($1, $2, $3, $4, 'IN', true, $5, $6, $7, $8, now() - interval '25 minutes')`,
     [
       roomId,
       host.id,
@@ -162,6 +162,9 @@ async function openRoom(host: Account, title: string, tag: string, seats: number
       seats,
       seats === null ? 0 : Math.max(1, Math.floor(seats * 0.5)),
       200 + Math.floor(Math.random() * 3_000),
+      // Seeded on the host's name, so a room keeps the same cover across
+      // re-seeds. Placeholder art under the Unsplash licence — see seed.ts.
+      `https://picsum.photos/seed/dhun-${host.name.toLowerCase().replace(/\s+/g, '-')}/600/800`,
     ],
   );
   return roomId;
@@ -534,23 +537,121 @@ async function main(): Promise<void> {
     [payer.id],
   );
 
-  // Official message threads, unread — the badge and the filter chips need an
-  // unread thread to be checkable at all.
-  for (const viewer of [whale, payer]) {
+  // ── Message threads ───────────────────────────────────────────────────────
+  //
+  // Unread on purpose: the badge, the filter chips and the unread dot cannot be
+  // checked against a thread that has already been read.
+
+  /** A platform thread: one voice, no sender, `accent` tints the avatar. */
+  async function officialThread(
+    owner: Account,
+    title: string,
+    accent: 'money' | 'security' | 'system',
+    bodies: string[],
+    minutesAgo = 90,
+  ) {
     const threadId = uuidv7();
     await pool.query(
-      `INSERT INTO message_threads (id, kind, title, accent) VALUES ($1, 'official', $2, $3)`,
-      [threadId, 'Income Reminder', 'money'],
+      'INSERT INTO message_threads (id, kind, title, accent) VALUES ($1, $2, $3, $4)',
+      [threadId, 'official', title, accent],
     );
     await pool.query(
-      `INSERT INTO thread_participants (thread_id, user_id, last_read_at) VALUES ($1, $2, NULL)`,
-      [threadId, viewer.id],
+      'INSERT INTO thread_participants (thread_id, user_id, last_read_at) VALUES ($1, $2, NULL)',
+      [threadId, owner.id],
     );
-    await pool.query(
-      `INSERT INTO messages (id, thread_id, sender_user_id, body) VALUES ($1, $2, NULL, $3)`,
-      [uuidv7(), threadId, 'Your daily check-in is ready. Open Rewards to collect your coins.'],
-    );
+    for (const [index, body] of bodies.entries()) {
+      await pool.query(
+        `INSERT INTO messages (id, thread_id, sender_user_id, body, created_at)
+         VALUES ($1, $2, NULL, $3, now() - make_interval(mins => $4))`,
+        [uuidv7(), threadId, body, minutesAgo - index * 5],
+      );
+    }
   }
+
+  /**
+   * A conversation between two people.
+   *
+   * A direct thread stores no title — it is named for whoever you are talking
+   * to — so BOTH participants must exist or the list has nothing to call it.
+   * The owner's side is left UNREAD so their inbox shows a badge.
+   */
+  async function directThread(
+    other: Account,
+    owner: Account,
+    lines: { from: Account; body: string }[],
+    minutesAgo = 240,
+  ) {
+    const threadId = uuidv7();
+    await pool.query(
+      "INSERT INTO message_threads (id, kind, title, accent) VALUES ($1, 'direct', NULL, NULL)",
+      [threadId],
+    );
+    await pool.query(
+      `INSERT INTO thread_participants (thread_id, user_id, last_read_at)
+       VALUES ($1, $2, now()), ($1, $3, NULL)`,
+      [threadId, other.id, owner.id],
+    );
+    for (const [index, line] of lines.entries()) {
+      await pool.query(
+        `INSERT INTO messages (id, thread_id, sender_user_id, body, created_at)
+         VALUES ($1, $2, $3, $4, now() - make_interval(mins => $5))`,
+        [uuidv7(), threadId, line.from.id, line.body, minutesAgo - index * 7],
+      );
+    }
+  }
+
+  for (const viewer of [whale, payer]) {
+    await officialThread(viewer, 'Income Reminder', 'money', [
+      'Your daily check-in is ready. Open Rewards to collect your coins.',
+    ]);
+  }
+
+  // The agency owner's inbox: what someone running Sur Talent would actually
+  // have waiting — the platform telling them about money and access, and their
+  // own people asking for things.
+  await officialThread(
+    sur.owner,
+    'Commission',
+    'money',
+    [
+      'September commission has been credited: 17,265 points.',
+      'Your October rate is level D, 4% of your team’s earnings. It is fixed for the month.',
+    ],
+    35,
+  );
+  await officialThread(
+    sur.owner,
+    'Agency Centre',
+    'system',
+    [
+      'Coin trading has been enabled for Sur Talent.',
+      'Your prepay of ₹2,00,000 was confirmed. 2,80,00,000 coins are in your stock.',
+    ],
+    120,
+  );
+  await officialThread(
+    sur.owner,
+    'Account Security Centre',
+    'security',
+    ['Your account was signed in on a new device. If this was not you, secure your account.'],
+    400,
+  );
+
+  await directThread(sur.hosts[0].account, sur.owner, [
+    { from: sur.hosts[0].account, body: 'Sir, kal main 8 baje live aaungi' },
+    { from: sur.owner, body: 'Theek hai, peak hours hain — zaroor aana' },
+    { from: sur.hosts[0].account, body: 'Ji, pakka' },
+  ]);
+  await directThread(sur.subs[0], sur.owner, [
+    { from: sur.subs[0], body: 'Do naye hosts aaye hain is hafte' },
+    { from: sur.owner, body: 'Badhiya. Unka target set kar dena' },
+  ]);
+  await directThread(sur.hosts[1].account, sur.owner, [
+    {
+      from: sur.hosts[1].account,
+      body: 'Sir maine agency chhodne ki request daali hai, family reason hai',
+    },
+  ]);
 
   // Reports and a block, so moderation has a queue rather than an empty table.
   const REPORTS: [string, string][] = [

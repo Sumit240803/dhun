@@ -55,6 +55,16 @@ const schema = z.object({
   // The SECRET signs join tokens and every admin call. It is the equivalent of
   // the JWT secret for the media plane: whoever holds it can mint a token to
   // speak in any room as anyone. It never leaves this process.
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET: z.string().default('dhun-media'),
+  // What the public internet calls the bucket. The r2.dev subdomain to start
+  // with; a custom domain before launch, which is why nothing stores a URL it
+  // cannot recompute.
+  R2_PUBLIC_URL: z.string().optional(),
+  R2_UPLOAD_TTL_MINUTES: z.coerce.number().int().min(1).max(60).default(10),
+
   LIVEKIT_URL: z.string().optional(),
   LIVEKIT_API_KEY: z.string().optional(),
   LIVEKIT_API_SECRET: z.string().optional(),
@@ -148,6 +158,31 @@ export const config = {
   push: {
     provider: env.PUSH_PROVIDER,
     expoAccessToken: env.EXPO_ACCESS_TOKEN,
+  },
+
+  media: {
+    accountId: env.R2_ACCOUNT_ID,
+    accessKeyId: env.R2_ACCESS_KEY_ID,
+    secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+    bucket: env.R2_BUCKET,
+    publicUrl: env.R2_PUBLIC_URL?.replace(/\/+$/, ''),
+    uploadTtlMinutes: env.R2_UPLOAD_TTL_MINUTES,
+
+    /**
+     * Everything needed to issue an upload AND to read it back afterwards.
+     *
+     * The public URL is part of the check on purpose: credentials alone would
+     * let the server hand out an upload for an object nobody can then fetch,
+     * which fails later and further away, in the app, as a broken image.
+     */
+    get configured(): boolean {
+      return Boolean(
+        env.R2_ACCOUNT_ID &&
+          env.R2_ACCESS_KEY_ID &&
+          env.R2_SECRET_ACCESS_KEY &&
+          env.R2_PUBLIC_URL,
+      );
+    },
   },
 
   livekit: {

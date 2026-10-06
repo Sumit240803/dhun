@@ -118,6 +118,22 @@ async function clear(): Promise<void> {
   console.log(`seed: cleared ${SEEDED_IDS.length} seeded rows`);
 }
 
+/**
+ * A placeholder cover for a seeded room.
+ *
+ * Lorem Picsum, seeded by the host key so each room keeps the SAME picture
+ * across re-seeds — a feed whose art reshuffles on every run is impossible to
+ * screenshot twice. The images are Unsplash-licensed and the service exists for
+ * exactly this purpose.
+ *
+ * These are placeholders and nothing more. Real covers are a host's own frame
+ * or a chosen image, and none of this ships: `seed.ts` refuses to run against
+ * production, and a real room carries whatever the host set.
+ */
+function coverFor(key: string): string {
+  return `https://picsum.photos/seed/dhun-${key}/600/800`;
+}
+
 async function seed(): Promise<void> {
   for (const host of HOSTS) {
     const userId = idFor(host.key);
@@ -141,12 +157,13 @@ async function seed(): Promise<void> {
 
     await pool.query(
       `INSERT INTO rooms (id, host_user_id, title, tag, country, is_video,
-                          seat_capacity, seats_taken, viewer_count, started_at)
-            VALUES ($1, $2, $3, $4, 'IN', $5, $6, $7, $8, now() - interval '20 minutes')
+                          seat_capacity, seats_taken, viewer_count, cover_url, started_at)
+            VALUES ($1, $2, $3, $4, 'IN', $5, $6, $7, $8, $9, now() - interval '20 minutes')
        ON CONFLICT (id) DO UPDATE
           SET title = EXCLUDED.title,
               viewer_count = EXCLUDED.viewer_count,
               seats_taken = EXCLUDED.seats_taken,
+              cover_url = EXCLUDED.cover_url,
               ended_at = NULL`,
       [
         idFor(`room:${host.key}`),
@@ -157,6 +174,7 @@ async function seed(): Promise<void> {
         host.seats,
         host.seats === null ? 0 : Math.max(1, Math.floor(host.seats * 0.6)),
         host.viewers,
+        coverFor(host.key),
       ],
     );
   }

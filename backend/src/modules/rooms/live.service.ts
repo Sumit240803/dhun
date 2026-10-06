@@ -17,6 +17,7 @@ import { pool, withTransaction } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
 import { logger } from '../../infra/logger.js';
 import { enqueueEvent } from '../../infra/outbox.js';
+import { claimUpload } from '../media/index.js';
 import { EMPTY_LOOK, looksFor, type UserLook } from '../cosmetics/index.js';
 import {
   announceRoomEnded,
@@ -115,9 +116,15 @@ export async function goLive(input: {
   isVideo: boolean;
   /** Present for a party room, absent for a single-host broadcast. */
   seatCapacity?: number;
-  coverUrl?: string;
+  coverKey?: string;
   country?: string;
 }): Promise<{ room: LiveRoom; rtc: RtcJoinToken }> {
+  // Claimed before anything is written: the check reaches R2 to confirm the
+  // object exists, and a host whose upload failed should be told now rather
+  // than going live with a broken tile in the feed.
+  const cover =
+    input.coverKey === undefined ? null : await claimUpload(input.hostId, 'room_cover', input.coverKey);
+
   const roomId = uuidv7();
 
   const room = await withTransaction(async (client) => {
@@ -136,17 +143,19 @@ export async function goLive(input: {
     }
 
     await client.query(
-      `INSERT INTO rooms (id, host_user_id, title, tag, country, cover_url, is_video, seat_capacity)
-            VALUES ($1, $2, $3, $4, COALESCE($5, 'IN'), $6, $7, $8)`,
+      `INSERT INTO rooms (id, host_user_id, title, tag, country, cover_url, cover_key,
+                          is_video, seat_capacity)
+            VALUES ($1, $2, $3, $4, COALESCE($5, 'IN'), $6, $9, $7, $8)`,
       [
         roomId,
         input.hostId,
         input.title,
         input.tag,
         input.country ?? null,
-        input.coverUrl ?? null,
+        cover?.url ?? null,
         input.isVideo,
         input.seatCapacity ?? null,
+        cover?.key ?? null,
       ],
     );
 

@@ -499,6 +499,15 @@ export interface CommissionSummary {
   earningNow: number;
   /** The level that volume would currently earn. */
   projected: { level: string; rateBp: number } | null;
+  /**
+   * Every band, so the app can DRAW the ladder rather than describe it.
+   *
+   * Server-driven like every other dial: retuning `commission_levels` must
+   * change what an agency sees without an app release.
+   */
+  ladder: Array<{ level: string; minPoints: number; rateBp: number }>;
+  /** The rung above the projected one, and the gap to it. Null at the top. */
+  nextLevel: { level: string; rateBp: number; pointsNeeded: number } | null;
   history: Array<{ period: string; points: number; basePoints: number; rateBp: number }>;
 }
 
@@ -544,6 +553,10 @@ export async function commissionSummary(
   const earningNow = Number(live.rows[0].points);
   const band = bandFor(earningNow, bands);
 
+  // The arithmetic for "how far to the next rung" stays on the server, so the
+  // app never computes a level — the same rule the user level already follows.
+  const above = bands.find((b) => b.minPoints > earningNow) ?? null;
+
   return {
     payeeType,
     current: level.rows[0]
@@ -556,6 +569,14 @@ export async function commissionSummary(
       : null,
     earningNow,
     projected: { level: band.level, rateBp: band.rateBp },
+    ladder: bands.map((b) => ({ level: b.level, minPoints: b.minPoints, rateBp: b.rateBp })),
+    nextLevel: above
+      ? {
+          level: above.level,
+          rateBp: above.rateBp,
+          pointsNeeded: above.minPoints - earningNow,
+        }
+      : null,
     history: history.rows.map((r) => ({
       period: r.period,
       points: Number(r.points),

@@ -4,7 +4,7 @@ import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, type Href } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,7 +18,7 @@ import { formatCoins, formatGems, formatPoints } from '@/lib/money';
 import { coins, gems, points } from '@/lib/units';
 import { haptic } from '@/lib/haptics';
 import { colors, radius, spacing } from '@/theme';
-import { useSession } from '@/store/session';
+import { sessionStore, useSession } from '@/store/session';
 import {
   Badge,
   Button,
@@ -36,6 +36,9 @@ import {
 } from '@/ui';
 import { themed } from '@/visuals/look';
 import { LookAvatar } from '@/visuals/LookAvatar';
+import { pickImage, uploadImage } from '@/features/media/upload';
+import { authApi } from '@/api/endpoints/auth';
+import { queryKeys } from '@/api/queries/keys';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -63,6 +66,31 @@ export default function MeTab() {
     (!rewards.data.checkin.claimedToday || rewards.data.welcome.available);
 
   const signOutSheet = useRef<SheetHandle>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  // Shown until the session carries the new URL, so the picture a person just
+  // chose is the picture they see.
+  const [localPhoto, setLocalPhoto] = useState<string | null>(null);
+
+  async function changePhoto() {
+    if (photoBusy) return;
+    haptic.tap();
+    setPhotoBusy(true);
+    try {
+      const picked = await pickImage('avatar');
+      if (picked !== null) {
+        const key = await uploadImage('avatar', picked);
+        const { user: updated } = await authApi.updateProfile({ avatarKey: key });
+        sessionStore.set({ user: updated });
+        setLocalPhoto(picked.uri);
+        void queryClient.invalidateQueries({ queryKey: queryKeys.profile.all });
+        haptic.success();
+      }
+    } catch {
+      haptic.error();
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
   const [signingOut, setSigningOut] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -96,8 +124,34 @@ export default function MeTab() {
           style={[styles.hero, { paddingTop: insets.top + spacing.xl }]}
         >
           <Animated.View entering={FadeInDown.duration(280)} style={styles.heroContent}>
-            {/* As everyone else sees them — their frame and name colour. */}
-            <LookAvatar name={name} size="xl" frame={summary.data?.look.frame} />
+            {/* As everyone else sees them — their frame and name colour.
+                Tapping it changes the photo; a guest has no profile to change. */}
+            {isGuest ? (
+              <LookAvatar name={name} size="xl" frame={summary.data?.look.frame} />
+            ) : (
+              <Pressable
+                onPress={() => void changePhoto()}
+                accessibilityRole="button"
+                accessibilityLabel={t('profile.changePhoto')}
+                accessibilityState={{ busy: photoBusy }}
+                disabled={photoBusy}
+                testID="me-avatar"
+              >
+                <LookAvatar
+                  name={name}
+                  size="xl"
+                  uri={localPhoto ?? summary.data?.avatarUrl ?? null}
+                  frame={summary.data?.look.frame}
+                />
+                <View style={styles.cameraBadge}>
+                  {photoBusy ? (
+                    <ActivityIndicator size="small" color={colors.text.onBrand} />
+                  ) : (
+                    <Ionicons name="camera" size={14} color={colors.text.onBrand} />
+                  )}
+                </View>
+              </Pressable>
+            )}
             <Row gap="sm">
               <Text
                 variant="title"
@@ -487,6 +541,19 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 const styles = StyleSheet.create({
+  cameraBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    width: 28,
+    height: 28,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.brand.solid,
+    borderWidth: 2,
+    borderColor: colors.bg.surface,
+  },
   dot: {
     width: 8,
     height: 8,

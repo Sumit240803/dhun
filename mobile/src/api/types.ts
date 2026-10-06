@@ -355,6 +355,8 @@ export interface MessageThread {
 // --- profile ----------------------------------------------------------------
 
 export interface ProfileSummary {
+  /** The owner's own photo. */
+  avatarUrl: string | null;
   /** The short number a user reads out to be found. Never the internal uuid. */
   publicId: string;
   friends: number;
@@ -813,5 +815,9 @@ export interface CommissionSummary {
   /** Team points so far this period: what sets NEXT period's rate. */
   earningNow: number;
   projected: { level: string; rateBp: number } | null;
+  /** Every band, so the ladder can be drawn rather than described. */
+  ladder: { level: string; minPoints: number; rateBp: number }[];
+  /** The rung above the projected one, and the gap to it. Null at the top. */
+  nextLevel: { level: string; rateBp: number; pointsNeeded: number } | null;
   history: { period: string; points: number; basePoints: number; rateBp: number }[];
 }

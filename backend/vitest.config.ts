@@ -18,6 +18,15 @@ export default defineConfig({
       LIVEKIT_URL: 'ws://livekit.test:7880',
       LIVEKIT_API_KEY: 'testkey',
       LIVEKIT_API_SECRET: 'test-secret-at-least-32-characters-long',
+      // Same reasoning for object storage: fixed values so a key and its URL
+      // are predictable, and nothing depends on a developer holding real R2
+      // credentials. The provider itself is mocked in media.test.ts, so no
+      // request leaves the machine.
+      R2_ACCOUNT_ID: 'test-account',
+      R2_ACCESS_KEY_ID: 'test-access-key',
+      R2_SECRET_ACCESS_KEY: 'test-secret-key',
+      R2_BUCKET: 'dhun-media-test',
+      R2_PUBLIC_URL: 'https://media.test',
     },
     globalSetup: ['./tests/globalSetup.ts'],
     // These tests share one database and assert on global state, so files must

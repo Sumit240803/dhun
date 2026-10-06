@@ -78,7 +78,9 @@ export function buildRoomsRouter(): Router {
         // Present makes it a party room, absent makes it a single-host
         // broadcast. Bounded to what the rooms table allows.
         seatCapacity: z.number().int().min(2).max(20).optional(),
-        coverUrl: z.string().url().max(512).optional(),
+        // An upload key this host was issued, not a URL — see media/. A host
+        // who could name any URL could put anything in the feed.
+        coverKey: z.string().trim().min(8).max(256).optional(),
         country: z.string().length(2).toUpperCase().optional(),
       }),
     ),
@@ -91,7 +93,7 @@ export function buildRoomsRouter(): Router {
             tag: req.body.tag,
             isVideo: req.body.isVideo,
             seatCapacity: req.body.seatCapacity,
-            coverUrl: req.body.coverUrl,
+            coverKey: req.body.coverKey,
             country: req.body.country,
           }),
         );

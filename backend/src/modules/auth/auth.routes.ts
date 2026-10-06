@@ -509,7 +509,11 @@ export function buildAuthRouter(): Router {
     validate(
       z.object({
         displayName: z.string().min(2).max(32).optional(),
-        avatarUrl: z.string().url().max(512).optional(),
+        // The key of an upload this user was issued — NOT a URL. Accepting a
+        // URL would let anyone point their avatar at any address on the
+        // internet, which we would then render in every room, chat line and
+        // leaderboard. The server derives the URL from a key it signed.
+        avatarKey: z.string().trim().min(8).max(256).optional(),
         bio: z.string().max(280).optional(),
         gender: z.enum(['male', 'female', 'other', 'undisclosed']).optional(),
         dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),

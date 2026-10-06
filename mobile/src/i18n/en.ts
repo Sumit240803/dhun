@@ -182,6 +182,7 @@ export const en = {
   },
 
   profile: {
+    changePhoto: 'Change photo',
     friends: 'Friends',
     following: 'Following',
     followers: 'Followers',
@@ -491,6 +492,8 @@ export const en = {
     registrationRequired: 'Create an account to go live',
     goLiveSubtitle: 'Give your room a name so people know what to expect.',
     roomTitle: 'Room name',
+    coverLabel: 'Cover photo',
+    coverAdd: 'Add',
     roomTitlePlaceholder: 'Evening adda',
     roomTag: 'What is it about?',
     roomType: 'Room type',
@@ -664,6 +667,8 @@ export const en = {
 
     memberOf: 'Your agency',
     agencyId: 'Agency ID {id}',
+    idLabel: 'ID {id}',
+    hostsLabel: 'Hosts',
     agent: 'Agent',
     owner: 'Owner',
     joinedOn: 'Joined {date}',
@@ -803,6 +808,9 @@ export const en = {
   commission: {
     title: 'Commission',
     thisPeriod: 'This month',
+    ofTeamEarnings: 'of your team’s earnings, fixed for this month',
+    toNextLevel: '{points} more points reaches {level} — {rate}%',
+    topLevel: 'You are at the highest level.',
     level: 'Level {level}',
     rate: '{rate}% of your team’s earnings',
     fixedInAdvance: 'Set by last month’s team total, so it will not change.',

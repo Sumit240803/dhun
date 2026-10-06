@@ -4947,7 +4947,142 @@
                 "commission"
               ]
             },
-            "description": "What the caller earns. The agency owner sees the AGENCY figures; a sub-agent sees their own.\n\n`current` is **this period's rate, already fixed** — set by the previous period's team total, so it cannot move and can be quoted to a sub-agent today. `earningNow` is the volume building up this period, which sets the NEXT one, and `projected` is the level that volume currently earns.\n\nCommission is credited as POINTS at period close, which the payee withdraws themselves (hard rule #2). Null `current` means the first period has not closed yet — they earn at level D until it does.\n\n**Errors:** `NOT_AN_AGENT` 403 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429"
+            "description": "What the caller earns. The agency owner sees the AGENCY figures; a sub-agent sees their own.\n\n`current` is **this period's rate, already fixed** — set by the previous period's team total, so it cannot move and can be quoted to a sub-agent today. `earningNow` is the volume building up this period, which sets the NEXT one, and \n\nCommission is credited as POINTS at period close, which the payee withdraws themselves (hard rule #2). Null `current` means the first period has not closed yet — they earn at level D until it does.\n\n**Errors:** `NOT_AN_AGENT` 403 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429\n\n`ladder` carries every band (level, minPoints, rateBp) so the app can DRAW the ladder rather than describe it — retuning `commission_levels` changes what an agency sees with no app release. `nextLevel` gives the rung above the projected one and the points still needed to reach it, computed server-side so the client never works out a level itself."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Media",
+      "description": "Presigned image uploads to Cloudflare R2 — avatars and room covers.\n\n**The bytes never pass through this API.** Three steps: ask for a slot, PUT the file straight to the returned URL, then send the KEY back with whatever it belongs to (a profile, a room).\n\n**A client never names a URL.** The server invents the key (`avatars/{userId}/{uuid}.jpg`), signs the content type and length into the URL, and derives the public address from config. Accepting a URL would let anyone point their avatar at any address on the internet, which the app would then render in every room, chat line and leaderboard.\n\nUnconfigured (no `R2_PUBLIC_URL`), every endpoint here answers `MEDIA_UNAVAILABLE` 503 and the rest of the app runs normally.",
+      "item": [
+        {
+          "name": "Ask for an upload slot",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/media/uploads",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "media",
+                "uploads"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"purpose\": \"avatar\",\n  \"contentType\": \"image/jpeg\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "`purpose` is `avatar` (3MB) or `room_cover` (5MB). Only `image/jpeg`, `image/png` and `image/webp` are accepted — **never SVG**, which is a document that can carry script and would be stored XSS on a public bucket served from our own domain.\n\nReturns `{ url, key, expiresInSeconds, maxBytes }`. PUT the bytes to `url` with exactly the `Content-Type` you asked for — it is part of the signature, so anything else is rejected by R2.\n\n**Errors:** `UNSUPPORTED_IMAGE_TYPE` 422 · `MEDIA_UNAVAILABLE` 503 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429 (30 per 10 min)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('uploadKey', pm.response.json().key);",
+                  "pm.environment.set('uploadUrl', pm.response.json().url);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "PUT the file (R2, not this API)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "image/jpeg"
+              }
+            ],
+            "url": {
+              "raw": "{{uploadUrl}}",
+              "host": [
+                "{{uploadUrl}}"
+              ]
+            },
+            "body": {
+              "mode": "file",
+              "file": {
+                "src": ""
+              }
+            },
+            "description": "Goes straight to Cloudflare, not to us. Pick a local JPEG in the Body tab.\n\nThe signature pins the content type and length, so a slot requested as `image/jpeg` cannot be filled with anything else, and the size is agreed before a byte moves."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Claim it as your avatar",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/auth/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "auth",
+                "profile"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"avatarKey\": \"{{uploadKey}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Takes `avatarKey`, **not** a URL. The server checks the key sits under this user's own prefix and that the object really exists before storing it, then builds the public URL from config.\n\nBoth the key and the URL are stored: the key is what the object IS, the URL is that key under whichever domain serves the bucket today. Moving from the r2.dev subdomain to a custom domain is then one UPDATE that recomputes every URL, not a migration doing string surgery.\n\n**Errors:** `UPLOAD_NOT_YOURS` 403 · `UPLOAD_NOT_FOUND` 409 (bytes never arrived) · `UPLOAD_TOO_LARGE` 413 · `MEDIA_UNAVAILABLE` 503 · `VALIDATION_FAILED` 422"
           },
           "response": [],
           "event": [

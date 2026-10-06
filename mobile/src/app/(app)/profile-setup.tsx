@@ -17,6 +17,7 @@ import {
   latestAdultDob,
   toApiDate,
 } from '@/features/auth/dob';
+import { AvatarPicker } from '@/features/media/AvatarPicker';
 import { useTranslation, type MessageKey } from '@/i18n';
 import { track } from '@/lib/analytics';
 import { errorMessage, fieldError, isErrorCode, traceReference } from '@/lib/errors';
@@ -42,6 +43,10 @@ export default function ProfileSetupScreen() {
   const [dob, setDob] = useState<Date | null>(null);
   const [gender, setGender] = useState<Gender | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // Held until the profile is saved, so the photo and the name land in one
+  // request rather than leaving a half-made profile if the person backs out.
+  const [avatarKey, setAvatarKey] = useState<string | null>(null);
+  const [avatarUri, setAvatarUri] = useState<string | null>(null);
 
   const nameIsValid = name.trim().length >= 2;
   const dobIsValid = dob !== null && ageInYears(dob) >= MIN_AGE;
@@ -52,6 +57,7 @@ export default function ProfileSetupScreen() {
         displayName: name.trim(),
         dateOfBirth: toApiDate(dob!),
         ...(gender !== null ? { gender } : {}),
+        ...(avatarKey !== null ? { avatarKey } : {}),
       }),
     onSuccess: async ({ user }) => {
       haptic.success();
@@ -109,6 +115,17 @@ export default function ProfileSetupScreen() {
             {t('auth.profileSubtitle')}
           </Text>
         </Column>
+      </Animated.View>
+
+      <Animated.View entering={FadeInDown.duration(300).delay(40)}>
+        <AvatarPicker
+          name={name.trim() || t('me.guest')}
+          uri={avatarUri}
+          onUploaded={(key, uri) => {
+            setAvatarKey(key);
+            setAvatarUri(uri);
+          }}
+        />
       </Animated.View>
 
       <Animated.View entering={FadeInDown.duration(300).delay(60)}>

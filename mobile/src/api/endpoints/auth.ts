@@ -54,7 +54,7 @@ export const authApi = {
     displayName?: string;
     dateOfBirth?: string;
     gender?: string;
-    avatarUrl?: string;
+    avatarKey?: string;
     /** The app's language, so a push the server writes matches it. */
     locale?: 'en-IN' | 'hi-IN';
   }) => api.patch<{ user: SessionUser }>('auth/profile', patch),

@@ -8,6 +8,8 @@ export interface ProfileSummary {
   following: number;
   followers: number;
   newVisitors: number;
+  /** The owner's own photo, so the Me tab draws them as everyone else sees them. */
+  avatarUrl: string | null;
   vipTier: 'silver' | 'gold' | 'diamond' | null;
   userLevel: number;
   hostLevel: number | null;
@@ -18,6 +20,7 @@ export interface ProfileSummary {
 }
 
 interface Row {
+  avatar_url: string | null;
   public_id: string;
   phone_verified_at: Date | null;
   user_level: number | null;
@@ -44,6 +47,7 @@ export async function getProfileSummary(userId: string): Promise<ProfileSummary>
     pool.query<Row>(
       `SELECT u.public_id,
               u.phone_verified_at,
+              pr.avatar_url,
               s.user_level,
 
               (SELECT count(*) FROM follows f
@@ -65,6 +69,7 @@ export async function getProfileSummary(userId: string): Promise<ProfileSummary>
 
          FROM users u
          LEFT JOIN user_stats s ON s.user_id = u.id
+         LEFT JOIN user_profiles pr ON pr.user_id = u.id
         WHERE u.id = $1`,
       [userId],
     ),
@@ -76,6 +81,7 @@ export async function getProfileSummary(userId: string): Promise<ProfileSummary>
 
   return {
     publicId: String(row?.public_id ?? ''),
+    avatarUrl: row?.avatar_url ?? null,
     friends: Number(row?.friends ?? 0),
     following: Number(row?.following ?? 0),
     followers: Number(row?.followers ?? 0),

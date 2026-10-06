@@ -21,7 +21,7 @@ export const liveRoomsApi = {
     tag: RoomTag;
     isVideo?: boolean;
     seatCapacity?: number;
-    coverUrl?: string;
+    coverKey?: string;
   }) => api.post<{ room: LiveRoom; rtc: RtcJoinToken }>('rooms/live', input),
 
   /** The room and its seat map, without joining. What a feed card expands into. */

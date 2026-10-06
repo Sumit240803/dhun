@@ -217,6 +217,18 @@
       "value": "",
       "type": "default",
       "enabled": true
+    },
+    {
+      "key": "uploadKey",
+      "value": "",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "uploadUrl",
+      "value": "",
+      "type": "default",
+      "enabled": true
     }
   ],
   "_postman_variable_scope": "environment"
