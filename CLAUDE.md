@@ -349,7 +349,7 @@ remainder**.
 
 | Tier | Gift | Coins | ≈₹ |
 |---|---|---|---|
-| 1 Impulse | Heart · Rose · Chai · Laddu · Clap | 20 · 90 · 170 · 330 · 520 | 0.18–4.73 |
+| 1 Impulse | Heart · Rose · Candy · Balloon · Clap | 20 · 90 · 170 · 330 · 520 | 0.18–4.73 |
 | 2 Regular | Perfume · Teddy · Guitar · Cake · Bouquet | 999 · 1,998 · 2,500 · 3,300 · 4,400 | 9.08–40 |
 | 3 Statement *(full-screen)* | **Scooter** · Fireworks · Motorbike · Diamond ring · Yacht | 6,600 · 8,300 · 13,200 · 19,800 · 31,000 | 60–282 |
 | 4 Flex *(room banner)* | Sports car · Private jet · Castle | 90,000 · 165,000 · 290,000 | 818–2,636 |
@@ -358,7 +358,7 @@ remainder**.
 **Scooter (6,600) is new** — it bridges the Tier 2 → 3 gap the source doc predicts will
 break first, and it is the cheapest full-screen gift.
 
-Pack cascades: ₹99 → Fireworks + Guitar + Rose · ₹299 → Yacht + Perfume + 2 Laddu ·
+Pack cascades: ₹99 → Fireworks + Guitar + Rose · ₹299 → Yacht + Perfume + 2 Balloon ·
 ₹999 → Sports car + Diamond ring · ₹2,999 → Castle + Yacht + Fireworks ·
 ₹9,999 → Rocket + Castle + Fireworks. Galaxy deliberately needs two whale packs.
 
@@ -547,7 +547,7 @@ external accounts (CA + RazorpayX, Hive) and neither is skipped.
 | **Auth** | Complete except OAuth. Phone OTP behind a provider interface (`console` in dev, `msg91` blocked on DLT) plus the MSG91 **widget** path, email + password, deferred email confirmation, password reset and change, session list and per-device revocation, phone-number change, account deletion. JWT + rotating refresh with replay detection that revokes the device chain, scoped `role_assignments`. |
 | **Wallet / purchases** | Server-driven catalogs, IAP behind a verifier interface (stub in dev), Razorpay signature verification fully implemented, coins→gems conversion. |
 | **Social / chat / moderation** | Follows, profile visits, public profiles, profile summary, message threads, reports and blocks. Bans are enforced on every request, not only at sign-in, and guests are bannable. |
-| **Rooms / RTC** | Go live, join, mic seats, host mute and kick, end. Publish rights come from the SEAT TABLE and nowhere else — there is no way to request them. LiveKit webhooks feed viewer counts and `room_sessions` (host hours). Seats, bans and sessions are in Postgres; presence is not mirrored, because it would drift from the media server within seconds. |
+| **Rooms / RTC** | Go live, join, mic seats, host mute and kick, end. A **backdrop** is picked at random from `app_config.room_backgrounds` and STORED on the room, so everyone in it sees one place and new art never reshuffles a live room. Publish rights come from the SEAT TABLE and nowhere else — there is no way to request them. LiveKit webhooks feed viewer counts and `room_sessions` (host hours). Seats, bans and sessions are in Postgres; presence is not mirrored, because it would drift from the media server within seconds. |
 | **Gifting** | `POST /v1/gifts/send`: one ledger transaction per tap whatever the combo, registered 18+ only, `Idempotency-Key` required. Recipient is the host or anyone seated; self-gifts, off-stage recipients, blocks, bans, ended rooms and a price the user never saw are refused. Published to the room on commit. Each send writes a `gift_sends` row inside the ledger's own transaction, which the room leaderboard reads. |
 | **Cosmetics** | Frames, chat bubbles, nickname colours and entry effects, bought with GEMS only. Time stacks onto an active item; buying equips; one worn per kind; expiry evaluated on read. Ownership and a purchase record are written inside the ledger's transaction. A `look` rides on seats, chat lines, gift senders and profiles; entry effects are announced over the gateway. Styles are validated light/dark data. |
 | **Discovery & daily hooks** | Welcome bonus, 7-day check-in ladder, watch reward measured by the gateway, referrals paid on a friend's first ₹99+ purchase — all ordinary coins, all once-only by a claim-derived ledger key, all in `app_config.free_coins`. Search by name prefix or public ID. Followed-host-is-live push via Expo, driven by a `room_started` outbox event, capped and cooled down. Cold-start dials in `app_config.cold_start`. |
@@ -625,6 +625,48 @@ devices, delete), wallet, thread, public profile, visitors.
 **Adding a route needs the typed-route file regenerated** — it comes from
 `expo start`, not from `tsc` or `expo export`, and until it runs a new
 `router.push` path is a type error.
+
+**The live room is six room types sharing one set of chrome** — voice party,
+video broadcast, video with guests on a right-edge mic rail, 1v1 PK, team PK, and
+a 20-seat hall. Built from the 39 screenshots and 4 videos in
+`app-reference-images/live-rooms-app-references/`; **read those before changing room
+layout.** `features/room/model.ts` turns room + seats + pk into a tagged `StageModel`
+and `stage/Stage.tsx` switches on it exhaustively, so a seventh stage kind will not
+compile until it is handled. **Stage and chat are both on screen, always** — the old
+seats-or-chat tab is gone. Full map in `mobile/src/features/room/README.md`.
+
+**PK battles are built end to end** — `backend/src/modules/games/` (migration 028)
+and `mobile/src/features/room/pk/`. Invite or random queue, scoring, streaks,
+settlement, pushed to both rooms. **Two rules hold the whole thing legal and are
+easy to break by accident:**
+
+1. **PK moves no money.** It is a SCOREBOARD over `gift_sends` — every gift counted
+   was already paid to its recipient by `gifting`, through the ledger, when it was
+   sent. `games` never imports `economy` and `pk_battles` has no prize column. Pool
+   the two audiences' gifts, or refund the losing side, and a purchase becomes a
+   wager on an uncertain outcome: an online money game under the Act, hard rule #1.
+2. **`winMultiplier` is display-only.** It scales the number on screen, never a
+   payout. The payout ratio is set by one number and a multiplier reaching the
+   ledger would move it on every battle.
+
+Both are written at the code that could break them (`pk.config.ts`, migration 028's
+header, `backend/docs/ledger-decisions.md` § PK battles) and asserted in
+`tests/pk.test.ts` § the money boundary. Scores are **derived** (`SUM` over the
+window, never a counter) and frozen only at settlement.
+
+**Room art that does not exist yet is registered, not TODO'd.**
+`features/room/roomAssets.ts` names each file with its spec and `available: false`;
+`roomAssetPath()` returns null until the flag flips and components draw a code
+fallback. One grep for `available: false` is the outstanding art order.
+
+**Room backdrops are server-driven and stored per room.** `app_config.room_backgrounds`
+is a list of `{id, path}`; `goLive` picks one at random and writes the id to
+`rooms.background_key`. Never hash the room id on the client to choose one — two viewers
+on different config versions would draw different scenes for the same room, and adding a
+backdrop would reshuffle every room already live. Removing an entry is safe: rooms wearing
+it fall back to the plain gradient. The three stand-ins live in `backend/public/`, which
+the API now **serves statically** — `visuals/assets.ts` always resolved paths against the
+API origin when no CDN was set, and until this nothing answered.
 
 **Gift animations are Lottie**, decided by checking what is maintained: both SVGA
 React Native bindings died in 2022 and PAG has no RN binding, because every app

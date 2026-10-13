@@ -1701,7 +1701,7 @@
                 "live"
               ]
             },
-            "description": "Starts a broadcast and returns a media token that can SPEAK.\n\nOmit `seatCapacity` for a single-host livestream; include it (2–20) for a party room, where seat 0 is reserved for the host at creation.\n\nRegistered users only — a guest may watch and nothing else. A host may have exactly ONE live room: a second attempt returns 409 ALREADY_LIVE carrying the existing roomId rather than replacing it, because a reconnect storm would otherwise churn through rooms and scatter the audience.\n\nToken minting is local, so going live cannot fail because the media server was briefly slow. 503 RTC_UNAVAILABLE means LIVEKIT_* is not configured.",
+            "description": "Starts a broadcast and returns a media token that can SPEAK.\n\nOmit `seatCapacity` for a single-host livestream; include it (2–20) for a party room, where seat 0 is reserved for the host at creation.\n\nRegistered users only — a guest may watch and nothing else. A host may have exactly ONE live room: a second attempt returns 409 ALREADY_LIVE carrying the existing roomId rather than replacing it, because a reconnect storm would otherwise churn through rooms and scatter the audience.\n\nToken minting is local, so going live cannot fail because the media server was briefly slow. 503 RTC_UNAVAILABLE means LIVEKIT_* is not configured.\n\n**`room.backgroundPath`** — the backdrop the room wears, as an asset PATH (`rooms/backgrounds/coast-road.v1.webp`), never a URL. The client resolves it against the asset base exactly as it resolves gift art, so the CDN host is never baked into a room row.\n\nOne is picked at random from `app_config.room_backgrounds` when the room is created and STORED on the room. It is deliberately not hashed from the room id on the client: two viewers on different config versions would draw different scenes for one room, and adding a fourth backdrop would reshuffle every room already live.\n\n`null` means no backdrop — either the room never got one, or config no longer offers the one it has. The app draws its plain gradient either way, so retiring art is an edit to one config row and never a broken image.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"Evening adda\",\n  \"tag\": \"chatting\",\n  \"isVideo\": false,\n  \"seatCapacity\": 8\n}",
@@ -1750,7 +1750,7 @@
                 "{{roomId}}"
               ]
             },
-            "description": "The room and its seat map, without joining. What a feed card expands into."
+            "description": "The room and its seat map, without joining. What a feed card expands into.\n\n**`room.backgroundPath`** — the backdrop the room wears, as an asset PATH (`rooms/backgrounds/coast-road.v1.webp`), never a URL. The client resolves it against the asset base exactly as it resolves gift art, so the CDN host is never baked into a room row.\n\nOne is picked at random from `app_config.room_backgrounds` when the room is created and STORED on the room. It is deliberately not hashed from the room id on the client: two viewers on different config versions would draw different scenes for one room, and adding a fourth backdrop would reshuffle every room already live.\n\n`null` means no backdrop — either the room never got one, or config no longer offers the one it has. The app draws its plain gradient either way, so retiring art is an edit to one config row and never a broken image."
           },
           "response": [],
           "event": [
@@ -1792,7 +1792,7 @@
                 "join"
               ]
             },
-            "description": "Returns a media token whose PUBLISH grant comes from the seat table and nowhere else — there is deliberately no way to ask for publish rights in the request.\n\nIMPORTANT: a listener token sets `canPublish: false` EXPLICITLY. LiveKit treats an omitted flag as permission to publish, so a token that merely forgot the field would let any listener talk in any room.\n\nSomeone who already holds a seat gets speaking rights back, which is what makes a dropped signal a hiccup rather than losing your place on stage.\n\n403 ROOM_BANNED if the host kicked them; 410 ROOM_ENDED once the room is over.",
+            "description": "Returns a media token whose PUBLISH grant comes from the seat table and nowhere else — there is deliberately no way to ask for publish rights in the request.\n\nIMPORTANT: a listener token sets `canPublish: false` EXPLICITLY. LiveKit treats an omitted flag as permission to publish, so a token that merely forgot the field would let any listener talk in any room.\n\nSomeone who already holds a seat gets speaking rights back, which is what makes a dropped signal a hiccup rather than losing your place on stage.\n\n403 ROOM_BANNED if the host kicked them; 410 ROOM_ENDED once the room is over.\n\n**`room.backgroundPath`** — the backdrop the room wears, as an asset PATH (`rooms/backgrounds/coast-road.v1.webp`), never a URL. The client resolves it against the asset base exactly as it resolves gift art, so the CDN host is never baked into a room row.\n\nOne is picked at random from `app_config.room_backgrounds` when the room is created and STORED on the room. It is deliberately not hashed from the room id on the client: two viewers on different config versions would draw different scenes for one room, and adding a fourth backdrop would reshuffle every room already live.\n\n`null` means no backdrop — either the room never got one, or config no longer offers the one it has. The app draws its plain gradient either way, so retiring art is an edit to one config row and never a broken image.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -5083,6 +5083,466 @@
               }
             },
             "description": "Takes `avatarKey`, **not** a URL. The server checks the key sits under this user's own prefix and that the object really exists before storing it, then builds the public URL from config.\n\nBoth the key and the URL are stored: the key is what the object IS, the URL is that key under whichever domain serves the bucket today. Moving from the r2.dev subdomain to a custom domain is then one UPDATE that recomputes every URL, not a migration doing string surgery.\n\n**Errors:** `UPLOAD_NOT_YOURS` 403 · `UPLOAD_NOT_FOUND` 409 (bytes never arrived) · `UPLOAD_TOO_LARGE` 413 · `MEDIA_UNAVAILABLE` 503 · `VALIDATION_FAILED` 422"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Assets (stand-in art)",
+      "description": "Static art served straight from the API origin under `public/`.\n\n`visuals/assets.ts` resolves every catalog path — a gift icon, a room backdrop — against `EXPO_PUBLIC_ASSET_URL`, **falling back to the API origin** when no CDN is configured. That fallback was a promise nothing kept until these files were served. Production points the base at R2 and the same paths resolve there, unchanged.\n\nAnswers `Cache-Control: public, max-age=31536000, immutable`, which is safe only because of the asset contract: a path’s bytes never change, new art is a new version (`...v2.webp`). Were that violated, a year is how long some users would see the old art.",
+      "item": [
+        {
+          "name": "A room backdrop",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rooms/backgrounds/coast-road.v1.webp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "rooms",
+                "backgrounds",
+                "coast-road.v1.webp"
+              ]
+            },
+            "description": "No auth, no `/v1/` prefix — it is a file, not an endpoint. The ids come from `app_config.room_backgrounds`; a room tells you which one it wears in `room.backgroundPath`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('webp', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('image/webp'));",
+                  "pm.test('cached forever', () => pm.expect(pm.response.headers.get('Cache-Control')).to.include('immutable'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "PK battles",
+      "description": "Two hosts compete for a fixed window and each one’s audience pays to push their side of the bar.\n\n**Nothing here moves money, and no request carries an `Idempotency-Key`.** A battle is a SCOREBOARD over gifts that `gifting` already settled through the ledger when they were sent. The day a route in this folder needs an idempotency key is the day somebody is about to settle a wager — see migration 028’s header and hard rule #1.\n\n**Scores are derived, never accumulated.** Each side’s score is a `SUM(coins)` over `gift_sends` for that host between `started_at` and `ends_at`. There is no counter to drift, and a gift reversed by moderation simply stops counting. The settled result IS frozen at the whistle, because who won is a historical fact.\n\n**`winMultiplier` is display-only.** It scales the number on screen and never a payout — the payout ratio is set by one number (`coins per ₹ ÷ 433.4`), and a multiplier that reached the ledger would move it on every battle.\n\n**Both rooms are pushed.** `pk:started`, `pk:score` and `pk:ended` go to BOTH rooms over the gateway — each audience has to see the other side’s number move or there is nothing to respond to. Scores are NOT polled.",
+      "item": [
+        {
+          "name": "1 · Config",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/pk/config",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "pk",
+                "config"
+              ]
+            },
+            "description": "The dials, mostly so the app knows whether to show the battle button. `enabled: false` is the kill switch and every other route then answers `PK_UNAVAILABLE` 503."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 · Invite another host",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/pk/invites",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "pk",
+                "invites"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"toUserId\": \"{{otherUserId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "BOTH hosts must be live — an invitation to somebody who is not broadcasting can never be accepted, so it is refused now rather than after a minute of silence.\n\nRate-limited per USER, not per IP: an invitation puts a dialog in front of somebody mid-broadcast, which makes this the most harassment-shaped endpoint in the module. A partial unique index also stops a second invitation to the same host while the first is pending.\n\n**Errors:** `NOT_LIVE` 409 (either host) · `PK_ALREADY_IN_BATTLE` 409 · `PK_INVITE_PENDING` 409 · `PK_SELF` 422 · `PK_UNAVAILABLE` 503 · `RATE_LIMITED` 429 (20 per 10 min)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "pm.environment.set('pkInviteId', pm.response.json().inviteId);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3 · Inbox",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/pk/invites",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "pk",
+                "invites"
+              ]
+            },
+            "description": "Invitations waiting for this host’s answer. Expired ones are not listed."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4 · Accept",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/pk/invites/{{pkInviteId}}/accept",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "pk",
+                "invites",
+                "{{pkInviteId}}",
+                "accept"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"durationSeconds\": 300\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Starts the battle. The window is the ACCEPTING host’s choice — they are the one agreeing to be on camera for it — and is clamped to `min`/`maxDurationSeconds`.\n\nEvery other invitation either host is holding is expired in the same transaction.\n\n**Errors:** `PK_INVITE_NOT_FOUND` 404 · `PK_INVITE_ANSWERED` 409 · `PK_INVITE_EXPIRED` 409 · `PK_ALREADY_IN_BATTLE` 409 · `NOT_LIVE` 409"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.environment.set('pkBattleId', pm.response.json().pk.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5 · Decline",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/pk/invites/{{pkInviteId}}/decline",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "pk",
+                "invites",
+                "{{pkInviteId}}",
+                "decline"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "204. **Errors:** `PK_INVITE_NOT_FOUND` 404"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6 · The battle a room is in",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/pk/rooms/{{roomId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "pk",
+                "rooms",
+                "{{roomId}}"
+              ]
+            },
+            "description": "`{ pk: null }` when the room is not in one, which is the common case and a perfectly good answer. Read once on joining; everything after arrives over the gateway."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7 · Battle detail",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/pk/battles/{{pkBattleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "pk",
+                "battles",
+                "{{pkBattleId}}"
+              ]
+            },
+            "description": "A live battle recomputes its scores; a settled one returns the scores frozen at the whistle, so last week’s winner cannot change because a gift was reversed since.\n\n`phase` is `warmup` → `live` → `result`. `winner` is `0`, `1`, or null for a draw OR a battle still running — read `phase` to tell those apart."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8 · Join the random queue",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/pk/queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "pk",
+                "queue"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "The “Random PK”. Matching happens in the `pk_match` worker every 10s, not in this request: pairing inline would mean the second host to arrive does the work while the first one’s request has already returned, so one of two matched hosts learns about their battle from a push and the other from a response.\n\nPairing is OLDEST-FIRST. “Random” describes who you get, not how long you wait.\n\nReturns `{ position }`. The battle itself arrives as `pk:started` over the gateway."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9 · Leave the queue",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/pk/queue",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "pk",
+                "queue"
+              ]
+            },
+            "description": "204, whether or not you were in it."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10 · Forfeit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/pk/battles/{{pkBattleId}}/forfeit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "pk",
+                "battles",
+                "{{pkBattleId}}",
+                "forfeit"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Settles on the scores AS THEY STAND rather than voiding the battle. The other side’s audience spent real money on a bar that was real while it was moving, and erasing it because somebody quit is how you lose both audiences at once.\n\nSo forfeiting while behind loses, and forfeiting while **ahead still wins** — which is correct: they earned it.\n\nA host ending their room does the same thing automatically.\n\n**Errors:** `PK_NOT_YOURS` 403 · `PK_NOT_FOUND` 404"
           },
           "response": [],
           "event": [

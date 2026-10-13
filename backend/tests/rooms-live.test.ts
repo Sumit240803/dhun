@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import request from 'supertest';
 import { buildApp } from '../src/app.js';
 import { pool } from '../src/infra/db.js';
+import { invalidateCatalogCache } from '../src/modules/economy/index.js';
 import { resetRateLimits } from '../src/middleware/rateLimit.js';
 import { LiveKitProvider } from '../src/modules/realtime/livekit.provider.js';
 import { closePool, resetLedger } from './helpers.js';
@@ -734,5 +735,96 @@ describe('webhooks', () => {
       participant: { identity: host.user.id },
     });
     await postWebhook(raw, header).expect(200);
+  });
+});
+
+describe('backdrops', () => {
+  /** Whatever config currently offers, so the test does not pin the art. */
+  async function configured(): Promise<{ id: string; path: string }[]> {
+    const { rows } = await pool.query<{ value: { id: string; path: string }[] }>(
+      "SELECT value FROM app_config WHERE key = 'room_backgrounds'",
+    );
+    return rows[0]?.value ?? [];
+  }
+
+  it('gives a new room one of the configured backdrops, as a path', async () => {
+    const paths = (await configured()).map((b) => b.path);
+    expect(paths.length).toBeGreaterThan(0);
+
+    const host = await account();
+    const res = await request(app)
+      .post('/v1/rooms/live')
+      .set('Authorization', `Bearer ${host.accessToken}`)
+      .send({ title: 'Evening adda', tag: 'chatting', seatCapacity: 4 })
+      .expect(201);
+
+    // A PATH, not a URL. The client resolves it against the asset base exactly
+    // as it resolves gift art — returning a ready-made URL here would bake the
+    // CDN host into every room row ever created.
+    expect(paths).toContain(res.body.room.backgroundPath);
+    expect(res.body.room.backgroundPath).not.toMatch(/^https?:/);
+  });
+
+  it('shows every viewer the same backdrop the host got', async () => {
+    // The whole reason the choice is STORED rather than hashed from the room
+    // id on each client: two people in one room must be looking at one place.
+    const host = await account();
+    const viewer = await account();
+    const { room } = await goLive(host);
+
+    const joined = await request(app)
+      .post(`/v1/rooms/${room.id}/join`)
+      .set('Authorization', `Bearer ${viewer.accessToken}`)
+      .expect(200);
+
+    const hostsView = await request(app)
+      .get(`/v1/rooms/${room.id}`)
+      .set('Authorization', `Bearer ${host.accessToken}`)
+      .expect(200);
+
+    expect(joined.body.room.backgroundPath).toBe(hostsView.body.room.backgroundPath);
+    expect(joined.body.room.backgroundPath).not.toBeNull();
+  });
+
+  it('keeps a room alive when its backdrop is retired from config', async () => {
+    // Removing art must cost a room its wallpaper and nothing else. Anything
+    // stronger — a 500, a failed join — would make editing one config row a
+    // way to break every room already wearing that background.
+    const host = await account();
+    const { room } = await goLive(host);
+
+    const saved = await pool.query("SELECT value FROM app_config WHERE key = 'room_backgrounds'");
+    try {
+      await pool.query("UPDATE app_config SET value = '[]'::jsonb WHERE key = 'room_backgrounds'");
+      // Config is cached for 30s, so an edit is not visible until the cache is
+      // dropped — exactly what the admin path does after a change.
+      invalidateCatalogCache();
+      const res = await request(app)
+        .get(`/v1/rooms/${room.id}`)
+        .set('Authorization', `Bearer ${host.accessToken}`)
+        .expect(200);
+      expect(res.body.room.backgroundPath).toBeNull();
+      expect(res.body.room.id).toBe(room.id);
+    } finally {
+      // Stringified: pg parses jsonb into a JS array on the way out, and
+      // handing that array straight back makes it a Postgres ARRAY literal,
+      // which is not valid json. Getting this wrong leaves config emptied for
+      // every test that runs after this one.
+      await pool.query('UPDATE app_config SET value = $1::jsonb WHERE key = $2', [
+        JSON.stringify(saved.rows[0].value),
+        'room_backgrounds',
+      ]);
+      invalidateCatalogCache();
+    }
+  });
+
+  it('serves the backdrop files themselves, immutably', async () => {
+    // `visuals/assets.ts` falls back to the API origin when no CDN is set, and
+    // that fallback was a promise nothing kept until these files were served.
+    const [first] = await configured();
+    const res = await request(app).get(`/${first!.path}`).expect(200);
+
+    expect(res.headers['content-type']).toContain('image/webp');
+    expect(res.headers['cache-control']).toContain('immutable');
   });
 });

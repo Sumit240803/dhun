@@ -6,5 +6,10 @@
 export { buildConfigRouter } from './config.routes.js';
 export { listBanners } from './banners.service.js';
 export type { Banner } from './banners.service.js';
-export { coldStartConfig, getClientConfig } from './appConfig.service.js';
-export type { ClientConfig, ColdStartConfig } from './appConfig.service.js';
+export {
+  coldStartConfig,
+  getClientConfig,
+  roomBackgroundPath,
+  roomBackgrounds,
+} from './appConfig.service.js';
+export type { ClientConfig, ColdStartConfig, RoomBackground } from './appConfig.service.js';

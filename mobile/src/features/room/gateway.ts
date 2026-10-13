@@ -12,7 +12,7 @@
 // of a two-person project costs more than it saves. The gateway tests are what
 // hold the two in step.
 
-import type { EntryView, GiftView, UserLook } from '@/api/types';
+import type { EntryView, GiftView, PkBattle, UserLook } from '@/api/types';
 import { env } from '@/config/env';
 import { reportError } from '@/lib/reporting';
 
@@ -62,6 +62,14 @@ export type ServerMessage =
   | { t: 'entry'; roomId: string; user: EntryView }
   /** Coins for watching, to the watcher only. */
   | { t: 'reward'; kind: 'watch'; coins: number; earnedToday: number; dailyCap: number }
+  /**
+   * A PK battle started, scored or finished.
+   *
+   * Pushed to BOTH rooms, and the whole battle rather than a delta: it is
+   * small, it arrives at most once per gift, and a client that missed one
+   * message would otherwise be permanently out by that much.
+   */
+  | { t: 'pk:started' | 'pk:score' | 'pk:ended'; roomId: string; pk: PkBattle }
   | { t: 'room:ended'; roomId: string }
   | { t: 'error'; code: string; message: string }
   | { t: 'pong' };

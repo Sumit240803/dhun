@@ -11,6 +11,7 @@
 // follower + room), so a retried batch repeats nothing that matters.
 
 import { logger } from '../infra/logger.js';
+import { pkOnGiftToHost } from '../modules/games/index.js';
 import { notifyFollowersLive } from '../modules/notifications/index.js';
 import { rewardReferral } from '../modules/rewards/index.js';
 import type { EventPublisher, OutboxEventRecord } from './publisher.js';
@@ -25,6 +26,18 @@ const CONSUMERS: Record<string, Consumer[]> = {
         amountPaise: Number(payload.amount_paise),
       }),
   ],
+  /**
+   * A gift landed. If its recipient is in a battle, re-push both scores.
+   *
+   * Through the outbox rather than from the gift request, because rule 3 of the
+   * monolith is that side effects go through the event bus — and concretely,
+   * because a scoreboard must never be able to make a gift fail or wait. The
+   * ledger has already paid the host by the time this runs.
+   *
+   * Idempotent for free: it recomputes a SUM and pushes it. A replayed event
+   * re-pushes the same number.
+   */
+  gift_sent: [(payload) => pkOnGiftToHost(String(payload.recipient_id))],
   room_started: [
     (payload) =>
       notifyFollowersLive({

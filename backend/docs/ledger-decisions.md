@@ -732,6 +732,53 @@ The rules around it:
   they will earn without guessing.
 
 
+### PK battles · migration 028 — the ledger boundary, stated
+
+**Settled 2026-10-13. PK moves no money, and this entry exists so nobody has to
+re-derive why when the obvious feature request arrives.**
+
+A PK battle is a **scoreboard over `gift_sends`**. Every gift counted in one was
+already paid to the host it was addressed to, by `gifting`, through the ledger, at
+the moment it was sent — battle or no battle. `modules/games` never imports
+`economy`, writes no ledger table, and `pk_battles` has no prize column.
+
+**The request that will come, and the answer.** "Winner takes the pot" / "refund
+the losing side" / "the platform adds a bonus to the winner's points". All three are
+refused, and the reason is not taste:
+
+> A viewer gifting a host is a **purchase** — they buy a coin, they spend it, the
+> host earns points, revenue is recognised. Pool the two audiences' gifts and pay
+> the pot to whoever wins, and the same viewer is now staking money on an uncertain
+> outcome. That is an **online money game** under the Promotion and Regulation of
+> Online Gaming Act 2025 (rules in force 1 May 2026), which erased the
+> skill-versus-chance distinction. Hard rule #1; treated as existential.
+
+The winner receives a **streak badge** and nothing else. Both audiences keep the
+gifts they sent.
+
+**`winMultiplier` is display-only, and that is a ledger decision too.** The payout
+ratio is set by exactly one number (`coins per ₹ ÷ 433.4`). A `Win ×4` that scaled
+points instead of the number on screen would move that ratio on every battle, and
+nobody would notice until a month of payouts had been computed from it. Score is a
+game number and lives in `pk_battles`; points are money and live in the ledger.
+`pk.config.ts` carries the warning at the function that computes it, and
+`tests/pk.test.ts` asserts a host on a streak is paid the same points per coin as a
+host on none.
+
+**Scores are derived (D-class), results are stored.** A live battle's score is a
+`SUM(coins)` over `gift_sends` between `started_at` and `ends_at` — the same
+reasoning as balances: a counter can disagree with the events it summarises and the
+disagreement is invisible. A gift reversed by moderation simply stops counting. The
+**settled** scores are frozen into the row at the whistle, because who won is a
+historical fact rather than a running figure, and last week's winner must not change
+because a gift was voided since.
+
+**A room ending settles its battle rather than voiding it.** The other host's
+audience spent real money on a bar that was real while it was moving. Forfeiting
+while ahead therefore still wins.
+
+---
+
 ## D. Derived values — from the ledger, or separate counters?
 
 | # | Item | Status |
@@ -741,6 +788,7 @@ The rules around it:
 | D3 | **Trailing-30-day host earnings** for the agency commission tier — live query or rollup table | [?] |
 | D4 | **TDS running total** per host per financial year (Apr–Mar) — needs its own accumulator | [?] |
 | D5 | **Coin float liability** and revenue-recognition reporting | [?] |
+| D6 | **PK battle score** — `SUM(gift_sends.coins)` in the window, never a counter; frozen at settlement | [x] migration 028 |
 
 ## E. Reconciliation — the six mandated checks
 

@@ -64,6 +64,12 @@ export const primitives = {
 
   // Gift tiers. The escalation is the product — a Tier 5 must look expensive.
   blue: { 500: '#4DA3FF' },
+
+  // The two PK sides. Reserved like the currency colours: these mean "home"
+  // and "away" in a battle and must never be borrowed for anything else, or a
+  // screen somewhere will say magenta when it means a balance.
+  pkHome: '#E8366F',
+  pkAway: '#1FA8E0',
   purple: { 500: '#A855F7' },
   orange: { 500: '#FF8A00' },
   gold: { 500: '#FFD700' },

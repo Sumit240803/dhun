@@ -19,6 +19,8 @@ export const hi: Messages = {
   },
 
   common: {
+    ok: 'ठीक है',
+    comingSoon: 'जल्द',
     continue: 'आगे बढ़ें',
     cancel: 'रद्द करें',
     retry: 'दोबारा कोशिश करें',
@@ -169,6 +171,7 @@ export const hi: Messages = {
   },
 
   profile: {
+    title: 'प्रोफ़ाइल',
     changePhoto: 'फ़ोटो बदलें',
     friends: 'दोस्त',
     following: 'फ़ॉलोइंग',
@@ -523,6 +526,81 @@ export const hi: Messages = {
     enteredCaption: 'आ गए हैं',
     watchReward: 'देखने के लिए +{coins} कॉइन · आज {cap} में से {earned}',
     devSimulateGift: 'गिफ़्ट सिम्युलेट करें (डेवलपमेंट)',
+
+    // ── Room chrome ─────────────────────────────────────────────────────
+    rules: 'नियम',
+    idLabel: 'आईडी {code}',
+    rankLabel: '{board} रैंक {position}',
+    features: 'रूम टूल्स',
+    follow: 'फ़ॉलो करें',
+    safetyNotice:
+      'कानून और तमीज़ दोनों का ध्यान रखें। नग्नता, नाबालिग, हिंसा और ऐप के बाहर कॉइन ख़रीदना — सब प्रतिबंधित हैं। शिकायतों की चौबीसों घंटे जाँच होती है।',
+
+    // ── Chat ────────────────────────────────────────────────────────────
+    filterAll: 'सब',
+    filterRoom: 'रूम',
+    filterChat: 'चैट',
+    newMessages: '{count} नए',
+    entryLine: '{name} आए',
+    giftLine: '{sender} ने {recipient} को {gift} ×{quantity} भेजा',
+
+    // ── Quick replies ───────────────────────────────────────────────────
+    quickHello: 'नमस्ते!',
+    quickFollow: 'फ़ॉलो कर लीजिए',
+    quickNice: 'आवाज़ अच्छी है',
+    quickLol: 'हाहा',
+    quickSeat: 'एक सीट मिलेगी?',
+
+    // ── Seats ───────────────────────────────────────────────────────────
+    seatTakenLabel: '{name}, सीट {index}',
+    seatEmptyLabel: 'सीट {index}, खाली',
+    soloHint: 'कुछ कहिए, या गिफ़्ट भेजिए',
+    soloEarned: 'अब तक {coins} कॉइन',
+    railCollapse: 'माइक सूची छिपाएँ',
+    railExpand: 'माइक सूची दिखाएँ',
+
+    // ── Camera and audio ────────────────────────────────────────────────
+    cameraOn: 'कैमरा चालू',
+    cameraOff: 'कैमरा बंद',
+    muteSide: 'इस तरफ़ की आवाज़ बंद करें',
+    unmuteSide: 'इस तरफ़ की आवाज़ चालू करें',
+
+    // ── Asking for the mic ──────────────────────────────────────────────
+    micWaitingTitle: 'होस्ट के जवाब का इंतज़ार',
+    micWaitingBody: 'आपने माइक माँगा है। कौन बोलेगा यह होस्ट तय करते हैं, तो थोड़ा समय लग सकता है।',
+    micKeepWaiting: 'इंतज़ार करें',
+    micWithdraw: 'वापस लें',
+    micQueuedTitle: 'आप सूची में हैं',
+    micQueuedBody: 'होस्ट आपकी रिक्वेस्ट देखकर आपको बुलाएँगे।',
+    micFollowTitle: 'पहले फ़ॉलो करें',
+    micFollowBody: '{name} सिर्फ़ फ़ॉलोअर्स से माइक रिक्वेस्ट लेते हैं।',
+
+    // ── Profile card ────────────────────────────────────────────────────
+    viewProfile: 'प्रोफ़ाइल देखें',
+    hostControls: 'होस्ट कंट्रोल',
+    receivedHere: 'इस रूम में {coins} कॉइन',
+
+    // ── PK ──────────────────────────────────────────────────────────────
+    pkWinMultiplier: 'जीत ×{multiplier}',
+    pkStartsIn: 'शुरू हो रहा है',
+    pkWinner: '{name} जीते',
+    pkDraw: 'बराबरी',
+
+    // ── The room could not open ─────────────────────────────────────────
+    unavailableTitle: 'रूम के लिए अपडेट चाहिए',
+    unavailableBody:
+      'ऐप का यह वर्शन लाइव रूम नहीं खोल सकता। स्टोर से अपडेट करके दोबारा कोशिश कीजिए।',
+    missingTitle: 'रूम नहीं मिला',
+    missingBody: 'उस लिंक में कोई रूम नहीं था।',
+
+    featureRank: 'टॉप गिफ़्टर',
+    featureRewards: 'इनाम',
+    featureStore: 'कॉइन लें',
+    featureCosmetics: 'लुक',
+    featureShare: 'शेयर',
+    featureReport: 'रिपोर्ट',
+    featureRules: 'नियम',
+    featureMinimise: 'छोटा करें',
   },
 
   store: {

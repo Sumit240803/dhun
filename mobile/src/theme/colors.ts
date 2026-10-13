@@ -43,6 +43,14 @@ const light = {
     scrim: p.alpha.black86,
     /** Gradient foot under room chrome so white text stays readable on video. */
     videoScrim: p.alpha.black60,
+    /** `videoScrim` at zero alpha — the clear stop of a scrim laid over an
+     *  image. Not `baseTransparent`: that fades from the PAGE colour, which in
+     *  the light palette greys the middle of every scrim over a dark backdrop. */
+    videoScrimTransparent: p.alpha.black0,
+    /** A well — an empty seat, an inert chip — laid directly ON a backdrop.
+     *  Translucent white rather than a surface colour, because an opaque ivory
+     *  disc over a photograph reads as a hole punched in it. */
+    onMediaWell: p.alpha.white10,
     /** `base` at zero alpha — the starting stop of any fade INTO the page. */
     baseTransparent: p.alpha.warm0,
   },
@@ -71,6 +79,8 @@ const light = {
   border: {
     subtle: p.warm[300],
     strong: p.warm[400],
+    /** An edge drawn on a backdrop, where `subtle` would vanish or glare. */
+    onMedia: p.alpha.white20,
     /** Focus ring and selected state. */
     focus: p.rose[500],
   },
@@ -111,6 +121,19 @@ const light = {
     3: p.purple[500],
     4: p.orange[500],
     5: p.amber[700],
+  },
+
+  /**
+   * The two sides of a PK battle.
+   *
+   * Reserved, and identical in both palettes. A PK side is a TEAM, not a
+   * status and not a balance — borrowing `brand` for it would make the home
+   * side change colour in a rebrand, and borrowing a currency colour would put
+   * "coins" and "the left host" in the same hue.
+   */
+  pk: {
+    home: p.pkHome,
+    away: p.pkAway,
   },
 
   status: {
@@ -183,6 +206,8 @@ const dark: Themed<typeof light> = {
     pressed: p.neutral[700],
     scrim: p.alpha.black86,
     videoScrim: p.alpha.black60,
+    videoScrimTransparent: p.alpha.black0,
+    onMediaWell: p.alpha.white10,
     baseTransparent: p.alpha.black0,
   },
 
@@ -198,6 +223,7 @@ const dark: Themed<typeof light> = {
   border: {
     subtle: p.neutral[700],
     strong: p.neutral[600],
+    onMedia: p.alpha.white20,
     focus: p.rose[500],
   },
 
@@ -224,6 +250,19 @@ const dark: Themed<typeof light> = {
     3: p.purple[500],
     4: p.orange[500],
     5: p.gold[500],
+  },
+
+  /**
+   * The two sides of a PK battle.
+   *
+   * Reserved, and identical in both palettes. A PK side is a TEAM, not a
+   * status and not a balance — borrowing `brand` for it would make the home
+   * side change colour in a rebrand, and borrowing a currency colour would put
+   * "coins" and "the left host" in the same hue.
+   */
+  pk: {
+    home: p.pkHome,
+    away: p.pkAway,
   },
 
   status: {

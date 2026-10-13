@@ -21,9 +21,9 @@ non-negotiable #6.
 
 | | |
 |---|---|
-| **Hosting** | DigitalOcean Spaces + CDN, Bangalore. Resolved via `EXPO_PUBLIC_ASSET_URL`. |
+| **Hosting** | DigitalOcean Spaces + CDN, Bangalore. Resolved via `EXPO_PUBLIC_ASSET_URL`, which **falls back to the API origin** — the backend serves `backend/public/` at that base, so stand-in art works with no CDN configured. |
 | **Paths are immutable** | A file at a path never changes. New art gets a new version: `gifts/yacht/anim.v2.json`. The client caches forever on that assumption, so overwriting a path means some users see old art indefinitely. |
-| **Path scheme** | `gifts/{giftId}/icon.v{n}.webp` · `gifts/{giftId}/anim.v{n}.json` · `frames/{cosmeticId}.v{n}.webp` · `entry/{cosmeticId}.v{n}.json` · `badges/{id}.v{n}.webp` |
+| **Path scheme** | `gifts/{giftId}/icon.v{n}.webp` · `gifts/{giftId}/anim.v{n}.json` · `frames/{cosmeticId}.v{n}.webp` · `entry/{cosmeticId}.v{n}.json` · `badges/{id}.v{n}.webp` · `rooms/backgrounds/{id}.v{n}.webp` |
 | **Static images** | WebP, transparent background, sRGB. PNG only if a tool cannot export WebP. |
 | **Animations** | Lottie JSON exported from After Effects via Bodymovin. |
 | **Density** | Static art is delivered at **@3x** of its largest on-screen size. |
@@ -195,7 +195,46 @@ chat bubble, plus an optional entry Lottie following §5.
 
 ---
 
-## 8 · Placeholders
+## 8 · Room backdrops
+
+The scene a room sits on — the thing that makes it a place rather than a list of
+avatars. Unlike every other asset here, a backdrop belongs to no catalog row: the list
+lives in `app_config.room_backgrounds` as `[{id, path}]`, and one is picked at random and
+stored on the room when it is created.
+
+| | |
+|---|---|
+| **Format** | WebP, opaque (it is the bottom layer — transparency would show the app canvas) |
+| **Canvas** | **1080 × 1920 px**, 9:16 |
+| **Budget** | ≤ **150 KB**. It loads before anything in the room is useful, often on a 3G connection. |
+| **Motion** | **Static.** An animated backdrop runs for the whole session behind live audio, a seat grid and gift animations. |
+| **Path scheme** | `rooms/backgrounds/{id}.v{n}.webp`, with `id` matching `^[a-z0-9-]{2,40}$` |
+
+**Composition is the part that is easy to get wrong.** The room draws its chrome over
+this, so the art has to leave room for it:
+
+- **The middle is the subject.** The header sits in the top ~22% and the seat bar,
+  composer and gift button in the bottom ~42%; both are under a scrim. A backdrop whose
+  only point of interest is a face at the very bottom will have that face covered.
+- **Anything can be cropped horizontally.** The canvas is 9:16 and phones run from 9:16
+  to 9:21, so a tall device shows the full height and loses width.
+- **Contrast is handled for you, and you should not fight it.** `RoomBackground` lays a
+  `bg.videoScrim` gradient over the art, dark at the top and bottom, clear across the
+  middle. Do not pre-darken the image for legibility — the scrim will do it again and
+  the result is mud.
+
+**Adding one is a config edit, not a release.** Upload the file, add `{id, path}` to the
+config row. New rooms start wearing it immediately; rooms already live keep what they
+have, because the choice is stored rather than recomputed. **Removing an entry is safe**:
+rooms that wore it fall back to the plain gradient rather than a broken image.
+
+Three stand-ins ship under `backend/public/rooms/backgrounds/` — `coast-road`,
+`ice-stage`, `violet-arc` — served from the API origin so the asset-base fallback in
+`visuals/assets.ts` resolves without a CDN.
+
+---
+
+## 9 · Placeholders
 
 What the app runs on until real art arrives.
 
@@ -217,7 +256,7 @@ prefix, and production refuses any active catalog or cosmetic row pointing there
 
 ---
 
-## 9 · Accepting a delivery
+## 10 · Accepting a delivery
 
 An asset is not done until all of these pass:
 
@@ -233,7 +272,7 @@ An asset is not done until all of these pass:
 
 ---
 
-## 10 · What the functional phase must build
+## 11 · What the functional phase must build
 
 The contract is only half the swap. These are code, not art, and belong before any real
 asset arrives.

@@ -148,12 +148,32 @@ async function convertToGems(user: Account, coins: number): Promise<void> {
  * checkout — it would refuse with RTC_UNAVAILABLE. Gifting only needs the room
  * row to say the room is live, which is what the app's feed reads too.
  */
+
+/**
+ * A backdrop for a seeded room.
+ *
+ * Deterministic on the key rather than random, so a re-seed does not reshuffle
+ * what a screen recording already shows. The live path (`goLive`) picks at
+ * random; this one only has to be stable.
+ */
+async function backdropFor(key: string): Promise<string | null> {
+  const { rows } = await pool.query<{ value: { id: string }[] }>(
+    "SELECT value FROM app_config WHERE key = 'room_backgrounds'",
+  );
+  const list = rows[0]?.value ?? [];
+  if (list.length === 0) return null;
+  let hash = 0;
+  for (const ch of key) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return list[hash % list.length]!.id;
+}
+
 async function openRoom(host: Account, title: string, tag: string, seats: number | null) {
   const roomId = uuidv7();
   await pool.query(
     `INSERT INTO rooms (id, host_user_id, title, tag, country, is_video,
-                        seat_capacity, seats_taken, viewer_count, cover_url, started_at)
-          VALUES ($1, $2, $3, $4, 'IN', true, $5, $6, $7, $8, now() - interval '25 minutes')`,
+                        seat_capacity, seats_taken, viewer_count, cover_url, started_at,
+                        background_key)
+          VALUES ($1, $2, $3, $4, 'IN', true, $5, $6, $7, $8, now() - interval '25 minutes', $9)`,
     [
       roomId,
       host.id,
@@ -165,6 +185,7 @@ async function openRoom(host: Account, title: string, tag: string, seats: number
       // Seeded on the host's name, so a room keeps the same cover across
       // re-seeds. Placeholder art under the Unsplash licence — see seed.ts.
       `https://picsum.photos/seed/dhun-${host.name.toLowerCase().replace(/\s+/g, '-')}/600/800`,
+      await backdropFor(host.name),
     ],
   );
   return roomId;
@@ -361,7 +382,7 @@ async function main(): Promise<void> {
   const gifts: { id: string; price: number }[] = [
     { id: 'heart', price: 20 },
     { id: 'rose', price: 90 },
-    { id: 'laddu', price: 330 },
+    { id: 'balloon', price: 330 },
     { id: 'perfume', price: 999 },
     { id: 'scooter', price: 6_600 },
   ];

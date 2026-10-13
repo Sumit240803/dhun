@@ -618,6 +618,79 @@ receive coins · every transfer is auditable from both sides.
 
 ---
 
+### M13 · The room, rebuilt to the references (app) — ✅ UI COMPLETE, PK backend outstanding
+
+**Scope change agreed 2026-10-13**, after the founder supplied 39 screenshots and 4 videos
+of a competitor room in `app-reference-images/live-rooms-app-references/` and asked for the
+same layouts, with placeholders where art is missing.
+
+**Why it was worth doing before M8.** The room is the product. Ours showed seats *or* chat
+behind a segmented tab, so you could watch or talk but not both — every reference shows the
+stage above and the chat permanently below, with gifts flowing between them. No amount of
+styling fixes a tabbed room, and the fix is layout work needing no new endpoints.
+
+**Shipped:**
+
+- `features/room/model.ts` — a tagged `StageModel` built from room + seats + pk, and
+  `stage/Stage.tsx` switching on it exhaustively. Six room types, one set of chrome.
+- Stages: **seat grid** (2–20 seats, stepped 2→5 columns), **video** (one or two tiles plus
+  a right-edge mic rail for everyone else on audio), **PK** (1v1 and team), **solo audio**.
+- Chrome: header with top-gifter rail, activity rail (rank · rules · room code), scrolling
+  marquee, chat panel with the vertical All/Room/Chat filter, composer with quick replies.
+- Sheets and dialogs: features grid, profile card, and the mic-link flow in **three** states
+  — waiting, queued, and the **follow gate** we did not previously have.
+- Video: camera publish and flip in `useLiveRoom`, tracks exposed as a context, `RemoteVideo`
+  behind the same lazy guard as the rest of LiveKit.
+- `roomAssets.ts` — the five pieces of room art still to be drawn, each with its spec and
+  `available: false`, with code fallbacks until then.
+
+**Exit criteria met:** typecheck, lint and Prettier clean · 144 mobile tests (24 new) ·
+every string in `en.ts` and `hi.ts` · no hex literal outside `theme/` · no image imported.
+
+**Still outstanding, and deliberately not in this milestone:**
+
+| Item | Needs |
+|---|---|
+| Hourly / popularity rank | A ranking endpoint. `ActivityRail` takes `rank={null}` today. |
+| Fan club | In the references, not in this plan. A paid per-host membership — decide before building. |
+| Share, minimise | Disabled tiles in the features sheet, labelled "Soon". |
+| Device verification | Two phones: a party room at 9 and at 20 seats, a video room with a guest on the rail, chat under 200ms. |
+
+---
+
+### M14 · PK battles, end to end (backend + app) — ✅ COMPLETE, unverified on devices
+
+Built 2026-10-13 immediately after M13, because the PK stage was the one part of the room
+with nothing behind it.
+
+**Shipped:** migration 028 (`pk_battles`, `pk_battle_members`, `pk_host_stats`,
+`pk_invites`, `pk_queue`, `app_config.pk`) · `modules/games/` with the service, config,
+routes and jobs · 10 routes under `/v1/pk` · two worker jobs (`pk_settle` every 5s,
+`pk_match` every 10s) · a `gift_sent` outbox consumer that re-pushes the scores ·
+`pk:started` / `pk:score` / `pk:ended` on the gateway, to **both** rooms · the app's
+`usePk` hook, fetched once on joining and pushed thereafter, never polled.
+
+**Exit criteria met:** 22 backend tests, including a `the money boundary` block that
+asserts a whole battle writes **nothing** to the ledger and leaves it balanced · invite,
+accept, decline, random queue, forfeit, room-ended, streaks, draws, idempotent settlement
+and a two-accept race all covered · Postman folder written · typecheck and lint clean.
+
+**The two rules that keep this legal**, recorded at the code that could break them
+(`pk.config.ts`, migration 028's header, `backend/docs/ledger-decisions.md` § PK battles):
+
+1. **PK moves no money.** It is a scoreboard over `gift_sends`; every gift counted was
+   already paid to its recipient by `gifting` when it was sent. Pooling the two audiences'
+   gifts or refunding the loser turns a purchase into a wager on an uncertain outcome — an
+   online money game under the Act, hard rule #1. The winner gets a streak badge.
+2. **`winMultiplier` is display-only.** The payout ratio is set by one number, and a
+   multiplier reaching the ledger would move it on every battle.
+
+**Outstanding:** team mode has its table (`pk_battle_members`) and its stage, but no route
+fills a roster — 1v1 is what ships. Device verification: two phones, a real battle, the bar
+moving on both, a result landing within a second of zero.
+
+---
+
 ## Admin panel — threaded, not a milestone
 
 Your docs are explicit: *"Admin panel MVP ka hissa hai, baad mein nahi."* Each milestone

@@ -134,6 +134,24 @@ function coverFor(key: string): string {
   return `https://picsum.photos/seed/dhun-${key}/600/800`;
 }
 
+/**
+ * A backdrop for a seeded room.
+ *
+ * Deterministic on the host key rather than random, so a re-seed does not
+ * reshuffle what a screen recording already shows. `goLive` picks at random;
+ * this one only has to be stable.
+ */
+async function backdropFor(key: string): Promise<string | null> {
+  const { rows } = await pool.query<{ value: { id: string }[] }>(
+    "SELECT value FROM app_config WHERE key = 'room_backgrounds'",
+  );
+  const list = rows[0]?.value ?? [];
+  if (list.length === 0) return null;
+  let hash = 0;
+  for (const ch of key) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+  return list[hash % list.length]!.id;
+}
+
 async function seed(): Promise<void> {
   for (const host of HOSTS) {
     const userId = idFor(host.key);
@@ -157,13 +175,15 @@ async function seed(): Promise<void> {
 
     await pool.query(
       `INSERT INTO rooms (id, host_user_id, title, tag, country, is_video,
-                          seat_capacity, seats_taken, viewer_count, cover_url, started_at)
-            VALUES ($1, $2, $3, $4, 'IN', $5, $6, $7, $8, $9, now() - interval '20 minutes')
+                          seat_capacity, seats_taken, viewer_count, cover_url, started_at,
+                          background_key)
+            VALUES ($1, $2, $3, $4, 'IN', $5, $6, $7, $8, $9, now() - interval '20 minutes', $10)
        ON CONFLICT (id) DO UPDATE
           SET title = EXCLUDED.title,
               viewer_count = EXCLUDED.viewer_count,
               seats_taken = EXCLUDED.seats_taken,
               cover_url = EXCLUDED.cover_url,
+              background_key = EXCLUDED.background_key,
               ended_at = NULL`,
       [
         idFor(`room:${host.key}`),
@@ -175,6 +195,7 @@ async function seed(): Promise<void> {
         host.seats === null ? 0 : Math.max(1, Math.floor(host.seats * 0.6)),
         host.viewers,
         coverFor(host.key),
+        await backdropFor(host.key),
       ],
     );
   }

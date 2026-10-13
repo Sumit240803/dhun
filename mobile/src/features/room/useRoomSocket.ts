@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { GiftView } from '@/api/types';
+import type { GiftView, PkBattle } from '@/api/types';
 import { tokenStorage } from '@/features/auth/storage';
 import {
   RoomSocket,
@@ -58,6 +58,15 @@ interface Options {
   onEntry?: (user: EntryView) => void;
   /** Coins just earned for watching. */
   onReward?: (reward: { coins: number; earnedToday: number; dailyCap: number }) => void;
+  /**
+   * The battle moved.
+   *
+   * A callback like the gift, not state, and for the same reason: the score
+   * arrives once per gift in a busy room, and routing it through this hook's
+   * state would re-render the seat map, the chat and the composer every time
+   * the bar twitched. The PK stage holds it instead.
+   */
+  onPk?: (pk: PkBattle) => void;
 }
 
 export function useRoomSocket(roomId: string | undefined, options: Options = {}) {
@@ -68,10 +77,12 @@ export function useRoomSocket(roomId: string | undefined, options: Options = {})
   const onGiftRef = useRef(options.onGift);
   const onEntryRef = useRef(options.onEntry);
   const onRewardRef = useRef(options.onReward);
+  const onPkRef = useRef(options.onPk);
   useEffect(() => {
     onGiftRef.current = options.onGift;
     onEntryRef.current = options.onEntry;
     onRewardRef.current = options.onReward;
+    onPkRef.current = options.onPk;
   });
   const [state, setState] = useState<RoomSocketState>({
     status: 'connecting',
@@ -103,6 +114,10 @@ export function useRoomSocket(roomId: string | undefined, options: Options = {})
         }
         if (message.t === 'reward') {
           onRewardRef.current?.(message);
+          return;
+        }
+        if (message.t === 'pk:started' || message.t === 'pk:score' || message.t === 'pk:ended') {
+          onPkRef.current?.(message.pk);
           return;
         }
         setState((s) => {

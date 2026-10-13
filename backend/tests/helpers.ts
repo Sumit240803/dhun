@@ -46,6 +46,12 @@ export async function resetLedger(): Promise<void> {
     await c.query('DELETE FROM room_sessions');
     await c.query('DELETE FROM live_notifications');
     await c.query('DELETE FROM referrals');
+    // Before `rooms`: a battle points at two of them, with no cascade.
+    await c.query('DELETE FROM pk_battle_members');
+    await c.query('DELETE FROM pk_battles');
+    await c.query('DELETE FROM pk_invites');
+    await c.query('DELETE FROM pk_queue');
+    await c.query('DELETE FROM pk_host_stats');
     await c.query('DELETE FROM rooms');
     await c.query('DELETE FROM user_cosmetics');
     await c.query('DELETE FROM agency_quit_requests');

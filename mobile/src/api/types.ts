@@ -303,6 +303,11 @@ export interface LiveRoom {
   tag: RoomTag;
   country: string;
   coverUrl: string | null;
+  /**
+   * The room's backdrop, as an asset PATH — resolve it with `assetUrl()`, the
+   * same way gift art is resolved. Null means no backdrop: draw the gradient.
+   */
+  backgroundPath: string | null;
   video: boolean;
   /** Non-null ONLY for a party room. Its presence is what tells the two apart. */
   seatCapacity: number | null;
@@ -591,6 +596,58 @@ export interface LeaderboardEntry {
   displayName: string | null;
   avatarUrl: string | null;
   coins: number;
+}
+
+// --- pk battles ---------------------------------------------------------------
+
+/**
+ * One competitor. In team mode, the captain of one side.
+ *
+ * `score` is coins gifted to this host inside the battle window, SUMMED by the
+ * server from gifts the ledger has already settled. The bar is drawn from the
+ * ratio of the two, never from an absolute scale.
+ */
+export interface PkSide {
+  userId: string;
+  /** Their room, so the app can jump to the other side of a battle. */
+  roomId: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  score: number;
+  /** Consecutive battles won. */
+  streak: number;
+  /**
+   * DISPLAY ONLY, and the server treats it the same way.
+   *
+   * It scales the number on screen and never a payout. The payout ratio is set
+   * by one number (`coins per ₹ ÷ 433.4`), and a multiplier that reached the
+   * ledger would move it on every battle.
+   */
+  winMultiplier: number;
+  /** Top gifters for this side, best first. Four fit under a tile. */
+  supporters: PkSupporter[];
+  /** Everyone on this team, in team mode. Absent in 1v1. */
+  team?: PkSupporter[];
+}
+
+export interface PkSupporter {
+  userId: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  coins: number;
+}
+
+export interface PkBattle {
+  id: string;
+  mode: '1v1' | 'team';
+  /** `warmup` before the whistle, `live` while running, `result` once settled. */
+  phase: 'warmup' | 'live' | 'result';
+  /** Index of the home side. Always 0; present so the sides are never ambiguous. */
+  home: 0;
+  sides: [PkSide, PkSide];
+  endsAt: string;
+  /** Index of the winner, or null for a draw or a battle still running. */
+  winner: 0 | 1 | null;
 }
 
 // --- cosmetics ---------------------------------------------------------------

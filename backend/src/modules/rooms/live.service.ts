@@ -17,6 +17,8 @@ import { pool, withTransaction } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
 import { logger } from '../../infra/logger.js';
 import { enqueueEvent } from '../../infra/outbox.js';
+import { roomBackgroundPath, roomBackgrounds } from '../config/index.js';
+import { endBattlesForRoom } from '../games/index.js';
 import { claimUpload } from '../media/index.js';
 import { EMPTY_LOOK, looksFor, type UserLook } from '../cosmetics/index.js';
 import {
@@ -38,6 +40,15 @@ export interface LiveRoom {
   tag: string;
   country: string;
   coverUrl: string | null;
+  /**
+   * The backdrop the room wears, as an asset PATH the client resolves against
+   * the asset base — the same contract as gift art, not a ready-made URL.
+   *
+   * Null when the room has no backdrop, or when config no longer offers the one
+   * it was given. Either way the app draws its plain gradient, so retiring a
+   * background is an edit to one config row and never a broken image.
+   */
+  backgroundPath: string | null;
   video: boolean;
   seatCapacity: number | null;
   seatsTaken: number;
@@ -62,6 +73,7 @@ interface RoomRow {
   tag: string;
   country: string;
   cover_url: string | null;
+  background_key: string | null;
   is_video: boolean;
   seat_capacity: number | null;
   seats_taken: number;
@@ -76,12 +88,14 @@ interface RoomRow {
 // check fired on every live room and nobody could join anything.
 const ROOM_SELECT = `
   SELECT r.id, r.host_user_id, p.display_name AS host_name, r.title, r.tag, r.country,
-         r.cover_url, r.is_video, r.seat_capacity, r.seats_taken, r.viewer_count,
-         r.started_at, r.ended_at
+         r.cover_url, r.background_key, r.is_video, r.seat_capacity, r.seats_taken,
+         r.viewer_count, r.started_at, r.ended_at
     FROM rooms r
     LEFT JOIN user_profiles p ON p.user_id = r.host_user_id`;
 
-function toLiveRoom(row: RoomRow): LiveRoom {
+// Async only because the key→path lookup reads config, which is cached in
+// memory after the first request — so this costs a Map lookup, not a query.
+async function toLiveRoom(row: RoomRow): Promise<LiveRoom> {
   return {
     id: row.id,
     hostId: row.host_user_id,
@@ -90,6 +104,7 @@ function toLiveRoom(row: RoomRow): LiveRoom {
     tag: row.tag,
     country: row.country,
     coverUrl: row.cover_url,
+    backgroundPath: await roomBackgroundPath(row.background_key),
     video: row.is_video,
     seatCapacity: row.seat_capacity,
     seatsTaken: row.seats_taken,
@@ -127,6 +142,20 @@ export async function goLive(input: {
 
   const roomId = uuidv7();
 
+  // Picked once, here, and stored on the room — never derived from the room id
+  // on the client. Two viewers on different config versions would otherwise
+  // hash their way to different scenes for the same room, and adding a fourth
+  // background would reshuffle every room already live.
+  //
+  // Random rather than round-robin: a counter would need a sequence and a lock
+  // to be fair, and nobody is counting. An empty list is an ordinary outcome,
+  // not an error — a missing wallpaper must never stop a host going live.
+  const backgrounds = await roomBackgrounds();
+  const backgroundKey =
+    backgrounds.length === 0
+      ? null
+      : backgrounds[Math.floor(Math.random() * backgrounds.length)]!.id;
+
   const room = await withTransaction(async (client) => {
     // A host may have exactly one live room — enforced by a partial unique
     // index, checked here so a double-tap gets a sentence rather than a
@@ -144,8 +173,8 @@ export async function goLive(input: {
 
     await client.query(
       `INSERT INTO rooms (id, host_user_id, title, tag, country, cover_url, cover_key,
-                          is_video, seat_capacity)
-            VALUES ($1, $2, $3, $4, COALESCE($5, 'IN'), $6, $9, $7, $8)`,
+                          background_key, is_video, seat_capacity)
+            VALUES ($1, $2, $3, $4, COALESCE($5, 'IN'), $6, $9, $10, $7, $8)`,
       [
         roomId,
         input.hostId,
@@ -156,6 +185,7 @@ export async function goLive(input: {
         input.isVideo,
         input.seatCapacity ?? null,
         cover?.key ?? null,
+        backgroundKey,
       ],
     );
 
@@ -183,7 +213,7 @@ export async function goLive(input: {
     });
 
     const { rows } = await client.query<RoomRow>(`${ROOM_SELECT} WHERE r.id = $1`, [roomId]);
-    return toLiveRoom(rows[0]!);
+    return await toLiveRoom(rows[0]!);
   });
 
   logger.info('room started', { room_id: roomId, user_id: input.hostId });
@@ -254,7 +284,7 @@ export async function joinRoom(input: {
   );
 
   return {
-    room: toLiveRoom(row),
+    room: await toLiveRoom(row),
     seats: await listSeats(input.roomId),
     canPublish,
     rtc: await mintJoinToken({
@@ -272,7 +302,7 @@ export async function getRoom(roomId: string): Promise<{ room: LiveRoom; seats: 
   const row = rows[0];
   if (!row) throw new AppError('ROOM_NOT_FOUND', 'That room does not exist', 404);
 
-  return { room: toLiveRoom(row), seats: await listSeats(roomId) };
+  return { room: await toLiveRoom(row), seats: await listSeats(roomId) };
 }
 
 export async function listSeats(roomId: string): Promise<RoomSeat[]> {
@@ -343,6 +373,19 @@ export async function endRoom(input: { roomId: string; hostId: string }): Promis
   if (!ended) return;
 
   logger.info('room ended', { room_id: input.roomId, user_id: input.hostId });
+
+  // A battle outlives neither room. Settled on the scores AS THEY STAND rather
+  // than voided: the other host's audience spent real money on a bar that was
+  // real while it was moving, and erasing it because this broadcast closed is
+  // how you lose both audiences at once.
+  //
+  // Best effort, like the media close below. A room that is already ended
+  // everywhere must not fail its own request because a scoreboard did.
+  try {
+    await endBattlesForRoom(input.roomId);
+  } catch (err) {
+    logger.warn('pk settle failed after room ended', { room_id: input.roomId, err });
+  }
 
   // So viewers leave the screen rather than sitting in a room that no longer
   // exists, watching a seat map that will never change again.

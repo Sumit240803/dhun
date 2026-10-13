@@ -27,6 +27,15 @@ interface LiveKitRuntime {
     startAudioSession: () => Promise<void>;
     stopAudioSession: () => Promise<void>;
   };
+  /**
+   * The SDK's video surface.
+   *
+   * Typed loosely because this file is the boundary: everything LiveKit-shaped
+   * stops here, and `RemoteVideo` is the only component that renders one. The
+   * alternative — importing the SDK's prop types across the stage — is exactly
+   * the spread the RtcProvider interface exists to prevent on the backend.
+   */
+  VideoView?: unknown;
 }
 
 let runtime: LiveKitRuntime | null | undefined;
@@ -55,6 +64,18 @@ function load(): LiveKitRuntime | null {
 /** Whether a live room can actually be joined in this build. */
 export function isLiveKitAvailable(): boolean {
   return load() !== null;
+}
+
+/**
+ * The SDK's `VideoView`, or null in a build that has no LiveKit.
+ *
+ * Null is a normal outcome and the caller draws an avatar instead. A room
+ * whose video cannot render is still a room you can listen to; one that throws
+ * on render is not.
+ */
+
+export function loadVideoView(): any | null {
+  return (load()?.VideoView as unknown) ?? null;
 }
 
 /**

@@ -11,6 +11,28 @@ import { queryKeys } from '@/api/queries/keys';
 import type { ThreadMessage, Visitor } from '@/api/types';
 import { track } from '@/lib/analytics';
 
+/**
+ * Somebody else's profile.
+ *
+ * Shared by the profile screen and the room's profile card, which are the two
+ * places a stranger gets looked up. One query key means tapping a face in a
+ * room and then opening their full profile hits the cache rather than the
+ * network, and both show the same follower count.
+ *
+ * `undefined` disables it — the card is mounted before anybody is tapped.
+ */
+export function usePublicProfile(userId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.profile.public(userId ?? ''),
+    queryFn: async () => (await usersApi.profile(userId!)).profile,
+    enabled: userId !== undefined && userId !== '',
+    staleTime: 30_000,
+    // A profile that 404s is a deleted account, not a network blip. Retrying
+    // delays the message and changes nothing.
+    retry: false,
+  });
+}
+
 export function useVisitors() {
   return useQuery({
     queryKey: queryKeys.profile.visitors(),

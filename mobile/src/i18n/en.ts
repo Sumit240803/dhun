@@ -21,6 +21,8 @@ export const en = {
   },
 
   common: {
+    ok: 'OK',
+    comingSoon: 'Soon',
     continue: 'Continue',
     cancel: 'Cancel',
     retry: 'Retry',
@@ -182,6 +184,7 @@ export const en = {
   },
 
   profile: {
+    title: 'Profile',
     changePhoto: 'Change photo',
     friends: 'Friends',
     following: 'Following',
@@ -537,6 +540,82 @@ export const en = {
     enteredCaption: 'has entered',
     watchReward: '+{coins} coins for watching · {earned} of {cap} today',
     devSimulateGift: 'Simulate a gift (development)',
+
+    // ── Room chrome ─────────────────────────────────────────────────────
+    rules: 'Rules',
+    idLabel: 'ID {code}',
+    rankLabel: '{board} rank {position}',
+    features: 'Room tools',
+    follow: 'Follow',
+    safetyNotice:
+      'Keep it legal and keep it kind. Nudity, minors, violence and buying coins outside the app are all banned, and reports are reviewed around the clock.',
+
+    // ── Chat ────────────────────────────────────────────────────────────
+    filterAll: 'All',
+    filterRoom: 'Room',
+    filterChat: 'Chat',
+    newMessages: '{count} new',
+    entryLine: '{name} joined',
+    giftLine: '{sender} sent {gift} ×{quantity} to {recipient}',
+
+    // ── Quick replies ───────────────────────────────────────────────────
+    quickHello: 'Hi there!',
+    quickFollow: 'Please follow',
+    quickNice: 'Nice voice',
+    quickLol: 'Haha',
+    quickSeat: 'Can I have a seat?',
+
+    // ── Seats ───────────────────────────────────────────────────────────
+    seatTakenLabel: '{name}, seat {index}',
+    seatEmptyLabel: 'Seat {index}, empty',
+    soloHint: 'Say something, or send a gift',
+    soloEarned: '{coins} coins so far',
+    railCollapse: 'Hide the mic list',
+    railExpand: 'Show the mic list',
+
+    // ── Camera and audio ────────────────────────────────────────────────
+    cameraOn: 'Camera on',
+    cameraOff: 'Camera off',
+    muteSide: 'Mute this side',
+    unmuteSide: 'Unmute this side',
+
+    // ── Asking for the mic ──────────────────────────────────────────────
+    micWaitingTitle: 'Waiting for the host',
+    micWaitingBody:
+      'You have asked for the mic. The host decides who speaks, so this can take a moment.',
+    micKeepWaiting: 'Keep waiting',
+    micWithdraw: 'Withdraw',
+    micQueuedTitle: 'You are on the list',
+    micQueuedBody: 'The host will see your request and call you up.',
+    micFollowTitle: 'Follow first',
+    micFollowBody: '{name} only takes mic requests from followers.',
+
+    // ── Profile card ────────────────────────────────────────────────────
+    viewProfile: 'View profile',
+    hostControls: 'Host controls',
+    receivedHere: '{coins} coins in this room',
+
+    // ── PK ──────────────────────────────────────────────────────────────
+    pkWinMultiplier: 'Win ×{multiplier}',
+    pkStartsIn: 'Starting',
+    pkWinner: '{name} wins',
+    pkDraw: 'Draw',
+
+    // ── The room could not open ─────────────────────────────────────────
+    unavailableTitle: 'Rooms need an update',
+    unavailableBody:
+      'This version of the app cannot open live rooms. Update from the store and try again.',
+    missingTitle: 'Room not found',
+    missingBody: 'That link did not name a room.',
+
+    featureRank: 'Top gifters',
+    featureRewards: 'Rewards',
+    featureStore: 'Get coins',
+    featureCosmetics: 'Looks',
+    featureShare: 'Share',
+    featureReport: 'Report',
+    featureRules: 'Rules',
+    featureMinimise: 'Minimise',
   },
 
   store: {

@@ -50,3 +50,24 @@ coverage/
 
 
 app-reference-images
+# --- local reference material ------------------------------------------------
+# Large, local, and not part of the build. 60MB between them, and git keeps
+# every byte forever once committed.
+#
+#   assets/                 source images, before optimising. docs/asset-contract.md
+#                           §1 is explicit that source files live OUTSIDE this
+#                           repo — the optimised output is what ships, and for
+#                           room backdrops that is backend/public/ (220KB).
+#   app-reference-images/   competitor screenshots the room UI was built from.
+#                           Keep them; they are referenced by
+#                           docs/room-ui-reference-report.md and are the thing
+#                           to re-read before changing room layout. They are also
+#                           somebody else's app, which is its own reason not to
+#                           redistribute them in a repo.
+#   reference-assets/       the same, for art.
+#
+# None of these are deleted — they stay on disk. If you would rather version
+# them, use a bucket or git-lfs rather than the repo.
+assets/
+app-reference-images/
+reference-assets/

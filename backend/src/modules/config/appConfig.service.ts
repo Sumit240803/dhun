@@ -57,6 +57,47 @@ export async function coldStartConfig(): Promise<ColdStartConfig> {
 }
 
 /**
+ * The backdrops a room can wear.
+ *
+ * An id and the asset path it resolves to, in the order config lists them.
+ * The id is what `rooms.background_key` stores; the path is what the client
+ * resolves against the asset base, exactly as it does gift art.
+ */
+export interface RoomBackground {
+  id: string;
+  path: string;
+}
+
+const roomBackgroundsSchema = z.array(
+  z.object({
+    // Same shape the `rooms.background_key` CHECK enforces, so a config entry
+    // that could never be stored is rejected here rather than at INSERT.
+    id: z.string().regex(/^[a-z0-9-]{2,40}$/),
+    path: z.string().min(3).max(256),
+  }),
+);
+
+/**
+ * Empty when the row is missing or malformed, which draws the plain gradient.
+ *
+ * A background is decoration: a typo in this row must cost a room its
+ * wallpaper and nothing else. It must never be able to stop someone going
+ * live, which is why `goLive` treats an empty list as an ordinary case rather
+ * than an error.
+ */
+export async function roomBackgrounds(): Promise<RoomBackground[]> {
+  const parsed = roomBackgroundsSchema.safeParse(await getConfigValue('room_backgrounds'));
+  return parsed.success ? parsed.data : [];
+}
+
+/** The path for a stored key, or null if config no longer offers it. */
+export async function roomBackgroundPath(key: string | null): Promise<string | null> {
+  if (key === null) return null;
+  const found = (await roomBackgrounds()).find((background) => background.id === key);
+  return found?.path ?? null;
+}
+
+/**
  * Everything the app needs to know at launch that is not user data.
  *
  * This is day-1 non-negotiable #5 — force-update plus a remote kill switch per

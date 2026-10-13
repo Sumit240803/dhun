@@ -20,7 +20,16 @@ export interface AvatarProps {
   uri?: string | null;
   /** Used for the initial when there is no image, and for the accessibility label. */
   name: string;
-  size?: Size;
+  /**
+   * A step on the scale, or an exact diameter in points.
+   *
+   * The scale is what screens should use. A number exists for the room's seat
+   * grid, which steps its avatar from 72pt at four seats down to 38pt at
+   * twenty — sizes that are decided by how many seats fit across a phone, not
+   * by a typographic scale, and rounding them to the nearest step would make a
+   * 12-seat room look like a shrunken 9-seat one.
+   */
+  size?: Size | number;
   /** Draws the live ring. Reserved for an actually-broadcasting host. */
   live?: boolean;
   /**
@@ -65,8 +74,12 @@ export function Avatar({
   frameRing,
   testID,
 }: AvatarProps) {
-  const px = sizes[size];
+  const px = typeof size === 'number' ? size : sizes[size];
   const initial = name.trim().charAt(0).toUpperCase() || '?';
+
+  // The initial has to shrink with the circle, or a 38pt seat shows a letter
+  // wider than the avatar holding it.
+  const initialVariant = typeof size === 'number' ? variantForDiameter(px) : textVariant[size];
 
   // Keyed on the uri, so a different frame starts fresh rather than inheriting
   // the last one's failure.
@@ -98,7 +111,7 @@ export function Avatar({
         />
       ) : (
         <View style={[styles.fill, styles.fallback]}>
-          <Text variant={textVariant[size]} tone="secondary">
+          <Text variant={initialVariant} tone="secondary">
             {initial}
           </Text>
         </View>
@@ -145,6 +158,15 @@ export function Avatar({
       ) : null}
     </View>
   );
+}
+
+/** The scale step whose initial fits a given diameter. */
+function variantForDiameter(px: number): 'micro' | 'caption' | 'bodyStrong' | 'heading' | 'title' {
+  if (px <= sizes.xs) return 'micro';
+  if (px <= sizes.sm) return 'micro';
+  if (px <= sizes.md) return 'caption';
+  if (px <= sizes.lg) return 'heading';
+  return 'title';
 }
 
 const styles = StyleSheet.create({

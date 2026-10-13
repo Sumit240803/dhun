@@ -45,6 +45,11 @@ export const queryKeys = {
     mine: () => [...queryKeys.cosmetics.all, 'mine'] as const,
   },
 
+  pk: {
+    all: ['pk'] as const,
+    room: (roomId: string) => [...queryKeys.pk.all, 'room', roomId] as const,
+  },
+
   rooms: {
     all: ['rooms'] as const,
     // Keyed by category so switching tabs does not discard the other tab's

@@ -1,6 +1,7 @@
 // Builds the HTTP app and mounts each module under /v1/<module>.
 // One deployable app — the modules are internal boundaries, not separate servers.
 import express from 'express';
+import { fileURLToPath } from 'node:url';
 import { config } from './config/index.js';
 import { pool } from './infra/db.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
@@ -19,6 +20,7 @@ import { buildMediaRouter } from './modules/media/index.js';
 import { buildModerationRouter } from './modules/moderation/index.js';
 import { buildNotificationsRouter } from './modules/notifications/index.js';
 import { buildWebhooksRouter } from './modules/realtime/index.js';
+import { buildPkRouter } from './modules/games/index.js';
 import { buildRewardsRouter } from './modules/rewards/index.js';
 import { buildRoomsRouter } from './modules/rooms/index.js';
 import { buildUsersRouter } from './modules/users/index.js';
@@ -46,6 +48,38 @@ export function buildApp() {
   // Machine-to-machine and authenticated by signature, so it sits outside the
   // /v1 module mounts below.
   app.use('/v1/webhooks', buildWebhooksRouter());
+
+  // Stand-in art, served from the API origin.
+  //
+  // `visuals/assets.ts` resolves every catalog path — a gift icon, a room
+  // backdrop — against EXPO_PUBLIC_ASSET_URL, FALLING BACK to the API origin
+  // when no CDN is configured. That fallback has been a promise the backend did
+  // not keep: nothing served these paths, so every placeholder 404'd. This is
+  // the other half of it, and production overrides the base to point at R2
+  // without any of this changing.
+  //
+  // Before the JSON parser, because an image request has no JSON body and
+  // requireJsonBody() would be answering a question nobody asked. After the
+  // global limiter, so a scraper still meets a ceiling.
+  //
+  // `immutable` is safe BECAUSE of the asset contract: a path's bytes never
+  // change, new art is a new version. Were that ever violated, a year-long
+  // cache is how long some users would see the old art for.
+  app.use(
+    express.static(fileURLToPath(new URL('../public/', import.meta.url)), {
+      index: false,
+      redirect: false,
+      dotfiles: 'ignore',
+      // Set here rather than through `maxAge`, and that is not a style choice.
+      // `send` only applies its own Cache-Control when the header is UNSET, and
+      // securityHeaders() has already written `no-store` for every API response
+      // — so `maxAge` is silently ignored and every backdrop is re-downloaded
+      // on every room open. A `setHeaders` callback runs last and wins.
+      setHeaders: (res) => {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      },
+    }),
+  );
 
   app.use(requireJsonBody());
   app.use(express.json({ limit: config.maxBodyBytes, strict: true }));
@@ -82,6 +116,7 @@ export function buildApp() {
   app.use('/v1/agency', buildAgencyRouter());
   app.use('/v1/admin/agencies', buildAgencyAdminRouter());
   app.use('/v1/media', buildMediaRouter());
+  app.use('/v1/pk', buildPkRouter());
 
   app.use(notFoundHandler());
   app.use(errorHandler());

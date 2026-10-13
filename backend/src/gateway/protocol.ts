@@ -168,6 +168,20 @@ export type ServerMessage =
   | { t: 'entry'; roomId: string; user: EntryView }
   /** Requester only — the answer to their own raised hand. */
   | { t: 'mic:resolved'; roomId: string; approved: boolean }
+  /**
+   * A PK battle started, scored, or finished.
+   *
+   * Pushed to BOTH rooms, always — each audience has to see the other side's
+   * number move or there is nothing to respond to. The payload is the whole
+   * battle rather than a delta: it is small, it arrives at most once per gift,
+   * and a client that missed one message would otherwise be permanently out by
+   * that much.
+   *
+   * `pk` is deliberately loose here. `PkBattleView` lives in the games module,
+   * and importing it would pull that module's types into the gateway process
+   * for a value the gateway only forwards.
+   */
+  | { t: 'pk:started' | 'pk:score' | 'pk:ended'; roomId: string; pk: unknown }
   /** The host ended it, or a moderator did. The client leaves the screen. */
   | { t: 'room:ended'; roomId: string }
   /**
