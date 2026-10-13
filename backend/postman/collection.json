@@ -1701,7 +1701,7 @@
                 "live"
               ]
             },
-            "description": "Starts a broadcast and returns a media token that can SPEAK.\n\nOmit `seatCapacity` for a single-host livestream; include it (2–20) for a party room, where seat 0 is reserved for the host at creation.\n\nRegistered users only — a guest may watch and nothing else. A host may have exactly ONE live room: a second attempt returns 409 ALREADY_LIVE carrying the existing roomId rather than replacing it, because a reconnect storm would otherwise churn through rooms and scatter the audience.\n\nToken minting is local, so going live cannot fail because the media server was briefly slow. 503 RTC_UNAVAILABLE means LIVEKIT_* is not configured.\n\n**`room.backgroundPath`** — the backdrop the room wears, as an asset PATH (`rooms/backgrounds/coast-road.v1.webp`), never a URL. The client resolves it against the asset base exactly as it resolves gift art, so the CDN host is never baked into a room row.\n\nOne is picked at random from `app_config.room_backgrounds` when the room is created and STORED on the room. It is deliberately not hashed from the room id on the client: two viewers on different config versions would draw different scenes for one room, and adding a fourth backdrop would reshuffle every room already live.\n\n`null` means no backdrop — either the room never got one, or config no longer offers the one it has. The app draws its plain gradient either way, so retiring art is an edit to one config row and never a broken image.",
+            "description": "Starts a broadcast and returns a media token that can SPEAK.\n\nOmit `seatCapacity` for a single-host livestream; include it (2–20) for a party room, where seat 0 is reserved for the host at creation.\n\nRegistered users only — a guest may watch and nothing else. A host may have exactly ONE live room: a second attempt returns 409 ALREADY_LIVE carrying the existing roomId rather than replacing it, because a reconnect storm would otherwise churn through rooms and scatter the audience.\n\nToken minting is local, so going live cannot fail because the media server was briefly slow. 503 RTC_UNAVAILABLE means LIVEKIT_* is not configured.\n\n**`room.backgroundPath`** — the backdrop the room wears, as an asset PATH (`rooms/backgrounds/coast-road.v1.webp`), never a URL. The client resolves it against the asset base exactly as it resolves gift art, so the CDN host is never baked into a room row.\n\nOne is picked at random from `app_config.room_backgrounds` when the room is created and STORED on the room. It is deliberately not hashed from the room id on the client: two viewers on different config versions would draw different scenes for one room, and adding a fourth backdrop would reshuffle every room already live.\n\n`null` means no backdrop — either the room never got one, or config no longer offers the one it has. The app draws its plain gradient either way, so retiring art is an edit to one config row and never a broken image.\n\n**`room.publicId`** — the short six-digit number people quote, in chat, in a report, in WhatsApp. It is NOT `room.id`: that uuid is what every table references and what appears in every log line, and a value people paste around should never be the string that identifies the row (migration 006 states the rule; 029 applies it to rooms). Look a room up with `GET /rooms/code/{publicId}`.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"Evening adda\",\n  \"tag\": \"chatting\",\n  \"isVideo\": false,\n  \"seatCapacity\": 8\n}",
@@ -1750,7 +1750,7 @@
                 "{{roomId}}"
               ]
             },
-            "description": "The room and its seat map, without joining. What a feed card expands into.\n\n**`room.backgroundPath`** — the backdrop the room wears, as an asset PATH (`rooms/backgrounds/coast-road.v1.webp`), never a URL. The client resolves it against the asset base exactly as it resolves gift art, so the CDN host is never baked into a room row.\n\nOne is picked at random from `app_config.room_backgrounds` when the room is created and STORED on the room. It is deliberately not hashed from the room id on the client: two viewers on different config versions would draw different scenes for one room, and adding a fourth backdrop would reshuffle every room already live.\n\n`null` means no backdrop — either the room never got one, or config no longer offers the one it has. The app draws its plain gradient either way, so retiring art is an edit to one config row and never a broken image."
+            "description": "The room and its seat map, without joining. What a feed card expands into.\n\n**`room.backgroundPath`** — the backdrop the room wears, as an asset PATH (`rooms/backgrounds/coast-road.v1.webp`), never a URL. The client resolves it against the asset base exactly as it resolves gift art, so the CDN host is never baked into a room row.\n\nOne is picked at random from `app_config.room_backgrounds` when the room is created and STORED on the room. It is deliberately not hashed from the room id on the client: two viewers on different config versions would draw different scenes for one room, and adding a fourth backdrop would reshuffle every room already live.\n\n`null` means no backdrop — either the room never got one, or config no longer offers the one it has. The app draws its plain gradient either way, so retiring art is an edit to one config row and never a broken image.\n\n**`room.publicId`** — the short six-digit number people quote, in chat, in a report, in WhatsApp. It is NOT `room.id`: that uuid is what every table references and what appears in every log line, and a value people paste around should never be the string that identifies the row (migration 006 states the rule; 029 applies it to rooms). Look a room up with `GET /rooms/code/{publicId}`."
           },
           "response": [],
           "event": [
@@ -1792,7 +1792,7 @@
                 "join"
               ]
             },
-            "description": "Returns a media token whose PUBLISH grant comes from the seat table and nowhere else — there is deliberately no way to ask for publish rights in the request.\n\nIMPORTANT: a listener token sets `canPublish: false` EXPLICITLY. LiveKit treats an omitted flag as permission to publish, so a token that merely forgot the field would let any listener talk in any room.\n\nSomeone who already holds a seat gets speaking rights back, which is what makes a dropped signal a hiccup rather than losing your place on stage.\n\n403 ROOM_BANNED if the host kicked them; 410 ROOM_ENDED once the room is over.\n\n**`room.backgroundPath`** — the backdrop the room wears, as an asset PATH (`rooms/backgrounds/coast-road.v1.webp`), never a URL. The client resolves it against the asset base exactly as it resolves gift art, so the CDN host is never baked into a room row.\n\nOne is picked at random from `app_config.room_backgrounds` when the room is created and STORED on the room. It is deliberately not hashed from the room id on the client: two viewers on different config versions would draw different scenes for one room, and adding a fourth backdrop would reshuffle every room already live.\n\n`null` means no backdrop — either the room never got one, or config no longer offers the one it has. The app draws its plain gradient either way, so retiring art is an edit to one config row and never a broken image.",
+            "description": "Returns a media token whose PUBLISH grant comes from the seat table and nowhere else — there is deliberately no way to ask for publish rights in the request.\n\nIMPORTANT: a listener token sets `canPublish: false` EXPLICITLY. LiveKit treats an omitted flag as permission to publish, so a token that merely forgot the field would let any listener talk in any room.\n\nSomeone who already holds a seat gets speaking rights back, which is what makes a dropped signal a hiccup rather than losing your place on stage.\n\n403 ROOM_BANNED if the host kicked them; 410 ROOM_ENDED once the room is over.\n\n**`room.backgroundPath`** — the backdrop the room wears, as an asset PATH (`rooms/backgrounds/coast-road.v1.webp`), never a URL. The client resolves it against the asset base exactly as it resolves gift art, so the CDN host is never baked into a room row.\n\nOne is picked at random from `app_config.room_backgrounds` when the room is created and STORED on the room. It is deliberately not hashed from the room id on the client: two viewers on different config versions would draw different scenes for one room, and adding a fourth backdrop would reshuffle every room already live.\n\n`null` means no backdrop — either the room never got one, or config no longer offers the one it has. The app draws its plain gradient either way, so retiring art is an edit to one config row and never a broken image.\n\n**`room.publicId`** — the short six-digit number people quote, in chat, in a report, in WhatsApp. It is NOT `room.id`: that uuid is what every table references and what appears in every log line, and a value people paste around should never be the string that identifies the row (migration 006 states the rule; 029 applies it to rooms). Look a room up with `GET /rooms/code/{publicId}`.",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -2103,6 +2103,116 @@
                 "type": "text/javascript",
                 "exec": [
                   "// Signed by LiveKit. Cannot be exercised by hand."
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "11 · Hourly board",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rooms/board",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rooms",
+                "board"
+              ]
+            },
+            "description": "The top rooms this hour.\n\nServed from `room_hour_scores`, a rollup the `room_hour_rollup` worker recomputes every 60s. Ranking live would sort every gift in the last hour once per viewer per refresh — and more importantly, every viewer in a room must see the SAME position. A rank up to a minute stale is the right trade; two people in one room reading different ranks is not.\n\n**Mounted BEFORE `/:id`.** Express would otherwise read `board` as a room id and this would 404 on a uuid that was never one."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "12 · Find a room by its code",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rooms/code/{{roomCode}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rooms",
+                "code",
+                "{{roomCode}}"
+              ]
+            },
+            "description": "The short number a host reads out. `rooms.public_id`, six digits from a sequence — NOT `rooms.id`, which is the uuid every table references and every log line carries.\n\n**Live rooms only.** A code is quoted to send somebody to a broadcast that is happening; returning an ended room would land them on an empty screen with no explanation.\n\nThe code is range-checked to the sequence’s shape. An unbounded integer here is a free scan of the id space for anybody who wants to enumerate.\n\n**Errors:** `ROOM_NOT_FOUND` 404 · `VALIDATION_FAILED` 422"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 · Where this room stands",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rooms/{{roomId}}/rank",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rooms",
+                "{{roomId}}",
+                "rank"
+              ]
+            },
+            "description": "Returns `{ rank: { board, position, progress, coins, nextUpCoins } }`, or `{ rank: null }`.\n\n`null` is the ordinary answer for a room nobody has gifted in this hour. It has not entered the board, and the app hides the pill rather than showing a host a zero — there is no encouragement in being told you are last.\n\n`position` is `12`, or `100+` for a room outside the ranked slice (`app_config.room_board.rankedPositions`). `progress` is 0..1 toward the place above, and null at rank 1 or when unranked — there is nothing to chase.\n\n**Poll at 60s and no faster.** The rollup recomputes once a minute, so anything quicker reads a number that has not changed."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
                 ]
               }
             }

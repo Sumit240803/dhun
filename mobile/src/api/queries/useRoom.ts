@@ -6,7 +6,7 @@
 // would happily do, each time handing the screen a token that had already been
 // superseded.
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { liveRoomsApi } from '@/api/endpoints/rooms';
 import { queryKeys } from '@/api/queries/keys';
@@ -41,6 +41,27 @@ export function useGoLive() {
 }
 
 /** Seat and moderation actions, all invalidating the same seat map. */
+/**
+ * Where this room stands on the hourly board.
+ *
+ * Polled at the rollup's own cadence and no faster: the server recomputes the
+ * board once a minute, so a 10-second poll would read the same number six
+ * times and cost six requests per viewer to do it.
+ *
+ * `null` is an ordinary answer — a room nobody has gifted in this hour has not
+ * entered the board, and the rail hides rather than showing a host a zero.
+ */
+export function useRoomRank(roomId: string | undefined, enabled: boolean) {
+  return useQuery({
+    queryKey: queryKeys.rooms.rank(roomId ?? ''),
+    queryFn: async () => (await liveRoomsApi.rank(roomId!)).rank,
+    enabled: enabled && roomId !== undefined,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+    retry: false,
+  });
+}
+
 export function useRoomActions(roomId: string) {
   const queryClient = useQueryClient();
   const refresh = () => queryClient.invalidateQueries({ queryKey: queryKeys.rooms.detail(roomId) });

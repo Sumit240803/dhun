@@ -247,6 +247,12 @@
       "value": "",
       "type": "default",
       "enabled": true
+    },
+    {
+      "key": "roomCode",
+      "value": "100001",
+      "type": "default",
+      "enabled": true
     }
   ],
   "_postman_variable_scope": "environment"

@@ -528,6 +528,7 @@ export const hi: Messages = {
     devSimulateGift: 'गिफ़्ट सिम्युलेट करें (डेवलपमेंट)',
 
     // ── Room chrome ─────────────────────────────────────────────────────
+    boardHour: 'घंटा',
     rules: 'नियम',
     idLabel: 'आईडी {code}',
     rankLabel: '{board} रैंक {position}',

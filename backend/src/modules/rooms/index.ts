@@ -15,7 +15,10 @@ export { buildRoomsRouter } from './rooms.routes.js';
 export { fullestRoom, listFeed } from './rooms.service.js';
 export type { FeedRoom, FeedCategory } from './rooms.service.js';
 
-export { endRoom, getRoom, goLive, joinRoom, listSeats } from './live.service.js';
+export { endRoom, getRoom, goLive, joinRoom, listSeats, roomIdForCode } from './live.service.js';
 export type { LiveRoom, RoomSeat, RoomTag } from './live.service.js';
+
+export { purgeOldHours, rankFor, rollup as rollupRoomHour, topRooms } from './board.service.js';
+export type { RoomRank } from './board.service.js';
 
 export { kickFromRoom, releaseSeat, setSeatMuted, takeSeat } from './seats.service.js';

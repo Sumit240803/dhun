@@ -788,6 +788,7 @@ while ahead therefore still wins.
 | D3 | **Trailing-30-day host earnings** for the agency commission tier — live query or rollup table | [?] |
 | D4 | **TDS running total** per host per financial year (Apr–Mar) — needs its own accumulator | [?] |
 | D5 | **Coin float liability** and revenue-recognition reporting | [?] |
+| D7 | **Hourly room board** — `SUM(gift_sends.coins)` per room per hour, rolled up every 60s into `room_hour_scores`; a cache, never payable | [x] migration 029 |
 | D6 | **PK battle score** — `SUM(gift_sends.coins)` in the window, never a counter; frozen at settlement | [x] migration 028 |
 
 ## E. Reconciliation — the six mandated checks

@@ -28,6 +28,7 @@ import {
   reapStuckJobRunsJob,
 } from './jobs/retention.js';
 import { agencyMembershipSweepJob } from './jobs/agency.js';
+import { purgeRoomHourScoresJob, roomHourRollupJob } from './jobs/board.js';
 import { pkMatchJob, pkSettleJob } from './jobs/pk.js';
 import { commissionCloseJob } from './jobs/commission.js';
 import { withConsumers } from './consumers.js';
@@ -49,6 +50,8 @@ export const JOBS: Job[] = [
   commissionCloseJob,
   pkSettleJob,
   pkMatchJob,
+  roomHourRollupJob,
+  purgeRoomHourScoresJob,
 ];
 
 /**

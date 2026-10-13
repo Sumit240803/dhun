@@ -297,6 +297,14 @@ export interface RtcJoinToken {
 
 export interface LiveRoom {
   id: string;
+  /**
+   * The short number people quote — in chat, in a report, in WhatsApp.
+   *
+   * NOT the id. `id` is the uuid everything references internally and that
+   * appears in every log line; this is the six-digit number a host reads out.
+   * See backend migration 029 for why they are different values.
+   */
+  publicId: number;
   hostId: string;
   hostName: string | null;
   title: string;
@@ -596,6 +604,17 @@ export interface LeaderboardEntry {
   displayName: string | null;
   avatarUrl: string | null;
   coins: number;
+}
+
+/** Where a room stands on the hourly board. */
+export interface RoomRank {
+  board: 'hour';
+  /** `12`, or `100+` for a room outside the ranked slice. Shown verbatim. */
+  position: string;
+  /** 0..1 toward the place above. Null at rank 1, or when unranked. */
+  progress: number | null;
+  coins: number;
+  nextUpCoins: number | null;
 }
 
 // --- pk battles ---------------------------------------------------------------

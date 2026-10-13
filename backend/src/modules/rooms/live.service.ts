@@ -34,6 +34,13 @@ export type RoomTag = 'singing' | 'dancing' | 'chatting' | 'gaming' | 'friends' 
 
 export interface LiveRoom {
   id: string;
+  /**
+   * The short number people quote — in chat, in a report, in WhatsApp.
+   *
+   * Never a foreign key and never used to look anything up internally: `id` is
+   * what every table references. See migration 029.
+   */
+  publicId: number;
   hostId: string;
   hostName: string | null;
   title: string;
@@ -67,6 +74,7 @@ export interface RoomSeat {
 
 interface RoomRow {
   id: string;
+  public_id: string;
   host_user_id: string;
   host_name: string | null;
   title: string;
@@ -87,7 +95,7 @@ interface RoomRow {
 // there, `row.ended_at` was `undefined` — which is not `null`, so the liveness
 // check fired on every live room and nobody could join anything.
 const ROOM_SELECT = `
-  SELECT r.id, r.host_user_id, p.display_name AS host_name, r.title, r.tag, r.country,
+  SELECT r.id, r.public_id, r.host_user_id, p.display_name AS host_name, r.title, r.tag, r.country,
          r.cover_url, r.background_key, r.is_video, r.seat_capacity, r.seats_taken,
          r.viewer_count, r.started_at, r.ended_at
     FROM rooms r
@@ -98,6 +106,9 @@ const ROOM_SELECT = `
 async function toLiveRoom(row: RoomRow): Promise<LiveRoom> {
   return {
     id: row.id,
+    // bigint comes back as a string from pg; the app wants a number and six
+    // digits is nowhere near the safe-integer ceiling.
+    publicId: Number(row.public_id),
     hostId: row.host_user_id,
     hostName: row.host_name,
     title: row.title,
@@ -297,6 +308,21 @@ export async function joinRoom(input: {
 }
 
 /** The room and its seat map, without joining. What the room card expands into. */
+/**
+ * Find a room by the number its host reads out.
+ *
+ * Live rooms only, and that is the point: a code is quoted to send somebody to
+ * a broadcast that is happening. Returning an ended room would send them to an
+ * empty screen with no explanation.
+ */
+export async function roomIdForCode(publicId: number): Promise<string | null> {
+  const { rows } = await pool.query<{ id: string }>(
+    'SELECT id FROM rooms WHERE public_id = $1 AND ended_at IS NULL',
+    [publicId],
+  );
+  return rows[0]?.id ?? null;
+}
+
 export async function getRoom(roomId: string): Promise<{ room: LiveRoom; seats: RoomSeat[] }> {
   const { rows } = await pool.query<RoomRow>(`${ROOM_SELECT} WHERE r.id = $1`, [roomId]);
   const row = rows[0];

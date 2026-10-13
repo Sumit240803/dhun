@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { authGuard, optionalAuth, requireRegistered } from '../../middleware/authGuard.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { validate } from '../../middleware/validate.js';
-import { endRoom, getRoom, goLive, joinRoom } from './live.service.js';
+import { rankFor, topRooms } from './board.service.js';
+import { endRoom, getRoom, goLive, joinRoom, roomIdForCode } from './live.service.js';
 import { fullestRoom, listFeed } from './rooms.service.js';
 import { kickFromRoom, releaseSeat, setSeatMuted, takeSeat } from './seats.service.js';
 
@@ -112,6 +113,78 @@ export function buildRoomsRouter(): Router {
       next(err);
     }
   });
+
+  /**
+   * The hourly board — the top rooms this hour.
+   *
+   * BEFORE `/:id`, or Express reads `board` as a room id and every request
+   * here 404s on a uuid that was never one. The same ordering trap the agency
+   * admin router hit.
+   */
+  router.get('/board', async (_req, res, next) => {
+    try {
+      res.json({ rooms: await topRooms() });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /**
+   * Find a live room by the short number its host reads out.
+   *
+   * Also before `/:id`, and the reason this exists at all: a code nobody can
+   * use to reach the room is decoration. Ended rooms are not found — a code is
+   * quoted to send somebody to a broadcast that is happening.
+   */
+  router.get(
+    '/code/:code',
+    validate({
+      params: z
+        .object({
+          // Bounded to the sequence's shape. An unbounded integer here is a
+          // free scan of the id space for anybody who wants to enumerate.
+          code: z.coerce.number().int().min(100_001).max(99_999_999),
+        })
+        .strict(),
+    }),
+    async (req, res, next) => {
+      try {
+        const { code } = req.validatedParams as { code: number };
+        const roomId = await roomIdForCode(code);
+        if (roomId === null) {
+          res.status(404).json({
+            error: { code: 'ROOM_NOT_FOUND', message: 'No live room has that code' },
+          });
+          return;
+        }
+        res.json(await getRoom(roomId));
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  /**
+   * Where this room stands on the hourly board.
+   *
+   * Null when it has earned nothing this hour — a host is not shown a zero,
+   * because there is no encouragement in being told you are last.
+   *
+   * Read from a rollup refreshed every 60s, so polling faster than that reads
+   * a number that has not changed. Also before `/:id`.
+   */
+  router.get(
+    '/:id/rank',
+    validate({ params: roomIdParam }),
+    async (req, res, next) => {
+      try {
+        const { id } = req.validatedParams as { id: string };
+        res.json({ rank: await rankFor(id) });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
 
   // The room and its seat map, without joining. What a feed card expands into,
   // and readable without a session for the same reason the feed is.

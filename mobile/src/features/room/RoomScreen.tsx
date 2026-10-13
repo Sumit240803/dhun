@@ -8,7 +8,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { queryKeys } from '@/api/queries/keys';
 import { useRoomLeaderboard } from '@/api/queries/useGifts';
-import { useJoinRoom, useRoomActions } from '@/api/queries/useRoom';
+import { useJoinRoom, useRoomActions, useRoomRank } from '@/api/queries/useRoom';
 import { useToggleFollow } from '@/api/queries/useSocial';
 import { useGiftCatalog } from '@/api/queries/useWallet';
 import type { GiftView, JoinedRoom } from '@/api/types';
@@ -236,6 +236,11 @@ export function RoomScreen({ roomId }: { roomId: string }) {
   // the header rail and every seat's counter read from it, so it is room
   // chrome now, not sheet content.
   const board = useRoomLeaderboard(roomId, joined !== null);
+
+  // The second line of every reference room, and the reason the rail exists: a
+  // host who can see they are 18% short of the next place has something to ask
+  // the room for. Polled at the server's own rollup cadence, never faster.
+  const rank = useRoomRank(roomId, joined !== null);
   const totals: SeatTotals = useMemo(() => {
     const map = new Map<string, number>();
     for (const entry of board.data ?? []) map.set(entry.userId, entry.coins);
@@ -404,8 +409,18 @@ export function RoomScreen({ roomId }: { roomId: string }) {
           />
 
           <ActivityRail
-            rank={null}
-            roomCode={roomId.slice(0, 8)}
+            rank={
+              rank.data === null || rank.data === undefined
+                ? null
+                : {
+                    board: t('room.boardHour'),
+                    position: rank.data.position,
+                    progress: rank.data.progress,
+                  }
+            }
+            // The SHORT number, not a sliced uuid. `publicId` is what a host
+            // reads out and what somebody types to find the room again.
+            roomCode={room === undefined ? '—' : String(room.publicId)}
             onRulesPress={() => router.push('/legal/guidelines')}
             onRankPress={() => {
               setBoardOpen(true);

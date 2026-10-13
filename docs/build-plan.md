@@ -691,6 +691,37 @@ moving on both, a result landing within a second of zero.
 
 ---
 
+### M15 · Room codes and the hourly board (backend + app) — ✅ COMPLETE, unverified on devices
+
+Built 2026-10-13. Two things the references put on the second line of every room, and the
+two the rebuilt chrome had nothing to fill it with.
+
+**`rooms.public_id`** — six digits from 100001, the short number a host reads out. Same
+pattern as `users`, `agencies` and `agents`; the rule is migration 006's. `GET
+/v1/rooms/code/:code` finds a **live** room by it, because a code nobody can use to reach
+the room is decoration.
+
+*The founder asked whether we could move from uuids to 6–8 digit numbers as ids. We did
+not,* and the reasoning is in migration 029's header: a sequential primary key is
+enumerable, leaks volume, and would serialise every ledger write behind one sequence where
+`uuidv7` is generated on the app server with no round trip. A `public_id` gets the short
+number without any of that, which is why three tables already had one.
+
+**The hourly board** — `room_hour_scores`, recomputed every 60s by `room_hour_rollup`, with
+a daily purge. `GET /v1/rooms/:id/rank` returns position, progress toward the place above,
+and the coins behind both; `GET /v1/rooms/board` returns the top rooms. A room nobody has
+gifted in returns `null`, not a zero.
+
+**Exit criteria met:** 10 tests covering codes, lookup of an ended room, range-checking the
+code, ranking, the progress fraction, the leader's absent bar, idempotency and the hourly
+reset · Postman updated · typecheck, lint and Prettier clean · both locales.
+
+**Outstanding:** the board is polled, not pushed — the worker could publish to each room on
+every rollup, which is one message per room per minute and better UX. `board` is only
+`hour`; the references also run a popularity board and a daily one.
+
+---
+
 ## Admin panel — threaded, not a milestone
 
 Your docs are explicit: *"Admin panel MVP ka hissa hai, baad mein nahi."* Each milestone

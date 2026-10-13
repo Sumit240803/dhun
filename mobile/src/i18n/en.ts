@@ -542,6 +542,7 @@ export const en = {
     devSimulateGift: 'Simulate a gift (development)',
 
     // ── Room chrome ─────────────────────────────────────────────────────
+    boardHour: 'Hour',
     rules: 'Rules',
     idLabel: 'ID {code}',
     rankLabel: '{board} rank {position}',

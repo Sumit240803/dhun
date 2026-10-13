@@ -52,6 +52,7 @@ import {
   postTransaction,
 } from '../src/modules/economy/index.js';
 import { sendGift, type GiftQuantity } from '../src/modules/gifting/index.js';
+import { rollupRoomHour } from '../src/modules/rooms/index.js';
 
 if (config.nodeEnv === 'production') {
   console.error('seed:testers — refusing to run with NODE_ENV=production');
@@ -734,6 +735,13 @@ async function main(): Promise<void> {
   console.log('\n  Notes');
   for (const note of notes) console.log(`  · ${note}`);
 
+  // The hourly board, computed once here rather than waited for.
+  //
+  // In production the worker does this every 60s. A seeded database is for
+  // looking at right now, and an empty rank rail in a screen recording is the
+  // room's most visible number missing.
+  await rollupRoomHour();
+
   const counts = await pool.query<{ what: string; n: string }>(
     `SELECT 'live rooms' AS what, count(*)::text AS n FROM rooms WHERE ended_at IS NULL
      UNION ALL SELECT 'gifts sent', count(*)::text FROM gift_sends
@@ -742,7 +750,9 @@ async function main(): Promise<void> {
      UNION ALL SELECT 'cosmetics worn', count(*)::text FROM user_cosmetics WHERE equipped
      UNION ALL SELECT 'open reports', count(*)::text FROM reports WHERE status = 'open'
      UNION ALL SELECT 'agency transfers', count(*)::text FROM agency_transfers
-     UNION ALL SELECT 'commission accruals', count(*)::text FROM commission_accruals`,
+     UNION ALL SELECT 'commission accruals', count(*)::text FROM commission_accruals
+     UNION ALL SELECT 'rooms on the hourly board', count(*)::text FROM room_hour_scores
+                WHERE rank IS NOT NULL`,
   );
   console.log('\n  Data');
   for (const row of counts.rows) console.log(`  · ${row.n} ${row.what}`);

@@ -659,6 +659,20 @@ window, never a counter) and frozen only at settlement.
 `roomAssetPath()` returns null until the flag flips and components draw a code
 fallback. One grep for `available: false` is the outstanding art order.
 
+**Short numbers are `public_id` columns, never the primary key.** `users`, `agencies`,
+`agents` and now `rooms` (migration 029, six digits from 100001) each carry one. The rule
+is migration 006's: *a value people paste into WhatsApp should never be the string that
+identifies the row.* Replacing the uuid primary keys was considered and refused — a
+sequential key is enumerable, leaks volume, and would put every ledger transaction behind
+one sequence lock where `uuidv7` needs no round trip.
+
+**The hourly room board is a rollup, not a live query.** `room_hour_scores`, recomputed
+every 60s by the `room_hour_rollup` worker; the app polls at the same cadence. Ranking on
+read would sort every gift in the last hour once per viewer per refresh — and every viewer
+in a room must see the SAME position, which a per-request query cannot promise. A room
+nobody has gifted in returns `null` rather than "100+ with 0 coins": the rail hides rather
+than telling a host they are last.
+
 **Room backdrops are server-driven and stored per room.** `app_config.room_backgrounds`
 is a list of `{id, path}`; `goLive` picks one at random and writes the id to
 `rooms.background_key`. Never hash the room id on the client to choose one — two viewers

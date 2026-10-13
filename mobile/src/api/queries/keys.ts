@@ -57,6 +57,7 @@ export const queryKeys = {
     feed: (category: string) => [...queryKeys.rooms.all, 'feed', category] as const,
     detail: (roomId: string) => [...queryKeys.rooms.all, 'detail', roomId] as const,
     leaderboard: (roomId: string) => [...queryKeys.rooms.all, 'leaderboard', roomId] as const,
+    rank: (roomId: string) => [...queryKeys.rooms.all, 'rank', roomId] as const,
   },
 
   messages: {

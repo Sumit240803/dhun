@@ -6,7 +6,7 @@
 // authorisation boundary of the whole media plane, and it stays server-side.
 
 import { api } from '@/api/client';
-import type { JoinedRoom, LiveRoom, RoomSeat, RoomTag, RtcJoinToken } from '@/api/types';
+import type { JoinedRoom, LiveRoom, RoomRank, RoomSeat, RoomTag, RtcJoinToken } from '@/api/types';
 
 export const liveRoomsApi = {
   /**
@@ -34,6 +34,18 @@ export const liveRoomsApi = {
    * makes a dropped signal a hiccup rather than losing your place on stage.
    */
   join: (roomId: string) => api.post<JoinedRoom>(`rooms/${roomId}/join`, {}),
+
+  /**
+   * Where this room stands on the hourly board.
+   *
+   * `null` when it has earned nothing this hour — a host is not shown a zero.
+   * Read from a rollup refreshed every 60s server-side, so polling faster
+   * than that reads a number that has not changed.
+   */
+  rank: (roomId: string) => api.get<{ rank: RoomRank | null }>(`rooms/${roomId}/rank`),
+
+  /** Find a LIVE room by the short number its host read out. 404 otherwise. */
+  byCode: (code: number) => api.get<{ room: LiveRoom; seats: RoomSeat[] }>(`rooms/code/${code}`),
 
   end: (roomId: string) => api.post<{ ended: true }>(`rooms/${roomId}/end`, {}),
 
