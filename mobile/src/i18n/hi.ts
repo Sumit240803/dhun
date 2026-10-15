@@ -543,6 +543,7 @@ export const hi: Messages = {
     filterChat: 'चैट',
     newMessages: '{count} नए',
     entryLine: '{name} आए',
+    globalGiftLine: '{sender} ने {recipient} को {gift} भेजा — धुन पर कहीं',
     giftLine: '{sender} ने {recipient} को {gift} ×{quantity} भेजा',
 
     // ── Quick replies ───────────────────────────────────────────────────
@@ -630,6 +631,8 @@ export const hi: Messages = {
     wearingDays: 'पहना हुआ · {count} दिन बाकी',
     ownedDay: 'आपका · {count} दिन बाकी',
     ownedDays: 'आपका · {count} दिन बाकी',
+    wearingForever: 'पहना हुआ · हमेशा के लिए',
+    ownedForever: 'हमेशा के लिए आपका',
     expired: 'समय खत्म',
 
     gemsAmount: '{gems} जेम्स',

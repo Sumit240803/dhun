@@ -557,6 +557,7 @@ export const en = {
     filterChat: 'Chat',
     newMessages: '{count} new',
     entryLine: '{name} joined',
+    globalGiftLine: '{sender} sent {gift} to {recipient} — somewhere on Dhun',
     giftLine: '{sender} sent {gift} ×{quantity} to {recipient}',
 
     // ── Quick replies ───────────────────────────────────────────────────
@@ -645,6 +646,8 @@ export const en = {
     wearingDays: 'Wearing · {count} days left',
     ownedDay: 'Owned · {count} day left',
     ownedDays: 'Owned · {count} days left',
+    wearingForever: 'Wearing · yours',
+    ownedForever: 'Yours',
     expired: 'Expired',
 
     gemsAmount: '{gems} gems',

@@ -29,6 +29,7 @@ import {
   purchaseLegs,
   type PurchaseChannel,
 } from '../economy/index.js';
+import { grantLevelUnlocks } from '../cosmetics/index.js';
 import { ECONOMY } from '../economy/rates.js';
 import { iapVerifier, verifyRazorpaySignature, type VerificationResult } from './verifiers.js';
 
@@ -40,6 +41,14 @@ export interface PurchaseResult {
   gemsGranted: number;
   balances: { coins: number; gems: number };
   userLevel: number;
+  /**
+   * Cosmetics this purchase's new level just unlocked. Usually empty.
+   *
+   * Returned so the app can announce it at the moment it happens. A reward
+   * discovered three weeks later in a collection screen teaches nothing about
+   * why levels are worth having.
+   */
+  unlockedCosmetics: string[];
 }
 
 async function assertLifetimeOnceNotUsed(userId: string, packId: string): Promise<void> {
@@ -201,6 +210,17 @@ async function creditPurchase(input: {
     userLevel,
   ]);
 
+  // Cosmetics the new level entitles them to. After the level is written, not
+  // before, so a crash between the two leaves the level correct and the unlock
+  // merely late — the next purchase grants it, and the grant is idempotent.
+  //
+  // Not inside the ledger transaction: no money moves, and a failure here must
+  // never roll back a purchase that has already been paid for.
+  const unlocked = await grantLevelUnlocks(input.userId, userLevel).catch((err) => {
+    logger.warn('level unlock grant failed', { err, user_id: input.userId, level: userLevel });
+    return [] as string[];
+  });
+
   const { getBalance } = await import('../economy/index.js');
   const [coins, gems] = await Promise.all([
     getBalance('user_coins', input.userId),
@@ -215,6 +235,10 @@ async function creditPurchase(input: {
     gemsGranted: pack.gems,
     balances: { coins, gems },
     userLevel,
+    // Usually empty. Present so the app can say "you unlocked the Rose frame"
+    // at the moment it happened, rather than leaving it to be discovered in a
+    // collection screen weeks later.
+    unlockedCosmetics: unlocked,
   };
 }
 

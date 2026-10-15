@@ -1405,7 +1405,7 @@
                 "iap"
               ]
             },
-            "description": "With `IAP_PROVIDER=stub` a token shaped `stub-xxxxxxxx` is accepted without calling Google, so the whole path works before the Play developer account exists.\n\nThe real Google Play verifier is blocked on the M3 spike.",
+            "description": "With `IAP_PROVIDER=stub` a token shaped `stub-xxxxxxxx` is accepted without calling Google, so the whole path works before the Play developer account exists.\n\nThe real Google Play verifier is blocked on the M3 spike.\n\n**`unlockedCosmetics`** — ids this purchase’s new level just unlocked. Usually empty. Returned so the app can announce it at the moment it happens rather than leaving it to be found in a collection screen weeks later.\n\nGranted **unequipped**, deliberately: buying a cosmetic equips it because the person chose it, where a reward arriving in the background has not been chosen, and silently changing how somebody looks in a room they are already in is not a gift.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"packId\": \"{{packId}}\",\n  \"purchaseToken\": \"stub-{{$guid}}\"\n}",
@@ -1464,7 +1464,7 @@
                 "web"
               ]
             },
-            "description": "Signature is verified offline: Razorpay signs `order_id|payment_id` with the account key secret, so this path needs no spike and no network call.\n\nThe web channel has its own cash account, which is how channel mix becomes a balance read rather than a report.",
+            "description": "Signature is verified offline: Razorpay signs `order_id|payment_id` with the account key secret, so this path needs no spike and no network call.\n\nThe web channel has its own cash account, which is how channel mix becomes a balance read rather than a report.\n\n**`unlockedCosmetics`** — ids this purchase’s new level just unlocked. Usually empty. Returned so the app can announce it at the moment it happens rather than leaving it to be found in a collection screen weeks later.\n\nGranted **unequipped**, deliberately: buying a cosmetic equips it because the person chose it, where a reward arriving in the background has not been chosen, and silently changing how somebody looks in a room they are already in is not a gift.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"packId\": \"{{packId}}\",\n  \"orderId\": \"{{razorpayOrderId}}\",\n  \"paymentId\": \"{{razorpayPaymentId}}\",\n  \"signature\": \"{{razorpaySignature}}\"\n}",
@@ -2253,7 +2253,7 @@
                 "send"
               ]
             },
-            "description": "Registered, 18+ with a verified contact, `Idempotency-Key` required. Rate limited to 300/min per user — its own scope, because a combo is a thumb tapping several times a second.\n\n`quantity` is one of 1, 10, 99, 520, 999. `expectedCoinPrice` is the unit price the app displayed; a mismatch is refused rather than charged.\n\nThe recipient is the host, or anyone on a seat in a party room. On success the gift is published to the room's gateway channel straight after commit (the fast path) and `gift_sent` is written to the outbox (the durable one).\n\nA retry with the same key returns the original gift with `replayed: true` — even if the room has ended since.\n\n**Errors:** `INSUFFICIENT_BALANCE` 402 · `GIFT_TO_SELF` 422 · `GIFT_PRICE_CHANGED` 409 (details.coinPrice) · `GIFT_NOT_FOUND` 404 · `RECIPIENT_NOT_IN_ROOM` 409 (also returned when the recipient has blocked the sender, deliberately indistinguishable) · `ROOM_NOT_FOUND` 404 · `ROOM_ENDED` 410 · `ROOM_BANNED` 403 · `TXN_TYPE_INACTIVE` 503 (kill switch) · `IDEMPOTENCY_KEY_REUSED` 422 · `REQUEST_IN_PROGRESS` 409 · `REGISTRATION_REQUIRED` / `DOB_REQUIRED` / `CONTACT_UNVERIFIED` 403.",
+            "description": "Registered, 18+ with a verified contact, `Idempotency-Key` required. Rate limited to 300/min per user — its own scope, because a combo is a thumb tapping several times a second.\n\n`quantity` is one of 1, 10, 99, 520, 999. `expectedCoinPrice` is the unit price the app displayed; a mismatch is refused rather than charged.\n\nThe recipient is the host, or anyone on a seat in a party room. On success the gift is published to the room's gateway channel straight after commit (the fast path) and `gift_sent` is written to the outbox (the durable one).\n\nA retry with the same key returns the original gift with `replayed: true` — even if the room has ended since.\n\n**Errors:** `INSUFFICIENT_BALANCE` 402 · `GIFT_TO_SELF` 422 · `GIFT_PRICE_CHANGED` 409 (details.coinPrice) · `GIFT_NOT_FOUND` 404 · `RECIPIENT_NOT_IN_ROOM` 409 (also returned when the recipient has blocked the sender, deliberately indistinguishable) · `ROOM_NOT_FOUND` 404 · `ROOM_ENDED` 410 · `ROOM_BANNED` 403 · `TXN_TYPE_INACTIVE` 503 (kill switch) · `IDEMPOTENCY_KEY_REUSED` 422 · `REQUEST_IN_PROGRESS` 409 · `REGISTRATION_REQUIRED` / `DOB_REQUIRED` / `CONTACT_UNVERIFIED` 403.\n\n**Tier 5 is announced to the WHOLE PLATFORM.** A gift whose `effect` is `global_announcement` (Rocket, Galaxy) is published to a single `global` Redis channel that every gateway subscribes to for its whole life — one publish per gift, not one per live room.\n\nClients receive it as **`gift:global`**, which is deliberately a different message from `gift`: `gift` means \"this happened in your room\" and drives the strips and the full-screen layer, `gift:global` means \"this happened somewhere else\" and draws a banner. A client that treated them as the same would play a full-screen Galaxy over a room it was never sent in.\n\nThe **`effect` column decides, not the tier number** — so repricing the ladder cannot silently turn a global announcement into a room banner.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"roomId\": \"{{roomId}}\",\n  \"recipientId\": \"{{hostId}}\",\n  \"giftId\": \"rose\",\n  \"quantity\": 10,\n  \"expectedCoinPrice\": 90\n}",
@@ -2350,7 +2350,7 @@
                 "mine"
               ]
             },
-            "description": "Everything the caller holds, newest expiry first. Lapsed items stay listed with `active: false` so they can be renewed; an expired item is never reported as equipped."
+            "description": "Everything the caller holds, newest expiry first. Lapsed items stay listed with `active: false` so they can be renewed; an expired item is never reported as equipped.\n\n**`expiresAt` can be `null`.** Null means the item was earned by reaching a level (`cosmetics.free_at_user_level`) rather than bought, and a level does not lapse — so neither does its reward. Render it as \"yours\"; there is no date to format.\n\n**`source`** is `purchase` or `level`. A `level` item is permanent, is reported `active: true` forever, and cannot be bought again — see the purchase endpoint’s `COSMETIC_ALREADY_OWNED`.\n\nItems are ordered by expiry descending with **nulls first**, so what you own forever sits above what lapses next week."
           },
           "response": [],
           "event": [
@@ -2394,7 +2394,7 @@
                 "purchase"
               ]
             },
-            "description": "Spends gems only — never coins, whatever the coin balance. `expectedGemPrice` is the price the store displayed; a repriced item is refused, not charged. A retry with the same key replays the original purchase, even after a reprice; a key reused for another item or by another account is `IDEMPOTENCY_KEY_REUSED`.\n\n**Errors:** `INSUFFICIENT_BALANCE` 402 · `COSMETIC_PRICE_CHANGED` 409 (details.gemPrice) · `COSMETIC_NOT_FOUND` 404 (also VIP and super message, not sold in M7) · `IDEMPOTENCY_KEY_REUSED` 422 · `REQUEST_IN_PROGRESS` 409 · `TXN_TYPE_INACTIVE` 503 · `REGISTRATION_REQUIRED` / `DOB_REQUIRED` / `CONTACT_UNVERIFIED` 403.",
+            "description": "Spends gems only — never coins, whatever the coin balance. `expectedGemPrice` is the price the store displayed; a repriced item is refused, not charged. A retry with the same key replays the original purchase, even after a reprice; a key reused for another item or by another account is `IDEMPOTENCY_KEY_REUSED`.\n\n**Errors:** `INSUFFICIENT_BALANCE` 402 · `COSMETIC_PRICE_CHANGED` 409 (details.gemPrice) · `COSMETIC_NOT_FOUND` 404 (also VIP and super message, not sold in M7) · `IDEMPOTENCY_KEY_REUSED` 422 · `REQUEST_IN_PROGRESS` 409 · `TXN_TYPE_INACTIVE` 503 · `REGISTRATION_REQUIRED` / `DOB_REQUIRED` / `CONTACT_UNVERIFIED` 403.\n\n**`COSMETIC_ALREADY_OWNED` 409** — the user already owns this permanently, because they earned it by reaching a level. Refused rather than sold: taking gems for an item somebody already owns forever is charging for nothing, and the alternative — accepting the money and extending an expiry that does not exist — is worse.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"cosmeticId\": \"frame_basic\",\n  \"expectedGemPrice\": 6500\n}",

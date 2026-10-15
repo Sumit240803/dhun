@@ -14,6 +14,7 @@ export {
   unequipKind,
 } from './cosmetics.service.js';
 export type { CosmeticPurchaseResult, OwnedCosmetic } from './cosmetics.service.js';
+export { grantLevelUnlocks } from './unlocks.service.js';
 
 export { clearLookCache, invalidateLook, lookFor, looksFor } from './looks.js';
 export { EMPTY_LOOK, type UserLook } from '../../shared/cosmeticStyle.js';

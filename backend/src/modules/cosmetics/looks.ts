@@ -58,7 +58,8 @@ export async function looksFor(userIds: readonly string[]): Promise<Map<string, 
        JOIN cosmetics c ON c.id = uc.cosmetic_id
       WHERE uc.user_id = ANY($1::uuid[])
         AND uc.equipped
-        AND uc.expires_at > now()`,
+        -- NULL expiry means earned by level, and levels do not expire.
+        AND (uc.expires_at IS NULL OR uc.expires_at > now())`,
     [missing],
   );
 

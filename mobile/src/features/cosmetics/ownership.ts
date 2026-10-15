@@ -6,10 +6,10 @@ import { daysLeft } from '@/visuals/look';
 export type ItemStatus =
   /** Never bought. */
   | { kind: 'available' }
-  /** Owned, active, and on. */
-  | { kind: 'wearing'; daysLeft: number }
+  /** Owned, active, and on. `daysLeft` is null for an item that never lapses. */
+  | { kind: 'wearing'; daysLeft: number | null }
   /** Owned and active, but something else of its kind is on. */
-  | { kind: 'owned'; daysLeft: number }
+  | { kind: 'owned'; daysLeft: number | null }
   /** Owned once; its time has run out. */
   | { kind: 'expired' };
 
@@ -20,6 +20,12 @@ export function itemStatus(
 ): ItemStatus {
   const item = owned.find((candidate) => candidate.cosmeticId === cosmeticId);
   if (!item) return { kind: 'available' };
+
+  // Earned by reaching a level, so there is no clock to check and nothing to
+  // renew. It cannot expire and it cannot be bought again.
+  if (item.expiresAt === null) {
+    return item.equipped ? { kind: 'wearing', daysLeft: null } : { kind: 'owned', daysLeft: null };
+  }
 
   // The server's `active` is a snapshot from when the list was fetched. The
   // clock is re-checked here, so a store left open for hours does not offer

@@ -16,6 +16,7 @@ function owned(overrides: Partial<OwnedCosmetic> = {}): OwnedCosmetic {
     kind: 'frame',
     name: 'Classic Frame',
     expiresAt: new Date(NOW + 10 * DAY).toISOString(),
+    source: 'purchase' as const,
     active: true,
     equipped: true,
     ...overrides,

@@ -160,6 +160,18 @@ export type ServerMessage =
   /** A gift was sent in this room. Drives the strips. */
   | { t: 'gift'; roomId: string; gift: GiftView }
   /**
+   * A Tier 5 gift was sent SOMEWHERE ON THE PLATFORM — Rocket or Galaxy.
+   *
+   * Deliberately a different message from `gift`, not the same one with a flag.
+   * `gift` means "this happened in your room" and drives the strips and the
+   * full-screen layer; this means "this happened somewhere else" and drives a
+   * banner the viewer can tap to go there. A client that confused the two would
+   * play a full-screen Galaxy over a room it was not sent in.
+   *
+   * `roomId` is where it HAPPENED, so the banner can offer to take you there.
+   */
+  | { t: 'gift:global'; roomId: string; gift: GiftView }
+  /**
    * Coins earned for watching. To the watcher only, so the app can say so the
    * moment it happens rather than leaving it to be discovered in the wallet.
    */

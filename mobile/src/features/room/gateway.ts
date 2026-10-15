@@ -59,6 +59,17 @@ export type ServerMessage =
   | { t: 'mic:resolved'; roomId: string; approved: boolean }
   /** Somebody sent a gift. Drives the strips and animations; the ledger has already settled. */
   | { t: 'gift'; roomId: string; gift: GiftView }
+  /**
+   * A Tier 5 gift was sent SOMEWHERE ELSE on the platform — Rocket or Galaxy.
+   *
+   * A different message from `gift`, not the same one with a flag: `gift`
+   * means "in your room" and plays full-screen, this means "somewhere else"
+   * and draws a banner. Confusing the two would play a Galaxy animation over
+   * a room it was never sent in.
+   *
+   * `roomId` is where it happened, so the banner can offer to take you there.
+   */
+  | { t: 'gift:global'; roomId: string; gift: GiftView }
   | { t: 'entry'; roomId: string; user: EntryView }
   /** Coins for watching, to the watcher only. */
   | { t: 'reward'; kind: 'watch'; coins: number; earnedToday: number; dailyCap: number }

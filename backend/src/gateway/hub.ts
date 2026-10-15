@@ -22,6 +22,7 @@ import Redis from 'ioredis';
 import { config } from '../config/index.js';
 import { logger } from '../infra/logger.js';
 import {
+  GLOBAL_CHANNEL,
   roomChannel,
   roomIdFromChannel,
   ROOM_BUS_OPTIONS,
@@ -59,6 +60,19 @@ const INSTANCE_ID = randomUUID();
 
 /** roomId → the sockets in it on this process. */
 const rooms = new Map<string, Set<Client>>();
+
+/**
+ * How a global announcement reaches every socket.
+ *
+ * Supplied by the gateway server rather than kept here, because that is where
+ * the authoritative set of authenticated clients already lives — and a second
+ * registry of the same sockets is a second thing that can disagree about who is
+ * connected.
+ *
+ * It must reach EVERYONE, not just people in rooms: somebody sitting on the
+ * feed is exactly who a Tier 5 announcement is meant to pull into one.
+ */
+let deliverGlobal: ((message: ServerMessage) => void) | null = null;
 
 /**
  * Separate connections for publishing and subscribing.
@@ -165,7 +179,8 @@ function sendLocal(roomId: string, message: ServerMessage, onlyUserId?: string):
 }
 
 /** Connects the pub/sub pair. Called once, when the gateway starts. */
-export function startFanout(): void {
+export function startFanout(options: { onGlobal: (message: ServerMessage) => void }): void {
+  deliverGlobal = options.onGlobal;
   publisher = new Redis(config.redisUrl, ROOM_BUS_OPTIONS);
   subscriber = new Redis(config.redisUrl, ROOM_BUS_OPTIONS);
 
@@ -181,8 +196,17 @@ export function startFanout(): void {
     // what makes a sender see their own chat line without a Redis round trip.
     if (envelope.from === INSTANCE_ID) return;
 
+    if (channel === GLOBAL_CHANNEL) {
+      deliverGlobal?.(envelope.message as ServerMessage);
+      return;
+    }
+
     sendLocal(roomIdFromChannel(channel), envelope.message as ServerMessage, envelope.onlyUserId);
   });
+
+  // Subscribed for the life of the process, not per room: a global
+  // announcement must reach a gateway even when it is holding no rooms at all.
+  subscriber.subscribe(GLOBAL_CHANNEL).catch(() => {});
 
   // Logged rather than fatal. ioredis reconnects on its own, and a gateway
   // that still delivers to its OWN clients during a Redis blip is far better
@@ -194,6 +218,7 @@ export function startFanout(): void {
   // severs cross-instance delivery and nothing ever reports it.
   subscriber.on('ready', () => {
     for (const roomId of rooms.keys()) subscribeQuietly(roomId);
+    subscriber?.subscribe(GLOBAL_CHANNEL).catch(() => {});
   });
 }
 
@@ -209,4 +234,5 @@ export async function stopFanout(): Promise<void> {
   publisher = null;
   subscriber = null;
   rooms.clear();
+  deliverGlobal = null;
 }

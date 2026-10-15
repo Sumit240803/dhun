@@ -67,6 +67,13 @@ interface Options {
    * the bar twitched. The PK stage holds it instead.
    */
   onPk?: (pk: PkBattle) => void;
+  /**
+   * A Tier 5 gift landed somewhere else on the platform.
+   *
+   * An event like the others, for the same reason: it arrives rarely but
+   * must not re-render the room when it does.
+   */
+  onGlobalGift?: (gift: GiftView, roomId: string) => void;
 }
 
 export function useRoomSocket(roomId: string | undefined, options: Options = {}) {
@@ -78,11 +85,13 @@ export function useRoomSocket(roomId: string | undefined, options: Options = {})
   const onEntryRef = useRef(options.onEntry);
   const onRewardRef = useRef(options.onReward);
   const onPkRef = useRef(options.onPk);
+  const onGlobalGiftRef = useRef(options.onGlobalGift);
   useEffect(() => {
     onGiftRef.current = options.onGift;
     onEntryRef.current = options.onEntry;
     onRewardRef.current = options.onReward;
     onPkRef.current = options.onPk;
+    onGlobalGiftRef.current = options.onGlobalGift;
   });
   const [state, setState] = useState<RoomSocketState>({
     status: 'connecting',
@@ -114,6 +123,10 @@ export function useRoomSocket(roomId: string | undefined, options: Options = {})
         }
         if (message.t === 'reward') {
           onRewardRef.current?.(message);
+          return;
+        }
+        if (message.t === 'gift:global') {
+          onGlobalGiftRef.current?.(message.gift, message.roomId);
           return;
         }
         if (message.t === 'pk:started' || message.t === 'pk:score' || message.t === 'pk:ended') {

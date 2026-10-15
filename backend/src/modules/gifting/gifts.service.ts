@@ -24,7 +24,7 @@ import type { PoolClient } from 'pg';
 import { pool } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
 import { logger } from '../../infra/logger.js';
-import { publishToRoom } from '../../infra/roomBus.js';
+import { publishGlobal, publishToRoom } from '../../infra/roomBus.js';
 import { lookFor, type UserLook } from '../cosmetics/index.js';
 import {
   ECONOMY,
@@ -272,6 +272,19 @@ export async function sendGift(input: {
   if (!result.replayed) {
     const view = (result.response as { gift: GiftView }).gift;
     publishToRoom(input.roomId, { t: 'gift', roomId: input.roomId, gift: view });
+
+    // Tier 5 — Rocket and Galaxy — is sold as an ALL-ROOMS announcement, and
+    // that is the entire product: the sender is paying ₹7,273 or ₹15,000 to be
+    // seen by the whole platform rather than by one room. Until this, the
+    // catalog promised it and the gift reached exactly the room it was sent in.
+    //
+    // The effect decides, not the tier number. `effect` is what the client
+    // already switches on to choose a presentation, and keeping one source for
+    // "how loud is this gift" means repricing the ladder cannot silently turn a
+    // global announcement into a room banner or the reverse.
+    if (gift.effect === 'global_announcement') {
+      publishGlobal({ t: 'gift:global', roomId: input.roomId, gift: view });
+    }
 
     logger.info('gift sent', {
       txn_id: result.txnId,

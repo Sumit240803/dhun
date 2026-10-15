@@ -9,7 +9,7 @@ import { buildApp } from '../src/app.js';
 import { buildGateway, resetEntranceCooldowns, shutdownGateway } from '../src/gateway/server.js';
 import type { ServerMessage } from '../src/gateway/protocol.js';
 import { pool } from '../src/infra/db.js';
-import { clearLookCache } from '../src/modules/cosmetics/index.js';
+import { clearLookCache, grantLevelUnlocks } from '../src/modules/cosmetics/index.js';
 import {
   conversionLegs,
   ECONOMY,
@@ -690,5 +690,133 @@ describe('measuring and reconciling', () => {
       cosmeticsPaise: 5_000,
       cosmeticsShareBp: 2_500,
     });
+  });
+});
+
+describe('unlocked by level, not bought', () => {
+  /** Pretend this user has purchased enough coins to reach `level`. */
+  async function setLevel(userId: string, level: number): Promise<number> {
+    const { rows } = await pool.query<{ min_value: string }>(
+      "SELECT min_value FROM level_thresholds WHERE kind = 'user' AND level <= $1" +
+        ' ORDER BY level DESC LIMIT 1',
+      [level],
+    );
+    const coins = Number(rows[0]?.min_value ?? 0);
+    await pool.query(
+      `INSERT INTO user_stats (user_id, lifetime_purchased_coins)
+            VALUES ($1, $2)
+       ON CONFLICT (user_id) DO UPDATE SET lifetime_purchased_coins = EXCLUDED.lifetime_purchased_coins`,
+      [userId, coins],
+    );
+    return coins;
+  }
+
+  /** What the catalog says is free, and at what level. */
+  async function freeAtLevel(): Promise<{ id: string; level: number }[]> {
+    const { rows } = await pool.query<{ id: string; free_at_user_level: number }>(
+      'SELECT id, free_at_user_level FROM cosmetics' +
+        ' WHERE free_at_user_level IS NOT NULL AND is_active ORDER BY free_at_user_level',
+    );
+    return rows.map((r) => ({ id: r.id, level: r.free_at_user_level }));
+  }
+
+  it('grants what the level entitles them to, and nothing above it', async () => {
+    // The defect this closes: `free_at_user_level` was in the schema from
+    // migration 003, returned to the app in the catalog, and read by nothing.
+    const items = await freeAtLevel();
+    expect(items.length).toBeGreaterThan(0);
+
+    const user = await adult('Climber');
+    await setLevel(user.id, items[0]!.level);
+
+    const granted = await grantLevelUnlocks(user.id, items[0]!.level);
+    expect(granted).toContain(items[0]!.id);
+
+    // Anything gated above this level stays locked.
+    for (const higher of items.filter((i) => i.level > items[0]!.level)) {
+      expect(granted).not.toContain(higher.id);
+    }
+  });
+
+  it('never expires — a level does not lapse, so neither does its reward', async () => {
+    const [first] = await freeAtLevel();
+    const user = await adult('Climber');
+    await grantLevelUnlocks(user.id, first!.level);
+
+    const { rows } = await pool.query<{ expires_at: Date | null; source: string }>(
+      'SELECT expires_at, source FROM user_cosmetics WHERE user_id = $1 AND cosmetic_id = $2',
+      [user.id, first!.id],
+    );
+    expect(rows[0]!.expires_at).toBeNull();
+    expect(rows[0]!.source).toBe('level');
+
+    // And it still reads as ACTIVE everywhere, which is the whole point of
+    // making every read `(expires_at IS NULL OR expires_at > now())`.
+    const owned = await mine(user).expect(200);
+    const row = (owned.body.items as { cosmeticId: string; active: boolean; expiresAt: string | null }[])
+      .find((c) => c.cosmeticId === first!.id);
+    expect(row?.active).toBe(true);
+    // And the client is handed a null rather than a formatted date it has to
+    // interpret — "yours", not "expires on 01 Jan 2124".
+    expect(row?.expiresAt).toBeNull();
+  });
+
+  it('is granted unequipped — a reward must not silently change how you look', async () => {
+    // Buying equips, because the person chose it. This arrives in the
+    // background, and changing someone's appearance in a room they are already
+    // in is not a gift.
+    const [first] = await freeAtLevel();
+    const user = await adult('Climber');
+    await grantLevelUnlocks(user.id, first!.level);
+
+    const { rows } = await pool.query<{ equipped: boolean }>(
+      'SELECT equipped FROM user_cosmetics WHERE user_id = $1 AND cosmetic_id = $2',
+      [user.id, first!.id],
+    );
+    expect(rows[0]!.equipped).toBe(false);
+  });
+
+  it('announces each unlock once, however often it is called', async () => {
+    // Called on every purchase forever. A top-up must not re-announce a frame
+    // earned six months ago.
+    const [first] = await freeAtLevel();
+    const user = await adult('Climber');
+
+    expect(await grantLevelUnlocks(user.id, first!.level)).toContain(first!.id);
+    expect(await grantLevelUnlocks(user.id, first!.level)).toEqual([]);
+  });
+
+  it('upgrades an item they already rented, and never the reverse', async () => {
+    const [first] = await freeAtLevel();
+    const user = await adult('Climber');
+    await grantGems(user.id, 200_000);
+
+    // Buy it first, as a 30-day rental.
+    const { rows: priced } = await pool.query<{ gem_price: string }>(
+      'SELECT gem_price FROM cosmetics WHERE id = $1',
+      [first!.id],
+    );
+    await buy(user, first!.id, Number(priced[0]!.gem_price)).expect(200);
+
+    const before = await pool.query<{ expires_at: Date | null }>(
+      'SELECT expires_at FROM user_cosmetics WHERE user_id = $1 AND cosmetic_id = $2',
+      [user.id, first!.id],
+    );
+    expect(before.rows[0]!.expires_at).not.toBeNull();
+
+    // Reaching the level turns the rental into ownership.
+    expect(await grantLevelUnlocks(user.id, first!.level)).toContain(first!.id);
+
+    // And buying it AGAIN is refused rather than charged. Taking gems for an
+    // item somebody already owns forever is charging for nothing.
+    const again = await buy(user, first!.id, Number(priced[0]!.gem_price)).expect(409);
+    expect(again.body.error.code).toBe('COSMETIC_ALREADY_OWNED');
+
+    const after = await pool.query<{ expires_at: Date | null; source: string }>(
+      'SELECT expires_at, source FROM user_cosmetics WHERE user_id = $1 AND cosmetic_id = $2',
+      [user.id, first!.id],
+    );
+    expect(after.rows[0]!.expires_at).toBeNull();
+    expect(after.rows[0]!.source).toBe('level');
   });
 });

@@ -741,7 +741,15 @@ export interface OwnedCosmetic {
   cosmeticId: string;
   kind: CosmeticKind;
   name: string;
-  expiresAt: string;
+  /**
+   * When it lapses, or NULL for an item that never does.
+   *
+   * Null means it was earned by reaching a level, and a level does not lapse.
+   * Render it as "yours" — there is no date to format.
+   */
+  expiresAt: string | null;
+  /** How it was acquired. `level` items are permanent and cannot be re-bought. */
+  source: 'purchase' | 'level';
   /** Still within its time. A lapsed item stays listed so it can be renewed. */
   active: boolean;
   equipped: boolean;

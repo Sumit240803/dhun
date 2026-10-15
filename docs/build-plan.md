@@ -722,6 +722,39 @@ every rollup, which is one message per room per minute and better UX. `board` is
 
 ---
 
+### M16 · Two promises the code was not keeping — ✅ COMPLETE, unverified on devices
+
+Built 2026-10-15. Both were **defects rather than features**: the data said one thing and
+the code did another.
+
+**Tier 5 gifts now reach the whole platform.** Rocket (₹7,273) and Galaxy (₹15,000) are
+sold as all-rooms announcements and reached exactly the room they were sent in. Now a
+single `global` Redis channel every gateway subscribes to for its whole life — one publish
+per gift, never one per live room, which would get worse exactly as the platform gets
+busier. Clients receive `gift:global`, deliberately a different message from `gift`: one
+means "in your room" and plays full-screen, the other means "somewhere else" and draws a
+marquee banner. **The `effect` column decides, not the tier number**, so repricing the
+ladder cannot silently change how loud a gift is — asserted by a test.
+
+**`free_at_user_level` is no longer dead data.** `frame_basic` advertised itself free at
+level 31 and `entry_basic` at level 16, both were returned to the app in the catalog, and
+the column had been read by nothing since migration 003. Migration 030 makes `expires_at`
+nullable (null = never, because a level does not lapse), adds `source` so support can
+answer "why does this user have a frame they never bought", backfills everyone already
+qualified, and grants on purchase as levels move. Granted **unequipped** — buying equips
+because the person chose it; a reward arriving in the background has not been chosen.
+
+**Found on the way:** `listOwned` called `expires_at.toISOString()` and 500'd on the first
+null; four read sites needed `(expires_at IS NULL OR expires_at > now())`. And buying
+something you already own permanently is now **refused** rather than charged —
+`cosmetic_purchases.expires_at` is NOT NULL, so the alternatives were taking gems for
+nothing or extending an expiry that does not exist.
+
+**Exit criteria met:** 509 backend tests (8 new) · 144 mobile · typecheck, lint and
+Prettier clean · both locales · Postman updated.
+
+---
+
 ## Admin panel — threaded, not a milestone
 
 Your docs are explicit: *"Admin panel MVP ka hissa hai, baad mein nahi."* Each milestone

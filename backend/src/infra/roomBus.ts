@@ -19,6 +19,16 @@ import { logger } from './logger.js';
 
 export const ROOM_CHANNEL_PREFIX = 'room:';
 
+/**
+ * The one channel that is not a room.
+ *
+ * A Tier 5 gift is sold as an all-rooms announcement, and the only honest way
+ * to deliver that is a single channel every gateway subscribes to for its whole
+ * life — not a publish per live room, which is N Redis round trips for one gift
+ * and gets worse exactly as the platform gets busier.
+ */
+export const GLOBAL_CHANNEL = 'global';
+
 export function roomChannel(roomId: string): string {
   return ROOM_CHANNEL_PREFIX + roomId;
 }
@@ -103,6 +113,25 @@ export function publishToRoom(roomId: string, message: unknown, onlyUserId?: str
   void client()
     .publish(roomChannel(roomId), JSON.stringify(envelope))
     .catch((err) => logger.warn('room bus publish failed', { err, room_id: roomId }));
+}
+
+/**
+ * Announces something to EVERY connected client, in every room.
+ *
+ * Reserved for the Tier 5 gifts — Rocket and Galaxy — which cost ₹7,273 and
+ * ₹15,000 and whose entire product is being seen by the whole platform. Nothing
+ * else belongs here: a global announcement interrupts every room on Dhun at
+ * once, so the bar for using it is that somebody paid for the interruption.
+ *
+ * Fire and forget, like `publishToRoom`, and for the same reason: the gift has
+ * already committed to the ledger and the announcement is a courtesy on top.
+ */
+export function publishGlobal(message: unknown): void {
+  const envelope: RoomEnvelope = { from: 'api', message };
+
+  void client()
+    .publish(GLOBAL_CHANNEL, JSON.stringify(envelope))
+    .catch((err) => logger.warn('global publish failed', { err }));
 }
 
 /**

@@ -31,7 +31,16 @@ export interface OwnedCosmetic {
   cosmeticId: string;
   kind: string;
   name: string;
-  expiresAt: string;
+  /**
+   * When it lapses, or NULL for an item that never does.
+   *
+   * Null means it was earned by reaching a level, and a level does not lapse.
+   * The client must render that as "yours" rather than formatting a date it
+   * does not have.
+   */
+  expiresAt: string | null;
+  /** How it was acquired. `level` items are permanent. */
+  source: 'purchase' | 'level';
   /** Still within its time. An expired item stays listed so it can be renewed. */
   active: boolean;
   equipped: boolean;
@@ -65,6 +74,19 @@ export async function purchaseCosmetic(input: {
     throw new AppError('COSMETIC_PRICE_CHANGED', 'The price of this item has changed', 409, {
       gemPrice: cosmetic.gemPrice,
     });
+  }
+
+  // Already theirs, permanently, because they earned it by reaching a level.
+  //
+  // Refused rather than sold: taking gems for an item somebody already owns
+  // forever is charging for nothing, and the alternative — accepting the money
+  // and extending an expiry that does not exist — is worse.
+  const owned = await pool.query<{ source: string }>(
+    'SELECT source FROM user_cosmetics WHERE user_id = $1 AND cosmetic_id = $2',
+    [input.userId, cosmetic.id],
+  );
+  if (owned.rows[0]?.source === 'level') {
+    throw new AppError('COSMETIC_ALREADY_OWNED', 'You already own this permanently', 409);
   }
 
   const durationDays = cosmetic.durationDays;
@@ -171,7 +193,13 @@ async function grantTime(
     `INSERT INTO user_cosmetics (user_id, cosmetic_id, kind, expires_at, equipped)
           VALUES ($1, $2, $3, now() + make_interval(days => $4), true)
      ON CONFLICT (user_id, cosmetic_id) DO UPDATE
-        SET expires_at = GREATEST(user_cosmetics.expires_at, now()) + make_interval(days => $4),
+        -- A NULL expiry was earned by reaching a level and outlasts any
+        -- rental, so buying an item you already own permanently extends
+        -- nothing and takes nothing away.
+        SET expires_at = CASE
+              WHEN user_cosmetics.expires_at IS NULL THEN NULL
+              ELSE GREATEST(user_cosmetics.expires_at, now()) + make_interval(days => $4)
+            END,
             equipped = true
      RETURNING expires_at`,
     [row.userId, row.cosmeticId, row.kind, row.durationDays],
@@ -223,16 +251,19 @@ export async function listOwned(userId: string): Promise<OwnedCosmetic[]> {
     cosmetic_id: string;
     kind: string;
     name: string;
-    expires_at: Date;
+    expires_at: Date | null;
+    source: 'purchase' | 'level';
     active: boolean;
     equipped: boolean;
   }>(
-    `SELECT uc.cosmetic_id, uc.kind, c.name, uc.expires_at,
-            uc.expires_at > now() AS active, uc.equipped
+    `SELECT uc.cosmetic_id, uc.kind, c.name, uc.expires_at, uc.source,
+            (uc.expires_at IS NULL OR uc.expires_at > now()) AS active, uc.equipped
        FROM user_cosmetics uc
        JOIN cosmetics c ON c.id = uc.cosmetic_id
       WHERE uc.user_id = $1
-      ORDER BY uc.expires_at DESC`,
+      -- NULLS FIRST: an item owned forever outranks one that lapses next week,
+      -- and the default would bury it at the bottom of the list.
+      ORDER BY uc.expires_at DESC NULLS FIRST`,
     [userId],
   );
 
@@ -240,7 +271,8 @@ export async function listOwned(userId: string): Promise<OwnedCosmetic[]> {
     cosmeticId: r.cosmetic_id,
     kind: r.kind,
     name: r.name,
-    expiresAt: r.expires_at.toISOString(),
+    expiresAt: r.expires_at === null ? null : r.expires_at.toISOString(),
+    source: r.source,
     active: r.active,
     // An expired item may still carry the flag — it simply draws nothing. It
     // is reported as not equipped, which is what the user actually sees.
@@ -252,7 +284,7 @@ export async function listOwned(userId: string): Promise<OwnedCosmetic[]> {
 export async function equipCosmetic(userId: string, cosmeticId: string): Promise<OwnedCosmetic[]> {
   await withTransaction(async (client) => {
     const { rows } = await client.query<{ kind: string; active: boolean }>(
-      `SELECT kind, expires_at > now() AS active FROM user_cosmetics
+      `SELECT kind, (expires_at IS NULL OR expires_at > now()) AS active FROM user_cosmetics
         WHERE user_id = $1 AND cosmetic_id = $2
         FOR UPDATE`,
       [userId, cosmeticId],

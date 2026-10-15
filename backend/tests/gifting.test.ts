@@ -28,12 +28,17 @@ import {
 // matters here is that a committed gift is announced exactly once, in the shape
 // the gateway relays.
 const published = vi.hoisted(() => [] as Array<{ roomId: string; message: unknown }>);
+/** Separate from `published`: a global announcement goes to a different channel. */
+const globals = vi.hoisted(() => [] as unknown[]);
 vi.mock('../src/infra/roomBus.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../src/infra/roomBus.js')>();
   return {
     ...actual,
     publishToRoom: (roomId: string, message: unknown) => {
       published.push({ roomId, message });
+    },
+    publishGlobal: (message: unknown) => {
+      globals.push(message);
     },
   };
 });
@@ -132,6 +137,7 @@ beforeEach(async () => {
   await resetLedger();
   invalidateCatalogCache();
   published.length = 0;
+  globals.length = 0;
   vi.spyOn(LiveKitProvider.prototype, 'closeRoom').mockResolvedValue();
 });
 
@@ -247,6 +253,51 @@ describe('sending a gift', () => {
     expect(res.body.gift.recipientName).toBe('Rohan');
     expect(await sumEntries('host_points_held', guest.id)).toBe(54);
     expect(await sumEntries('host_points_held', host.id)).toBe(0);
+  });
+});
+
+describe('the Tier 5 announcement', () => {
+  it('reaches the whole platform, not just the room it was sent in', async () => {
+    // Rocket and Galaxy cost ₹7,273 and ₹15,000, and being seen by everyone IS
+    // the product. Until this they reached exactly the room they were sent in,
+    // which is the catalog promising something the code did not do.
+    const { host, sender, roomId } = await scene(2_000_000);
+
+    await send(sender, {
+      roomId,
+      recipientId: host.id,
+      giftId: 'rocket',
+      quantity: 1,
+      expectedCoinPrice: 800_000,
+    }).expect(200);
+
+    expect(globals).toHaveLength(1);
+    expect(globals[0]).toMatchObject({ t: 'gift:global', roomId });
+    // And still announced in its own room, which drives the strips there.
+    expect(published).toHaveLength(1);
+    expect(published[0]!.message).toMatchObject({ t: 'gift' });
+  });
+
+  it('does not announce anything below Tier 5', async () => {
+    // A global announcement interrupts every room on the platform at once. The
+    // bar is that somebody paid for the interruption.
+    const { host, sender, roomId } = await scene();
+
+    await send(sender, { roomId, recipientId: host.id }).expect(200);
+
+    expect(globals).toHaveLength(0);
+    expect(published).toHaveLength(1);
+  });
+
+  it('is driven by the EFFECT, not the tier number', async () => {
+    // Repricing the ladder must not silently turn a global announcement into a
+    // room banner. `effect` is the single source for how loud a gift is, and
+    // it is what both the server and the client switch on.
+    const { rows } = await pool.query<{ id: string; tier: number }>(
+      "SELECT id, tier FROM gift_catalog WHERE effect = 'global_announcement' AND is_active",
+    );
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row.tier).toBe(5);
   });
 });
 

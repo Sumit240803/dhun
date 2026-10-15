@@ -49,7 +49,14 @@ export function buildGateway(): { server: Server; wss: WebSocketServer } {
   });
 
   const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 16 * 1024 });
-  startFanout();
+  startFanout({
+    // A Tier 5 gift reaches every socket this process holds — including the
+    // people on the feed who are not in any room, which is the whole point of
+    // an announcement somebody paid ₹15,000 to make.
+    onGlobal: (message) => {
+      for (const client of clients) send(client, message);
+    },
+  });
 
   wss.on('connection', (socket) => handleConnection(socket));
 

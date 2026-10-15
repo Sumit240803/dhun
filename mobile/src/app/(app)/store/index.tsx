@@ -320,11 +320,17 @@ function ItemCard({
 }) {
   const { t, tPlural } = useTranslation();
 
+  // A null `daysLeft` means they earned it by reaching a level, so there is no
+  // date to count down to. "Yours" rather than a number.
   const caption =
     status.kind === 'wearing'
-      ? tPlural('store.wearingDay', 'store.wearingDays', status.daysLeft)
+      ? status.daysLeft === null
+        ? t('store.wearingForever')
+        : tPlural('store.wearingDay', 'store.wearingDays', status.daysLeft)
       : status.kind === 'owned'
-        ? tPlural('store.ownedDay', 'store.ownedDays', status.daysLeft)
+        ? status.daysLeft === null
+          ? t('store.ownedForever')
+          : tPlural('store.ownedDay', 'store.ownedDays', status.daysLeft)
         : status.kind === 'expired'
           ? t('store.expired')
           : tPlural('store.forDay', 'store.forDays', item.durationDays ?? 0);

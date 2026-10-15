@@ -174,6 +174,29 @@ export function RoomScreen({ roomId }: { roomId: string }) {
   const socket = useRoomSocket(joined ? roomId : undefined, {
     onGift: receive,
     onPk,
+    /**
+     * A Rocket or Galaxy landed in somebody else's room.
+     *
+     * It takes the marquee as a `global` item and nothing else — no animation,
+     * no strip. Those are for gifts sent HERE; playing a full-screen Galaxy
+     * over a room it was not sent in would be lying about what just happened.
+     *
+     * Dropped when it is our own room, because the ordinary `gift` message has
+     * already arrived and played it properly.
+     */
+    onGlobalGift: (gift, fromRoomId) => {
+      if (fromRoomId === roomId) return;
+      marquee.push({
+        id: `global-${gift.id}`,
+        kind: 'global',
+        text: t('room.globalGiftLine', {
+          sender: gift.senderName ?? '—',
+          gift: gift.giftName,
+          recipient: gift.recipientName ?? '—',
+        }),
+        weight: gift.coinPrice * gift.quantity,
+      });
+    },
     onEntry: (entrant) => {
       entries.push(entrant);
       pushEvent({
