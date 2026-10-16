@@ -765,6 +765,65 @@ better than none.
 
 ---
 
+### M17 · Host verification and the admin panel — ✅ COMPLETE, unverified on devices
+
+Built 2026-10-16. Day-1 non-negotiable #10 — the panel was "part of the MVP, not later"
+and had been `export {}` since M1.
+
+**Verification** (migration 031). Two checks: phone OTP plus a **face photo reviewed by a
+human** once, and a selfie **captured at every go-live** and queued for review.
+
+*Nothing is gated on a face check.* A gate fails on real hosts in bad light, and every
+false reject is a host who cannot earn. What makes a late catch good enough is the payout
+hold: earnings sit 7–14 days, so a handoff caught within a day is caught before money
+leaves. The one hard stop is suspension. Research and reasoning in
+`docs/face-verification.md`; it also meant **no new native dependency** — without liveness
+there are no frame processors, so `expo-image-picker` suffices.
+
+**Three severities**, because the cases differ: `flag` (invisible, queues every future
+stream), `end_room` (a correction — they can start another), `suspend` (stops them going
+live at all, and closes whatever they are broadcasting now). A content moderator may flag;
+only a lead may suspend.
+
+**The admin panel** — server-rendered HTML on the existing Express app. One thing to
+deploy, one auth system, one set of modules, no second frontend before there is a first
+user. Four screens: review queue, live rooms, users, enforcement log.
+
+**Security, which is most of the work:**
+
+- `html` is a tagged template that **escapes every interpolation**; `raw()` is the
+  spelled-out opt-out. An XSS here is script in a session that can suspend accounts and
+  read every host's photo. Tested with a hostile display name.
+- Its own **CSP**: `script-src 'none'` (there is no JavaScript on any page), `style-src
+  'self'` (the stylesheet is a route, not an inline block), images only from itself and
+  the photo bucket.
+- Session cookie is **HttpOnly, SameSite=Strict, Path=/admin** — never sent to `/v1`, so
+  an admin session cannot be replayed against the API. **Roles are re-read from the
+  database on every request**: the cookie proves who, the database decides what.
+- **CSRF token in every form**, compared in constant time, on top of SameSite.
+- Sign-in says the same thing for a wrong password and an unknown account.
+
+**`enforcement_actions` is append-only by trigger.** A moderation log that can be
+rewritten is not evidence, and the appeal flow depends on a second reviewer seeing exactly
+what the first one did.
+
+**Exit criteria met:** 532 backend tests (18 new) · 144 mobile · typecheck, lint and
+Prettier clean · smoke-tested end to end against a running server: sign in, queue, rooms,
+users, log, CSRF refusal, and a planted `<script>` rendering escaped.
+
+**Found on the way:** one admin test passed for the wrong reason — it took its CSRF token
+from a page that has none, so a role assertion was actually asserting a CSRF rejection.
+And `useGoLive` re-declared a narrower input than its endpoint, so `coverKey` was already
+flowing through untyped; spreads dodge excess-property checking, which is why nothing
+caught it.
+
+**Outstanding:** reports queue is not in the panel yet (the table and the API exist);
+appeals (M9); and the `requireApprovedToGoLive` dial is **false** for the beta, because
+the seeded hosts are onboarded by hand and gating them on a queue nobody is watching yet
+would stop the platform before it starts.
+
+---
+
 ## Admin panel — threaded, not a milestone
 
 Your docs are explicit: *"Admin panel MVP ka hissa hai, baad mein nahi."* Each milestone

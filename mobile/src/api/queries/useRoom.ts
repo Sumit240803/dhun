@@ -10,7 +10,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { liveRoomsApi } from '@/api/endpoints/rooms';
 import { queryKeys } from '@/api/queries/keys';
-import type { RoomTag } from '@/api/types';
 
 export function useJoinRoom() {
   return useMutation({
@@ -25,12 +24,11 @@ export function useGoLive() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: {
-      title: string;
-      tag: RoomTag;
-      seatCapacity?: number;
-      isVideo?: boolean;
-    }) => liveRoomsApi.goLive(input),
+    // Takes the endpoint's own input type rather than re-declaring a narrower
+    // one. The copy had already drifted — `coverKey` was being passed and was
+    // not in it — and a spread dodges excess-property checking, so the
+    // compiler never said so.
+    mutationFn: (input: Parameters<typeof liveRoomsApi.goLive>[0]) => liveRoomsApi.goLive(input),
     onSuccess: () => {
       // The feed now contains a room it did not a moment ago, and the host is
       // about to navigate somewhere that shows it.

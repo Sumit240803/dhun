@@ -6,6 +6,8 @@ import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { useGoLive } from '@/api/queries/useRoom';
+import { getDeviceId } from '@/features/auth/device';
+import { captureFaceForGoLive } from '@/features/verification/faceCapture';
 import { ApiErrorCode, type RoomTag } from '@/api/types';
 import { CoverPicker } from '@/features/media/CoverPicker';
 import { useTranslation, type MessageKey } from '@/i18n';
@@ -51,17 +53,28 @@ export default function GoLiveScreen() {
   const trimmed = title.trim();
   const valid = trimmed.length > 0 && trimmed.length <= 60;
 
-  function start() {
+  async function start() {
     setTouched(true);
     if (!valid || goLive.isPending) return;
 
     haptic.tap();
+
+    // The selfie, before the room exists. Both of these resolve to something
+    // usable or to undefined — neither can stop the broadcast, which is the
+    // whole design: a face check is a review queue, not a gate.
+    const [faceKey, deviceId] = await Promise.all([
+      captureFaceForGoLive(),
+      getDeviceId().catch(() => null),
+    ]);
+
     goLive.mutate(
       {
         title: trimmed,
         tag,
         ...(party ? { seatCapacity: PARTY_SEATS } : {}),
         ...(coverKey !== null ? { coverKey } : {}),
+        ...(faceKey !== null ? { faceKey } : {}),
+        ...(deviceId !== null ? { deviceId } : {}),
       },
       {
         onSuccess: (result) => {
@@ -252,7 +265,7 @@ export default function GoLiveScreen() {
         <KeyboardStickyView offset={{ closed: 0, opened: spacing.md }}>
           <Button
             label={t('room.startBroadcast')}
-            onPress={start}
+            onPress={() => void start()}
             disabled={!valid}
             loading={goLive.isPending}
             size="lg"

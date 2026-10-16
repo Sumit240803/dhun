@@ -1701,7 +1701,7 @@
                 "live"
               ]
             },
-            "description": "Starts a broadcast and returns a media token that can SPEAK.\n\nOmit `seatCapacity` for a single-host livestream; include it (2–20) for a party room, where seat 0 is reserved for the host at creation.\n\nRegistered users only — a guest may watch and nothing else. A host may have exactly ONE live room: a second attempt returns 409 ALREADY_LIVE carrying the existing roomId rather than replacing it, because a reconnect storm would otherwise churn through rooms and scatter the audience.\n\nToken minting is local, so going live cannot fail because the media server was briefly slow. 503 RTC_UNAVAILABLE means LIVEKIT_* is not configured.\n\n**`room.backgroundPath`** — the backdrop the room wears, as an asset PATH (`rooms/backgrounds/coast-road.v1.webp`), never a URL. The client resolves it against the asset base exactly as it resolves gift art, so the CDN host is never baked into a room row.\n\nOne is picked at random from `app_config.room_backgrounds` when the room is created and STORED on the room. It is deliberately not hashed from the room id on the client: two viewers on different config versions would draw different scenes for one room, and adding a fourth backdrop would reshuffle every room already live.\n\n`null` means no backdrop — either the room never got one, or config no longer offers the one it has. The app draws its plain gradient either way, so retiring art is an edit to one config row and never a broken image.\n\n**`room.publicId`** — the short six-digit number people quote, in chat, in a report, in WhatsApp. It is NOT `room.id`: that uuid is what every table references and what appears in every log line, and a value people paste around should never be the string that identifies the row (migration 006 states the rule; 029 applies it to rooms). Look a room up with `GET /rooms/code/{publicId}`.",
+            "description": "Starts a broadcast and returns a media token that can SPEAK.\n\nOmit `seatCapacity` for a single-host livestream; include it (2–20) for a party room, where seat 0 is reserved for the host at creation.\n\nRegistered users only — a guest may watch and nothing else. A host may have exactly ONE live room: a second attempt returns 409 ALREADY_LIVE carrying the existing roomId rather than replacing it, because a reconnect storm would otherwise churn through rooms and scatter the audience.\n\nToken minting is local, so going live cannot fail because the media server was briefly slow. 503 RTC_UNAVAILABLE means LIVEKIT_* is not configured.\n\n**`room.backgroundPath`** — the backdrop the room wears, as an asset PATH (`rooms/backgrounds/coast-road.v1.webp`), never a URL. The client resolves it against the asset base exactly as it resolves gift art, so the CDN host is never baked into a room row.\n\nOne is picked at random from `app_config.room_backgrounds` when the room is created and STORED on the room. It is deliberately not hashed from the room id on the client: two viewers on different config versions would draw different scenes for one room, and adding a fourth backdrop would reshuffle every room already live.\n\n`null` means no backdrop — either the room never got one, or config no longer offers the one it has. The app draws its plain gradient either way, so retiring art is an edit to one config row and never a broken image.\n\n**`room.publicId`** — the short six-digit number people quote, in chat, in a report, in WhatsApp. It is NOT `room.id`: that uuid is what every table references and what appears in every log line, and a value people paste around should never be the string that identifies the row (migration 006 states the rule; 029 applies it to rooms). Look a room up with `GET /rooms/code/{publicId}`.\n\n**`faceKey` and `deviceId`** — optional, and NEVER a gate. The selfie is queued for a moderator and the broadcast starts regardless: a missing frame is a gap a later stream fills, where a refused go-live is a host who cannot earn tonight. Every failure path on the capture returns nothing rather than throwing.\n\n**`HOST_SUSPENDED` 403** is the one hard stop — a suspended host cannot go live at all.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"Evening adda\",\n  \"tag\": \"chatting\",\n  \"isVideo\": false,\n  \"seatCapacity\": 8\n}",
@@ -5662,6 +5662,92 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Verification",
+      "description": "Host identity. Phone OTP lives in Auth; this is the face half.\n\n**Going live is NEVER gated on a face check.** A selfie is captured as the host taps Go Live, queued for a moderator, and the broadcast starts regardless.\n\nA gate fails on real hosts — bad light, glasses, a cheap front camera — and every false reject is a host who cannot earn, in a category where host supply is the thing most likely to kill the product. What makes an hour-late catch good enough is the **payout hold**: earnings sit 7–14 days before withdrawal, so a handoff caught within a day is caught long before money leaves. Suspension stops future earning; the hold stops past earning from leaving.\n\nThe ONE hard stop is suspension — `HOST_SUSPENDED` 403 from `POST /rooms/live`.\n\nEverything a moderator does lives in the admin panel at `/admin`, behind a staff guard. A host can read their own status and nothing else: no queue, no reviewer name, nobody else’s photo.",
+      "item": [
+        {
+          "name": "1 · My verification",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/verification/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "verification",
+                "me"
+              ]
+            },
+            "description": "Returns `{ verification: { status, submittedAt, reviewedAt, note } }`.\n\n`status` is `none` until they submit, then `pending`, then `approved` or `rejected`. A rejection carries the reviewer’s note, so the app can say \"try again in better light\" rather than only \"rejected\"."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 · Submit a face photo",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/verification",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "verification"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"faceKey\": \"{{uploadKey}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Takes an upload KEY, never a URL — the same contract as avatars and room covers, and `claimUpload` proves the object exists under this user’s own prefix before anything is written.\n\n**Reviewed by a human** in the admin panel. No vendor: at 30–50 hosts a person is more accurate than any API and costs nothing — and it is the pair China’s NRTA directive requires, \"facial recognition and manual review\".\n\nRate-limited to 5 per hour, because a human reviews every one of these and a hundred submissions is a hundred minutes of somebody’s day.\n\nRe-submitting while `pending` is refused — it would push the host to the back of a queue they are already in, which looks like progress and is the opposite.\n\n**Errors:** `VERIFICATION_PENDING` 409 · `VERIFICATION_DONE` 409 · `UPLOAD_NOT_YOURS` 403 · `UPLOAD_NOT_FOUND` 409 · `RATE_LIMITED` 429"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));"
                 ]
               }
             }

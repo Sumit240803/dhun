@@ -45,6 +45,12 @@ export async function resetLedger(): Promise<void> {
     await c.query('DELETE FROM room_bans');
     await c.query('DELETE FROM room_sessions');
     await c.query('DELETE FROM live_notifications');
+    // TRUNCATE, not DELETE: the append-only trigger refuses a row delete, and
+    // it is right to — the log is evidence. TRUNCATE does not fire row
+    // triggers, which is exactly what a test reset wants.
+    await c.query('TRUNCATE enforcement_actions');
+    await c.query('DELETE FROM face_checks');
+    await c.query('DELETE FROM host_verifications');
     await c.query('DELETE FROM referrals');
     // Before `rooms`: a battle points at two of them, with no cascade.
     await c.query('DELETE FROM pk_battle_members');

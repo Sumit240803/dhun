@@ -19,6 +19,13 @@ import { logger } from '../../infra/logger.js';
 import { enqueueEvent } from '../../infra/outbox.js';
 import { roomBackgroundPath, roomBackgrounds } from '../config/index.js';
 import { endBattlesForRoom } from '../games/index.js';
+import {
+  assertMayGoLive,
+  reasonToReview,
+  recordFaceCheck,
+  verificationConfig,
+  type CheckReason,
+} from '../verification/index.js';
 import { claimUpload } from '../media/index.js';
 import { EMPTY_LOOK, looksFor, type UserLook } from '../cosmetics/index.js';
 import {
@@ -144,7 +151,20 @@ export async function goLive(input: {
   seatCapacity?: number;
   coverKey?: string;
   country?: string;
+  /**
+   * A face frame captured as they tapped Go Live.
+   *
+   * Optional, and NOT a gate — see `modules/verification`. A missing frame is
+   * a gap in a review queue; a refused go-live is a host who cannot earn.
+   */
+  faceKey?: string;
+  /** Which device, so "this account streams from four phones" is answerable. */
+  deviceId?: string;
 }): Promise<{ room: LiveRoom; rtc: RtcJoinToken }> {
+  // The one hard stop. A suspended host cannot go live at all; everything else
+  // about verification is recorded and reviewed rather than enforced here.
+  await assertMayGoLive(input.hostId);
+
   // Claimed before anything is written: the check reaches R2 to confirm the
   // object exists, and a host whose upload failed should be told now rather
   // than going live with a broken tile in the feed.
@@ -161,6 +181,10 @@ export async function goLive(input: {
   // Random rather than round-robin: a counter would need a sequence and a lock
   // to be fair, and nobody is counting. An empty list is an ordinary outcome,
   // not an error — a missing wallpaper must never stop a host going live.
+  // Decided before the transaction: both of these read config and may query,
+  // and neither is worth holding a row lock for.
+  const faceCheck = await planFaceCheck(input);
+
   const backgrounds = await roomBackgrounds();
   const backgroundKey =
     backgrounds.length === 0
@@ -199,6 +223,20 @@ export async function goLive(input: {
         backgroundKey,
       ],
     );
+
+    // The face frame, if the app sent one and this go-live is worth a
+    // reviewer's time. Inside the transaction so a room never exists with a
+    // check that failed to record — but wrapped, because a broken capture must
+    // not be able to stop somebody broadcasting.
+    if (faceCheck !== null) {
+      await recordFaceCheck(client, {
+        userId: input.hostId,
+        roomId,
+        faceKey: faceCheck.key,
+        reason: faceCheck.reason,
+        deviceId: input.deviceId ?? null,
+      });
+    }
 
     // Seat 0 is the host's. Reserved at creation so nobody can take it, and so
     // the seat map renders the same way whoever is looking.
@@ -248,6 +286,45 @@ export async function goLive(input: {
  * with speaking rights intact, which is what makes a tunnel a hiccup rather
  * than losing your place on stage.
  */
+/**
+ * Whether this go-live's frame is worth queueing, and under which key.
+ *
+ * Returns null — "capture nothing" — when the feature is off, the app sent no
+ * frame, or the sampling rules say this one does not need a human.
+ *
+ * EVERY failure path returns null rather than throwing. This is a review
+ * queue, and nothing in it is important enough to stop somebody broadcasting:
+ * a missing frame is a gap a later one fills, where a refused go-live is a
+ * host who cannot earn tonight.
+ */
+async function planFaceCheck(input: {
+  hostId: string;
+  faceKey?: string;
+  deviceId?: string;
+}): Promise<{ key: string; reason: CheckReason } | null> {
+  if (input.faceKey === undefined) return null;
+
+  try {
+    const config = await verificationConfig();
+    if (!config.faceCheckOnGoLive) return null;
+
+    const reason = await reasonToReview({
+      userId: input.hostId,
+      deviceId: input.deviceId ?? null,
+      config,
+    });
+    if (reason === null) return null;
+
+    // Proves the object exists and sits under this host's own prefix, exactly
+    // as a room cover does. A client can never name somebody else's key.
+    const claimed = await claimUpload(input.hostId, 'avatar', input.faceKey);
+    return { key: claimed.key, reason };
+  } catch (err) {
+    logger.warn('face check capture failed, going live anyway', { user_id: input.hostId, err });
+    return null;
+  }
+}
+
 export async function joinRoom(input: {
   roomId: string;
   userId: string;
@@ -368,6 +445,32 @@ export async function listSeats(roomId: string): Promise<RoomSeat[]> {
  * enter — a dead card the user taps repeatedly.
  */
 export async function endRoom(input: { roomId: string; hostId: string }): Promise<void> {
+  return closeBroadcast({ roomId: input.roomId, hostId: input.hostId, reason: 'host' });
+}
+
+/**
+ * A moderator ends somebody else's room.
+ *
+ * Same close, no host check, and `ended_reason` records that it was not the
+ * host's decision — which matters when a host asks why their broadcast stopped
+ * and when an appeal reviewer reads the room's history.
+ *
+ * Deliberately NOT exposed through a route that takes a host id. The
+ * authorisation for this lives in the admin panel's staff guard, and giving
+ * `endRoom` an "or a moderator" branch would put that decision inside a
+ * function every host already calls.
+ */
+export async function endRoomAsModerator(roomId: string): Promise<void> {
+  return closeBroadcast({ roomId, hostId: null, reason: 'moderation' });
+}
+
+async function closeBroadcast(input: {
+  roomId: string;
+  /** Null when a moderator is closing it — then no ownership check runs. */
+  hostId: string | null;
+  /** Matches the `ended_reason` CHECK from migration 013. */
+  reason: 'host' | 'moderation';
+}): Promise<void> {
   const ended = await withTransaction(async (client) => {
     const { rows } = await client.query<{ host_user_id: string; ended_at: Date | null }>(
       'SELECT host_user_id, ended_at FROM rooms WHERE id = $1 FOR UPDATE',
@@ -376,7 +479,7 @@ export async function endRoom(input: { roomId: string; hostId: string }): Promis
 
     const room = rows[0];
     if (!room) throw new AppError('ROOM_NOT_FOUND', 'That room does not exist', 404);
-    if (room.host_user_id !== input.hostId) {
+    if (input.hostId !== null && room.host_user_id !== input.hostId) {
       throw new AppError('NOT_ROOM_HOST', 'Only the host can end this room', 403);
     }
     // Already ended. Idempotent — a retry after a dropped response is ordinary.
@@ -384,9 +487,9 @@ export async function endRoom(input: { roomId: string; hostId: string }): Promis
 
     await client.query(
       `UPDATE rooms
-          SET ended_at = now(), ended_reason = 'host', viewer_count = 0, seats_taken = 0
+          SET ended_at = now(), ended_reason = $2, viewer_count = 0, seats_taken = 0
         WHERE id = $1`,
-      [input.roomId],
+      [input.roomId, input.reason],
     );
     await client.query(
       'UPDATE room_sessions SET ended_at = now() WHERE room_id = $1 AND ended_at IS NULL',
@@ -398,7 +501,7 @@ export async function endRoom(input: { roomId: string; hostId: string }): Promis
 
   if (!ended) return;
 
-  logger.info('room ended', { room_id: input.roomId, user_id: input.hostId });
+  logger.info('room ended', { room_id: input.roomId, user_id: input.hostId, reason: input.reason });
 
   // A battle outlives neither room. Settled on the scores AS THEY STAND rather
   // than voided: the other host's audience spent real money on a bar that was

@@ -1,6 +1,7 @@
 // Builds the HTTP app and mounts each module under /v1/<module>.
 // One deployable app — the modules are internal boundaries, not separate servers.
 import express from 'express';
+import { buildAdminRouter } from './admin/admin.routes.js';
 import { fileURLToPath } from 'node:url';
 import { config } from './config/index.js';
 import { pool } from './infra/db.js';
@@ -21,6 +22,7 @@ import { buildModerationRouter } from './modules/moderation/index.js';
 import { buildNotificationsRouter } from './modules/notifications/index.js';
 import { buildWebhooksRouter } from './modules/realtime/index.js';
 import { buildPkRouter } from './modules/games/index.js';
+import { buildVerificationRouter } from './modules/verification/index.js';
 import { buildRewardsRouter } from './modules/rewards/index.js';
 import { buildRoomsRouter } from './modules/rooms/index.js';
 import { buildUsersRouter } from './modules/users/index.js';
@@ -81,6 +83,18 @@ export function buildApp() {
     }),
   );
 
+  // The admin panel.
+  //
+  // BEFORE requireJsonBody and the JSON parser, and that ordering is
+  // load-bearing: these are HTML form posts with
+  // `application/x-www-form-urlencoded` bodies, which requireJsonBody() would
+  // refuse with a 415 before any handler ran. The panel brings its own
+  // urlencoded parser, scoped to itself.
+  //
+  // Server-rendered on the API that already exists — one thing to deploy, one
+  // auth system, one set of modules. Day-1 non-negotiable #10.
+  app.use('/admin', buildAdminRouter());
+
   app.use(requireJsonBody());
   app.use(express.json({ limit: config.maxBodyBytes, strict: true }));
 
@@ -117,6 +131,7 @@ export function buildApp() {
   app.use('/v1/admin/agencies', buildAgencyAdminRouter());
   app.use('/v1/media', buildMediaRouter());
   app.use('/v1/pk', buildPkRouter());
+  app.use('/v1/verification', buildVerificationRouter());
 
   app.use(notFoundHandler());
   app.use(errorHandler());

@@ -692,12 +692,28 @@ the app runs on stand-in art until real art is swapped in last.
 The gift queue **sheds the cheapest gift when full**, never the newest. Dropping a
 ₹15,000 Galaxy behind two hundred Roses is a refund request.
 
+**Host verification is capture-and-review, never a gate** (migration 031,
+`modules/verification`). Phone OTP plus a face photo reviewed by a human once; a selfie
+captured at every go-live and queued. **Going live is never blocked on a face check** — a
+gate fails on real hosts in bad light, and the 7–14 day payout hold means an hour-late
+catch is early enough. The one hard stop is suspension. Three severities: `flag`
+(invisible), `end_room` (a correction), `suspend` (a lead only). `enforcement_actions` is
+append-only by trigger — a log that can be rewritten is not evidence.
+
+**The admin panel is server-rendered HTML on the API** (`src/admin/`), mounted BEFORE the
+JSON body parser because it takes form posts. Four screens: review queue, live rooms,
+users, enforcement log. **`html` escapes every interpolation** and `raw()` is the
+spelled-out opt-out — an XSS there is script in a session that can suspend accounts. Its
+own CSP (`script-src 'none'`), a cookie scoped to `/admin` so it is never sent to `/v1`,
+roles re-read from the database on every request, and a CSRF token in every form.
+
 ### Not built yet
 
 OAuth (Google / Facebook / Instagram) · host tools and payouts (M8) · trust & safety (M9) ·
 super messages and VIP ·
 stand-in art files · Firebase credentials for Android push · the legal screens' actual text ·
-admin panel · analytics pipeline · CI beyond typecheck and tests · Terraform and environments.
+analytics pipeline · CI beyond typecheck and tests · Terraform and environments ·
+the reports queue inside the admin panel · appeals (M9).
 
 Built but **unverified on devices**: M5 (two phones, live audio, chat under 200ms, an API
 redeploy with a room live), M6 (a real gift between two accounts, animation under 500ms)

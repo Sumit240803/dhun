@@ -22,6 +22,16 @@ export const liveRoomsApi = {
     isVideo?: boolean;
     seatCapacity?: number;
     coverKey?: string;
+    /**
+     * A selfie taken as they tapped Go Live.
+     *
+     * Optional, and NEVER a gate. The server queues it for a moderator and
+     * the broadcast starts regardless — a missing frame is a gap in a review
+     * queue, where a refused go-live is a host who cannot earn tonight.
+     */
+    faceKey?: string;
+    /** So "this account streams from four phones" is answerable. */
+    deviceId?: string;
   }) => api.post<{ room: LiveRoom; rtc: RtcJoinToken }>('rooms/live', input),
 
   /** The room and its seat map, without joining. What a feed card expands into. */
