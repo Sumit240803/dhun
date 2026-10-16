@@ -15,6 +15,7 @@ import {
   countLivePlaceholderAssets,
   runReconciliation,
 } from '../src/workers/jobs/reconciliation.js';
+import { clearLeaderboardCache, invalidateLeaderboard } from '../src/modules/gifting/index.js';
 import {
   balanceDrift,
   closePool,
@@ -138,6 +139,9 @@ beforeEach(async () => {
   invalidateCatalogCache();
   published.length = 0;
   globals.length = 0;
+  // The board is cached for a few seconds; one test's rooms must not be
+  // answered from another test's entries.
+  clearLeaderboardCache();
   vi.spyOn(LiveKitProvider.prototype, 'closeRoom').mockResolvedValue();
 });
 
@@ -529,6 +533,101 @@ describe('refusals', () => {
     expect(res.body.error.code).toBe('TXN_TYPE_INACTIVE');
     expect(await sumEntries('user_coins', sender.id)).toBe(2_000);
     expect(await giftRows(roomId)).toEqual([]);
+  });
+});
+
+describe('the leaderboard cache', () => {
+  /** Counts database round trips while `fn` runs. */
+  async function queriesDuring(fn: () => Promise<unknown>): Promise<number> {
+    const spy = vi.spyOn(pool, 'query');
+    const before = spy.mock.calls.length;
+    await fn();
+    const count = spy.mock.calls.length - before;
+    spy.mockRestore();
+    return count;
+  }
+
+  it('computes the board once however many viewers ask for it', async () => {
+    // THE reason this exists. Since the room was rebuilt, the board is read by
+    // every viewer every five seconds — the header rail and every seat counter
+    // come from it. That makes it the only query whose cost scales with
+    // VIEWERS rather than with actions, and every viewer gets the same answer.
+    const { host, sender, roomId } = await scene();
+    await send(sender, { roomId, recipientId: host.id }).expect(200);
+    clearLeaderboardCache();
+
+    const first = await queriesDuring(() =>
+      request(app).get(`/v1/gifts/leaderboard/${roomId}`).expect(200),
+    );
+    const next = await queriesDuring(async () => {
+      for (let i = 0; i < 10; i += 1) {
+        await request(app).get(`/v1/gifts/leaderboard/${roomId}`).expect(200);
+      }
+    });
+
+    // The miss pays for the existence check AND the aggregate; the ten hits
+    // pay for neither.
+    expect(first).toBeGreaterThan(0);
+    expect(next).toBe(0);
+  });
+
+  it('serves the same board on a hit as on a miss', async () => {
+    const { host, sender, roomId } = await scene();
+    await send(sender, { roomId, recipientId: host.id, quantity: 10 }).expect(200);
+    clearLeaderboardCache();
+
+    const miss = await request(app).get(`/v1/gifts/leaderboard/${roomId}`).expect(200);
+    const hit = await request(app).get(`/v1/gifts/leaderboard/${roomId}`).expect(200);
+    expect(hit.body.leaderboard).toEqual(miss.body.leaderboard);
+  });
+
+  it('does not cache a 404 — a room made a second later must not keep 404ing', async () => {
+    const roomId = randomUUID();
+    await request(app).get(`/v1/gifts/leaderboard/${roomId}`).expect(404);
+
+    // The same id, now a real room. Nothing about the first answer survives.
+    const host = await adult('Host');
+    await pool.query(
+      `INSERT INTO rooms (id, host_user_id, title, tag, country, is_video, seat_capacity)
+            VALUES ($1, $2, 'Evening adda', 'chatting', 'IN', true, 4)`,
+      [roomId, host.id],
+    );
+
+    const res = await request(app).get(`/v1/gifts/leaderboard/${roomId}`).expect(200);
+    expect(res.body.leaderboard).toEqual([]);
+  });
+
+  it('recomputes once the window has passed', async () => {
+    const { host, sender, roomId } = await scene();
+    await send(sender, { roomId, recipientId: host.id }).expect(200);
+    clearLeaderboardCache();
+
+    await request(app).get(`/v1/gifts/leaderboard/${roomId}`).expect(200);
+    expect(await queriesDuring(() => request(app).get(`/v1/gifts/leaderboard/${roomId}`))).toBe(0);
+
+    // Six seconds later, past the five-second window.
+    vi.setSystemTime(new Date(Date.now() + 6_000));
+    try {
+      expect(
+        await queriesDuring(() => request(app).get(`/v1/gifts/leaderboard/${roomId}`)),
+      ).toBeGreaterThan(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('can be dropped immediately when the board is wrong rather than stale', async () => {
+    // For a reversal or a moderator action — not for an ordinary gift, which
+    // would make the cache never hit in the busiest rooms.
+    const { host, sender, roomId } = await scene();
+    await send(sender, { roomId, recipientId: host.id }).expect(200);
+
+    await request(app).get(`/v1/gifts/leaderboard/${roomId}`).expect(200);
+    invalidateLeaderboard(roomId);
+
+    expect(
+      await queriesDuring(() => request(app).get(`/v1/gifts/leaderboard/${roomId}`)),
+    ).toBeGreaterThan(0);
   });
 });
 

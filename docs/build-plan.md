@@ -753,6 +753,16 @@ nothing or extending an expiry that does not exist.
 **Exit criteria met:** 509 backend tests (8 new) · 144 mobile · typecheck, lint and
 Prettier clean · both locales · Postman updated.
 
+**Also:** the room leaderboard is now cached in memory for 5s per room. The room rebuild
+turned it from sheet content into room chrome — the header's top-gifter rail and every
+seat's counter read from it — so every viewer polls it every 5s, making it the only query
+whose cost scales with viewer count. At 300 concurrent that was ~120 queries/second
+against a 1 vCPU database to compute the same answer repeatedly. A test asserts ten
+consecutive reads cost **zero** queries. In memory rather than Redis because at one
+instance it is a Map lookup instead of a round trip and adds no failure mode; at ten
+instances it degrades to ten computations per window instead of one, which is still 60×
+better than none.
+
 ---
 
 ## Admin panel — threaded, not a milestone

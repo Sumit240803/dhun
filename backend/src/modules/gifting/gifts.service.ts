@@ -25,6 +25,7 @@ import { pool } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
 import { logger } from '../../infra/logger.js';
 import { publishGlobal, publishToRoom } from '../../infra/roomBus.js';
+import { cachedLeaderboard } from './board.cache.js';
 import { lookFor, type UserLook } from '../cosmetics/index.js';
 import {
   ECONOMY,
@@ -376,10 +377,35 @@ export interface LeaderboardEntry {
  * money — so the board can never show a gift the ledger does not have, or miss
  * one it does. Ties go to whoever reached the total first.
  */
+/**
+ * Who has given the most in this room.
+ *
+ * ── Cached for a few seconds, and that is load-bearing ──────────────────────
+ *
+ * Since the room was rebuilt this is read by EVERY viewer every five seconds —
+ * the header's top-gifter rail and every seat's counter come from it, so it is
+ * room chrome rather than sheet content. That makes it the only query in the
+ * system whose cost scales with viewers rather than with actions.
+ *
+ * Every viewer in a room gets an identical board, so one computation serves all
+ * of them. See `board.cache.ts` for why there is no invalidation on a gift.
+ *
+ * `limit` is deliberately NOT part of the cache key. Every caller takes the
+ * default; keying on it would give a one-off request its own entry and halve
+ * the hit rate for everybody else. A non-default limit simply misses.
+ */
 export async function roomLeaderboard(roomId: string, limit = 20): Promise<LeaderboardEntry[]> {
+  if (limit !== DEFAULT_BOARD_LIMIT) return computeLeaderboard(roomId, limit);
+  return cachedLeaderboard(roomId, () => computeLeaderboard(roomId, limit));
+}
+
+/** How many rows the board returns, and the only size that is cached. */
+const DEFAULT_BOARD_LIMIT = 20;
+
+async function computeLeaderboard(roomId: string, limit: number): Promise<LeaderboardEntry[]> {
   // An unknown room is a 404, not an empty board — an empty board is a true
   // statement about a real room with no gifts yet, and the two should not look
-  // the same to a client.
+  // the same to a client. Inside the computation, so a cache hit skips it too.
   const exists = await pool.query('SELECT 1 FROM rooms WHERE id = $1', [roomId]);
   if (exists.rowCount === 0) throw new AppError('ROOM_NOT_FOUND', 'That room does not exist', 404);
 

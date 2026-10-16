@@ -2304,7 +2304,7 @@
                 "{{roomId}}"
               ]
             },
-            "description": "Top 20 senders in the room by total coins given. Readable without a session, like the room itself. Read from `gift_sends`, written in the same transaction as the money, so it can never disagree with the ledger. Ties go to whoever reached the total first.\n\nAn empty list is a real room with no gifts; an unknown room is `ROOM_NOT_FOUND` 404."
+            "description": "Top 20 senders in the room by total coins given. Readable without a session, like the room itself. Read from `gift_sends`, written in the same transaction as the money, so it can never disagree with the ledger. Ties go to whoever reached the total first.\n\nAn empty list is a real room with no gifts; an unknown room is `ROOM_NOT_FOUND` 404.\n\n**Cached in memory for 5 seconds per room.** Since the room rebuild this is read by EVERY viewer every 5s — the header’s top-gifter rail and every seat’s gift counter come from it — which makes it the only query whose cost scales with viewer count rather than with actions. Every viewer in a room gets an identical board, so one computation serves all of them.\n\n**Not invalidated when a gift lands**, deliberately: a room taking two gifts a second would invalidate faster than the window and never hit, in exactly the rooms the cache exists for. The board is at most 5s behind, which is the app’s own poll interval — and the gift itself is pushed over the socket the instant it commits, so the strips never wait for this.\n\nA 404 is never cached: a room created a second after a miss must not keep 404ing."
           },
           "response": [],
           "event": [

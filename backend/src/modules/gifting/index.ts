@@ -8,3 +8,4 @@ export { buildGiftsRouter } from './gifts.routes.js';
 
 export { GIFT_QUANTITIES, roomLeaderboard, sendGift } from './gifts.service.js';
 export type { GiftQuantity, GiftView, LeaderboardEntry, SendGiftResult } from './gifts.service.js';
+export { clearLeaderboardCache, invalidateLeaderboard } from './board.cache.js';
