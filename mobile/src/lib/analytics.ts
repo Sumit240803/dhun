@@ -58,6 +58,8 @@ export type AnalyticsEvent =
   | 'cosmetic_purchased'
   | 'coins_converted'
   | 'free_coins_earned'
+  | 'verification_submitted'
+  | 'appeal_filed'
   // host
   | 'go_live_started'
   | 'go_live_ended'

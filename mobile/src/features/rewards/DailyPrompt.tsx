@@ -9,6 +9,7 @@ import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
 import { useNewUserRewards, useRewards } from '@/api/queries/useGrowth';
+import { useFlag } from '@/config/flags';
 import { useTranslation } from '@/i18n';
 import { haptic } from '@/lib/haptics';
 import { istDate, preferences } from '@/lib/preferences';
@@ -25,10 +26,12 @@ export function DailyPrompt() {
   // During the first week the new-user sheet carries the check-in as its
   // first row, so this prompt stands aside: two sheets on one open is one too many.
   const newUser = useNewUserRewards(isRegistered);
+  const rewardsEnabled = useFlag('rewardsEnabled');
   const sheet = useRef<SheetHandle>(null);
   const decided = useRef(false);
 
   const claimable =
+    rewardsEnabled &&
     rewards.data !== undefined &&
     !rewards.data.checkin.claimedToday &&
     // Settled, and no sheet. An error counts as no sheet — a failed fetch of

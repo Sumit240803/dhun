@@ -53,7 +53,7 @@ export async function enforce(input: {
   action: EnforcementAction;
   subjectType: 'user' | 'room';
   subjectId: string;
-  source: 'face_check' | 'report' | 'manual';
+  source: 'face_check' | 'report' | 'manual' | 'appeal';
   sourceId?: string;
   note?: string;
 }): Promise<void> {

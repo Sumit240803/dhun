@@ -4,6 +4,7 @@ import { authGuard, requireAdult, requireRegistered } from '../../middleware/aut
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { requireIdempotencyKey } from '../../middleware/idempotency.js';
 import { validate } from '../../middleware/validate.js';
+import { requireFeature } from '../config/index.js';
 import { purchaseViaIap, purchaseViaWeb, listPurchases } from '../payments/index.js';
 import { listCoinPacks } from './catalog.service.js';
 import { convertCoinsToGems, getWallet, listTransactions } from './wallet.service.js';
@@ -65,6 +66,7 @@ export function buildWalletRouter(): Router {
     '/purchase/iap',
     requireRegistered(),
     requireAdult(),
+    requireFeature('purchases'),
     rateLimit({ scope: 'money', limit: 30, windowMs: 60_000, by: 'user' }),
     requireIdempotencyKey(),
     validate(
@@ -93,6 +95,7 @@ export function buildWalletRouter(): Router {
     '/purchase/web',
     requireRegistered(),
     requireAdult(),
+    requireFeature('purchases'),
     rateLimit({ scope: 'money', limit: 30, windowMs: 60_000, by: 'user' }),
     requireIdempotencyKey(),
     validate(
@@ -126,6 +129,7 @@ export function buildWalletRouter(): Router {
     '/convert',
     requireRegistered(),
     requireAdult(),
+    requireFeature('conversion'),
     rateLimit({ scope: 'money', limit: 30, windowMs: 60_000, by: 'user' }),
     requireIdempotencyKey(),
     // Upper bound as well as lower: an absurd amount should be refused as

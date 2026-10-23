@@ -138,7 +138,9 @@ describe('prepay', () => {
     await request(app)
       .post(`/v1/admin/agencies/prepays/${prepay.id}/confirm`)
       .set(auth(maker))
-      .expect(422);
+      // Named, not a bare constraint violation: the panel shows this sentence.
+      .expect(403)
+      .expect((res) => expect(res.body.error.code).toBe('PREPAY_SAME_PERSON'));
     expect(await sumEntries('agency_inventory', agency.id)).toBe(0);
   });
 

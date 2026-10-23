@@ -1405,7 +1405,7 @@
                 "iap"
               ]
             },
-            "description": "With `IAP_PROVIDER=stub` a token shaped `stub-xxxxxxxx` is accepted without calling Google, so the whole path works before the Play developer account exists.\n\nThe real Google Play verifier is blocked on the M3 spike.\n\n**`unlockedCosmetics`** — ids this purchase’s new level just unlocked. Usually empty. Returned so the app can announce it at the moment it happens rather than leaving it to be found in a collection screen weeks later.\n\nGranted **unequipped**, deliberately: buying a cosmetic equips it because the person chose it, where a reward arriving in the background has not been chosen, and silently changing how somebody looks in a room they are already in is not a gift.",
+            "description": "With `IAP_PROVIDER=stub` a token shaped `stub-xxxxxxxx` is accepted without calling Google, so the whole path works before the Play developer account exists.\n\nThe real Google Play verifier is blocked on the M3 spike.\n\n**`unlockedCosmetics`** — ids this purchase’s new level just unlocked. Usually empty. Returned so the app can announce it at the moment it happens rather than leaving it to be found in a collection screen weeks later.\n\nGranted **unequipped**, deliberately: buying a cosmetic equips it because the person chose it, where a reward arriving in the background has not been chosen, and silently changing how somebody looks in a room they are already in is not a gift.\n\n**`FEATURE_DISABLED` 403** — the `purchases` switch is off in /admin/switches. Checked after auth and before the rate limiter, so no Idempotency-Key is needed to be told. `details.feature` names the switch.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"packId\": \"{{packId}}\",\n  \"purchaseToken\": \"stub-{{$guid}}\"\n}",
@@ -1464,7 +1464,7 @@
                 "web"
               ]
             },
-            "description": "Signature is verified offline: Razorpay signs `order_id|payment_id` with the account key secret, so this path needs no spike and no network call.\n\nThe web channel has its own cash account, which is how channel mix becomes a balance read rather than a report.\n\n**`unlockedCosmetics`** — ids this purchase’s new level just unlocked. Usually empty. Returned so the app can announce it at the moment it happens rather than leaving it to be found in a collection screen weeks later.\n\nGranted **unequipped**, deliberately: buying a cosmetic equips it because the person chose it, where a reward arriving in the background has not been chosen, and silently changing how somebody looks in a room they are already in is not a gift.",
+            "description": "Signature is verified offline: Razorpay signs `order_id|payment_id` with the account key secret, so this path needs no spike and no network call.\n\nThe web channel has its own cash account, which is how channel mix becomes a balance read rather than a report.\n\n**`unlockedCosmetics`** — ids this purchase’s new level just unlocked. Usually empty. Returned so the app can announce it at the moment it happens rather than leaving it to be found in a collection screen weeks later.\n\nGranted **unequipped**, deliberately: buying a cosmetic equips it because the person chose it, where a reward arriving in the background has not been chosen, and silently changing how somebody looks in a room they are already in is not a gift.\n\n**`FEATURE_DISABLED` 403** — the `purchases` switch is off in /admin/switches. Checked after auth and before the rate limiter, so no Idempotency-Key is needed to be told. `details.feature` names the switch.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"packId\": \"{{packId}}\",\n  \"orderId\": \"{{razorpayOrderId}}\",\n  \"paymentId\": \"{{razorpayPaymentId}}\",\n  \"signature\": \"{{razorpaySignature}}\"\n}",
@@ -1517,7 +1517,7 @@
                 "convert"
               ]
             },
-            "description": "ONE WAY, +20%. This is the lever that pulls blended payout down: coins pay hosts 30% of face value, gems pay nothing.\n\nThere is deliberately no reverse. Gems converting back to coins would let a whale turn cosmetics money into giftable coins and the payout design collapses.",
+            "description": "ONE WAY, +20%. This is the lever that pulls blended payout down: coins pay hosts 30% of face value, gems pay nothing.\n\nThere is deliberately no reverse. Gems converting back to coins would let a whale turn cosmetics money into giftable coins and the payout design collapses.\n\n**`FEATURE_DISABLED` 403** — the `conversion` switch is off in /admin/switches. Checked after auth and before the rate limiter, so no Idempotency-Key is needed to be told. `details.feature` names the switch.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"coins\": 13000\n}",
@@ -1701,7 +1701,7 @@
                 "live"
               ]
             },
-            "description": "Starts a broadcast and returns a media token that can SPEAK.\n\nOmit `seatCapacity` for a single-host livestream; include it (2–20) for a party room, where seat 0 is reserved for the host at creation.\n\nRegistered users only — a guest may watch and nothing else. A host may have exactly ONE live room: a second attempt returns 409 ALREADY_LIVE carrying the existing roomId rather than replacing it, because a reconnect storm would otherwise churn through rooms and scatter the audience.\n\nToken minting is local, so going live cannot fail because the media server was briefly slow. 503 RTC_UNAVAILABLE means LIVEKIT_* is not configured.\n\n**`room.backgroundPath`** — the backdrop the room wears, as an asset PATH (`rooms/backgrounds/coast-road.v1.webp`), never a URL. The client resolves it against the asset base exactly as it resolves gift art, so the CDN host is never baked into a room row.\n\nOne is picked at random from `app_config.room_backgrounds` when the room is created and STORED on the room. It is deliberately not hashed from the room id on the client: two viewers on different config versions would draw different scenes for one room, and adding a fourth backdrop would reshuffle every room already live.\n\n`null` means no backdrop — either the room never got one, or config no longer offers the one it has. The app draws its plain gradient either way, so retiring art is an edit to one config row and never a broken image.\n\n**`room.publicId`** — the short six-digit number people quote, in chat, in a report, in WhatsApp. It is NOT `room.id`: that uuid is what every table references and what appears in every log line, and a value people paste around should never be the string that identifies the row (migration 006 states the rule; 029 applies it to rooms). Look a room up with `GET /rooms/code/{publicId}`.\n\n**`faceKey` and `deviceId`** — optional, and NEVER a gate. The selfie is queued for a moderator and the broadcast starts regardless: a missing frame is a gap a later stream fills, where a refused go-live is a host who cannot earn tonight. Every failure path on the capture returns nothing rather than throwing.\n\n**`HOST_SUSPENDED` 403** is the one hard stop — a suspended host cannot go live at all.",
+            "description": "Starts a broadcast and returns a media token that can SPEAK.\n\nOmit `seatCapacity` for a single-host livestream; include it (2–20) for a party room, where seat 0 is reserved for the host at creation.\n\nRegistered users only — a guest may watch and nothing else. A host may have exactly ONE live room: a second attempt returns 409 ALREADY_LIVE carrying the existing roomId rather than replacing it, because a reconnect storm would otherwise churn through rooms and scatter the audience.\n\nToken minting is local, so going live cannot fail because the media server was briefly slow. 503 RTC_UNAVAILABLE means LIVEKIT_* is not configured.\n\n**`room.backgroundPath`** — the backdrop the room wears, as an asset PATH (`rooms/backgrounds/coast-road.v1.webp`), never a URL. The client resolves it against the asset base exactly as it resolves gift art, so the CDN host is never baked into a room row.\n\nOne is picked at random from `app_config.room_backgrounds` when the room is created and STORED on the room. It is deliberately not hashed from the room id on the client: two viewers on different config versions would draw different scenes for one room, and adding a fourth backdrop would reshuffle every room already live.\n\n`null` means no backdrop — either the room never got one, or config no longer offers the one it has. The app draws its plain gradient either way, so retiring art is an edit to one config row and never a broken image.\n\n**`room.publicId`** — the short six-digit number people quote, in chat, in a report, in WhatsApp. It is NOT `room.id`: that uuid is what every table references and what appears in every log line, and a value people paste around should never be the string that identifies the row (migration 006 states the rule; 029 applies it to rooms). Look a room up with `GET /rooms/code/{publicId}`.\n\n**`faceKey` and `deviceId`** — optional, and NEVER a gate. The selfie is queued for a moderator and the broadcast starts regardless: a missing frame is a gap a later stream fills, where a refused go-live is a host who cannot earn tonight. Every failure path on the capture returns nothing rather than throwing.\n\n**`HOST_SUSPENDED` 403** is the one hard stop — a suspended host cannot go live at all.\n\n**`FEATURE_DISABLED` 403** — the `goLive` switch is off in /admin/switches. Checked after auth and before the rate limiter, so no Idempotency-Key is needed to be told. `details.feature` names the switch.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"title\": \"Evening adda\",\n  \"tag\": \"chatting\",\n  \"isVideo\": false,\n  \"seatCapacity\": 8\n}",
@@ -2253,7 +2253,7 @@
                 "send"
               ]
             },
-            "description": "Registered, 18+ with a verified contact, `Idempotency-Key` required. Rate limited to 300/min per user — its own scope, because a combo is a thumb tapping several times a second.\n\n`quantity` is one of 1, 10, 99, 520, 999. `expectedCoinPrice` is the unit price the app displayed; a mismatch is refused rather than charged.\n\nThe recipient is the host, or anyone on a seat in a party room. On success the gift is published to the room's gateway channel straight after commit (the fast path) and `gift_sent` is written to the outbox (the durable one).\n\nA retry with the same key returns the original gift with `replayed: true` — even if the room has ended since.\n\n**Errors:** `INSUFFICIENT_BALANCE` 402 · `GIFT_TO_SELF` 422 · `GIFT_PRICE_CHANGED` 409 (details.coinPrice) · `GIFT_NOT_FOUND` 404 · `RECIPIENT_NOT_IN_ROOM` 409 (also returned when the recipient has blocked the sender, deliberately indistinguishable) · `ROOM_NOT_FOUND` 404 · `ROOM_ENDED` 410 · `ROOM_BANNED` 403 · `TXN_TYPE_INACTIVE` 503 (kill switch) · `IDEMPOTENCY_KEY_REUSED` 422 · `REQUEST_IN_PROGRESS` 409 · `REGISTRATION_REQUIRED` / `DOB_REQUIRED` / `CONTACT_UNVERIFIED` 403.\n\n**Tier 5 is announced to the WHOLE PLATFORM.** A gift whose `effect` is `global_announcement` (Rocket, Galaxy) is published to a single `global` Redis channel that every gateway subscribes to for its whole life — one publish per gift, not one per live room.\n\nClients receive it as **`gift:global`**, which is deliberately a different message from `gift`: `gift` means \"this happened in your room\" and drives the strips and the full-screen layer, `gift:global` means \"this happened somewhere else\" and draws a banner. A client that treated them as the same would play a full-screen Galaxy over a room it was never sent in.\n\nThe **`effect` column decides, not the tier number** — so repricing the ladder cannot silently turn a global announcement into a room banner.",
+            "description": "Registered, 18+ with a verified contact, `Idempotency-Key` required. Rate limited to 300/min per user — its own scope, because a combo is a thumb tapping several times a second.\n\n`quantity` is one of 1, 10, 99, 520, 999. `expectedCoinPrice` is the unit price the app displayed; a mismatch is refused rather than charged.\n\nThe recipient is the host, or anyone on a seat in a party room. On success the gift is published to the room's gateway channel straight after commit (the fast path) and `gift_sent` is written to the outbox (the durable one).\n\nA retry with the same key returns the original gift with `replayed: true` — even if the room has ended since.\n\n**Errors:** `INSUFFICIENT_BALANCE` 402 · `GIFT_TO_SELF` 422 · `GIFT_PRICE_CHANGED` 409 (details.coinPrice) · `GIFT_NOT_FOUND` 404 · `RECIPIENT_NOT_IN_ROOM` 409 (also returned when the recipient has blocked the sender, deliberately indistinguishable) · `ROOM_NOT_FOUND` 404 · `ROOM_ENDED` 410 · `ROOM_BANNED` 403 · `TXN_TYPE_INACTIVE` 503 (kill switch) · `IDEMPOTENCY_KEY_REUSED` 422 · `REQUEST_IN_PROGRESS` 409 · `REGISTRATION_REQUIRED` / `DOB_REQUIRED` / `CONTACT_UNVERIFIED` 403.\n\n**Tier 5 is announced to the WHOLE PLATFORM.** A gift whose `effect` is `global_announcement` (Rocket, Galaxy) is published to a single `global` Redis channel that every gateway subscribes to for its whole life — one publish per gift, not one per live room.\n\nClients receive it as **`gift:global`**, which is deliberately a different message from `gift`: `gift` means \"this happened in your room\" and drives the strips and the full-screen layer, `gift:global` means \"this happened somewhere else\" and draws a banner. A client that treated them as the same would play a full-screen Galaxy over a room it was never sent in.\n\nThe **`effect` column decides, not the tier number** — so repricing the ladder cannot silently turn a global announcement into a room banner.\n\n**`FEATURE_DISABLED` 403** — the `gifting` switch is off in /admin/switches. Checked after auth and before the rate limiter, so no Idempotency-Key is needed to be told. `details.feature` names the switch.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"roomId\": \"{{roomId}}\",\n  \"recipientId\": \"{{hostId}}\",\n  \"giftId\": \"rose\",\n  \"quantity\": 10,\n  \"expectedCoinPrice\": 90\n}",
@@ -2394,7 +2394,7 @@
                 "purchase"
               ]
             },
-            "description": "Spends gems only — never coins, whatever the coin balance. `expectedGemPrice` is the price the store displayed; a repriced item is refused, not charged. A retry with the same key replays the original purchase, even after a reprice; a key reused for another item or by another account is `IDEMPOTENCY_KEY_REUSED`.\n\n**Errors:** `INSUFFICIENT_BALANCE` 402 · `COSMETIC_PRICE_CHANGED` 409 (details.gemPrice) · `COSMETIC_NOT_FOUND` 404 (also VIP and super message, not sold in M7) · `IDEMPOTENCY_KEY_REUSED` 422 · `REQUEST_IN_PROGRESS` 409 · `TXN_TYPE_INACTIVE` 503 · `REGISTRATION_REQUIRED` / `DOB_REQUIRED` / `CONTACT_UNVERIFIED` 403.\n\n**`COSMETIC_ALREADY_OWNED` 409** — the user already owns this permanently, because they earned it by reaching a level. Refused rather than sold: taking gems for an item somebody already owns forever is charging for nothing, and the alternative — accepting the money and extending an expiry that does not exist — is worse.",
+            "description": "Spends gems only — never coins, whatever the coin balance. `expectedGemPrice` is the price the store displayed; a repriced item is refused, not charged. A retry with the same key replays the original purchase, even after a reprice; a key reused for another item or by another account is `IDEMPOTENCY_KEY_REUSED`.\n\n**Errors:** `INSUFFICIENT_BALANCE` 402 · `COSMETIC_PRICE_CHANGED` 409 (details.gemPrice) · `COSMETIC_NOT_FOUND` 404 (also VIP and super message, not sold in M7) · `IDEMPOTENCY_KEY_REUSED` 422 · `REQUEST_IN_PROGRESS` 409 · `TXN_TYPE_INACTIVE` 503 · `REGISTRATION_REQUIRED` / `DOB_REQUIRED` / `CONTACT_UNVERIFIED` 403.\n\n**`COSMETIC_ALREADY_OWNED` 409** — the user already owns this permanently, because they earned it by reaching a level. Refused rather than sold: taking gems for an item somebody already owns forever is charging for nothing, and the alternative — accepting the money and extending an expiry that does not exist — is worse.\n\n**`FEATURE_DISABLED` 403** — the `cosmetics` switch is off in /admin/switches. Checked after auth and before the rate limiter, so no Idempotency-Key is needed to be told. `details.feature` names the switch.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"cosmeticId\": \"frame_basic\",\n  \"expectedGemPrice\": 6500\n}",
@@ -2735,7 +2735,7 @@
                 "confirm"
               ]
             },
-            "description": "Mints the coins into the agency's inventory. **The database refuses the admin who recorded it** — maker-checker is a constraint, not a policy. Never on credit (hard rule #3). The ledger key is derived from the prepay, so a raced or retried confirmation can only ever mint once.\n\n**Errors:** `PREPAY_NOT_FOUND` 404 · `PREPAY_DECIDED` 409 · `CONSTRAINT_VIOLATION` 422 (maker = checker) · `TXN_TYPE_INACTIVE` 503 · `NOT_FOUND` 404 (not staff)"
+            "description": "Mints the coins into the agency's inventory. **The database refuses the admin who recorded it** — maker-checker is a constraint, not a policy. Never on credit (hard rule #3). The ledger key is derived from the prepay, so a raced or retried confirmation can only ever mint once.\n\n**Errors:** `PREPAY_NOT_FOUND` 404 · `PREPAY_DECIDED` 409 · `CONSTRAINT_VIOLATION` 422 (maker = checker) · `TXN_TYPE_INACTIVE` 503 · `NOT_FOUND` 404 (not staff)\n\n**`PREPAY_SAME_PERSON` 403** — the person who recorded the prepay cannot confirm it. The database constraint `prepay_maker_is_not_checker` is the guarantee; this is the readable refusal in front of it. The same rule applies from `/admin/agencies`."
           },
           "response": [],
           "event": [
@@ -3457,7 +3457,7 @@
                 "app"
               ]
             },
-            "description": "Force-update floor and remote feature flags — day-1 non-negotiable #5.\n\nANONYMOUS on purpose: a force-update has to reach a user who cannot sign in, which is exactly the situation a broken auth release creates.\n\nFlags here are the NON-money switches. The money layer has a stronger one — ledger_txn_types.is_active stops a flow inside the transaction — so a client that ignores a flag, or a modified build that never asks, still cannot move coins.\n\nNon-boolean flag values are dropped rather than passed through."
+            "description": "Force-update floor and remote feature flags — day-1 non-negotiable #5.\n\nANONYMOUS on purpose: a force-update has to reach a user who cannot sign in, which is exactly the situation a broken auth release creates.\n\nFlags here are the NON-money switches. The money layer has a stronger one — ledger_txn_types.is_active stops a flow inside the transaction — so a client that ignores a flag, or a modified build that never asks, still cannot move coins.\n\nNon-boolean flag values are dropped rather than passed through.\n\n**Kill switches (033):** `flags` now carries one boolean per switch — `giftingEnabled`, `purchasesEnabled`, `conversionEnabled`, `cosmeticsEnabled`, `goLiveEnabled`, `videoRoomsEnabled`, `rewardsEnabled`, `agencyCoinsEnabled` — derived from `app_config.features`, the same row the server refuses on. Flip them at `/admin/switches`, which also records who and why. The cosmetic flags (`hindiEnabled`, `showWebRechargeLink`, `socialLoginEnabled`) still come from `client_flags`."
           },
           "response": [],
           "event": [
@@ -3715,7 +3715,7 @@
                 "welcome"
               ]
             },
-            "description": "500 coins, once per account and once per device. A repeat returns `alreadyClaimed: true`.\n\n**Errors:** `WELCOME_ALREADY_USED_ON_DEVICE` 409 · `REWARD_UNAVAILABLE` 409 · `TXN_TYPE_INACTIVE` 503 · `REGISTRATION_REQUIRED` 403."
+            "description": "500 coins, once per account and once per device. A repeat returns `alreadyClaimed: true`.\n\n**Errors:** `WELCOME_ALREADY_USED_ON_DEVICE` 409 · `REWARD_UNAVAILABLE` 409 · `TXN_TYPE_INACTIVE` 503 · `REGISTRATION_REQUIRED` 403.\n\n**`FEATURE_DISABLED` 403** — the `rewards` switch is off in /admin/switches. Checked after auth and before the rate limiter, so no Idempotency-Key is needed to be told. `details.feature` names the switch."
           },
           "response": [],
           "event": [
@@ -3751,7 +3751,7 @@
                 "checkin"
               ]
             },
-            "description": "Ladder 20, 30, 40, 60, 80, 100, 150 on consecutive IST days, wrapping after day 7; a missed day resets to day 1. One claim per IST day — a repeat returns `alreadyClaimed: true`."
+            "description": "Ladder 20, 30, 40, 60, 80, 100, 150 on consecutive IST days, wrapping after day 7; a missed day resets to day 1. One claim per IST day — a repeat returns `alreadyClaimed: true`.\n\n**`FEATURE_DISABLED` 403** — the `rewards` switch is off in /admin/switches. Checked after auth and before the rate limiter, so no Idempotency-Key is needed to be told. `details.feature` names the switch."
           },
           "response": [],
           "event": [
@@ -3874,7 +3874,7 @@
                 "follow"
               ]
             },
-            "description": "`:task` is `follow` | `gift` | `chat`. Pays once, ever — the ledger key is `new_user:{task}:{user}`, derived from the claim, so no Idempotency-Key header. A repeat returns `alreadyClaimed: true`.\n\n**Errors:** `REWARD_NOT_EARNED` 409 (task not done) · `NEW_USER_WINDOW_CLOSED` 409 · `NEW_USER_ALREADY_USED_ON_DEVICE` 409 · `REWARD_UNAVAILABLE` 409 (task set to 0) · `REGISTRATION_REQUIRED` 403 · `VALIDATION_FAILED` 422 (unknown task)"
+            "description": "`:task` is `follow` | `gift` | `chat`. Pays once, ever — the ledger key is `new_user:{task}:{user}`, derived from the claim, so no Idempotency-Key header. A repeat returns `alreadyClaimed: true`.\n\n**Errors:** `REWARD_NOT_EARNED` 409 (task not done) · `NEW_USER_WINDOW_CLOSED` 409 · `NEW_USER_ALREADY_USED_ON_DEVICE` 409 · `REWARD_UNAVAILABLE` 409 (task set to 0) · `REGISTRATION_REQUIRED` 403 · `VALIDATION_FAILED` 422 (unknown task)\n\n**`FEATURE_DISABLED` 403** — the `rewards` switch is off in /admin/switches. Checked after auth and before the rate limiter, so no Idempotency-Key is needed to be told. `details.feature` names the switch."
           },
           "response": [],
           "event": [
@@ -4651,7 +4651,7 @@
                 "transfers"
               ]
             },
-            "description": "Moves coins from the agency's inventory to a user. Coins only — the rupees were booked when the agency prepaid, and the user paid the agency OFF-PLATFORM, which our books never see. One direction only (hard rule #7).\n\n`requestId` is generated once per transfer by the client, so a retry over a dropped connection cannot send twice. An agency cannot send coins it has not bought: the inventory account is non-negative (hard rule #3).\n\n**Errors:** `INSUFFICIENT_BALANCE` 402 · `TRANSFER_TOO_LARGE` 422 · `TRANSFER_DAILY_LIMIT` 429 · `RECIPIENT_DAILY_LIMIT` 429 · `RECIPIENT_NOT_FOUND` 404 · `TRANSFER_TO_SELF` 400 · `NOT_AGENCY_OWNER` 403 · `COIN_TRADING_DISABLED` 403 · `TXN_TYPE_INACTIVE` 503 · `VALIDATION_FAILED` 422 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429",
+            "description": "Moves coins from the agency's inventory to a user. Coins only — the rupees were booked when the agency prepaid, and the user paid the agency OFF-PLATFORM, which our books never see. One direction only (hard rule #7).\n\n`requestId` is generated once per transfer by the client, so a retry over a dropped connection cannot send twice. An agency cannot send coins it has not bought: the inventory account is non-negative (hard rule #3).\n\n**Errors:** `INSUFFICIENT_BALANCE` 402 · `TRANSFER_TOO_LARGE` 422 · `TRANSFER_DAILY_LIMIT` 429 · `RECIPIENT_DAILY_LIMIT` 429 · `RECIPIENT_NOT_FOUND` 404 · `TRANSFER_TO_SELF` 400 · `NOT_AGENCY_OWNER` 403 · `COIN_TRADING_DISABLED` 403 · `TXN_TYPE_INACTIVE` 503 · `VALIDATION_FAILED` 422 · `REGISTRATION_REQUIRED` 403 · `UNAUTHENTICATED` 401 · `RATE_LIMITED` 429\n\n**`FEATURE_DISABLED` 403** — the `agencyCoins` switch is off in /admin/switches. Checked after auth and before the rate limiter, so no Idempotency-Key is needed to be told. `details.feature` names the switch.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"userId\": 10000002,\n  \"coins\": 11000,\n  \"requestId\": \"{{$guid}}\",\n  \"note\": \"UPI received\"\n}",
@@ -5391,7 +5391,7 @@
                 }
               }
             },
-            "description": "BOTH hosts must be live — an invitation to somebody who is not broadcasting can never be accepted, so it is refused now rather than after a minute of silence.\n\nRate-limited per USER, not per IP: an invitation puts a dialog in front of somebody mid-broadcast, which makes this the most harassment-shaped endpoint in the module. A partial unique index also stops a second invitation to the same host while the first is pending.\n\n**Errors:** `NOT_LIVE` 409 (either host) · `PK_ALREADY_IN_BATTLE` 409 · `PK_INVITE_PENDING` 409 · `PK_SELF` 422 · `PK_UNAVAILABLE` 503 · `RATE_LIMITED` 429 (20 per 10 min)"
+            "description": "BOTH hosts must be live — an invitation to somebody who is not broadcasting can never be accepted, so it is refused now rather than after a minute of silence.\n\nRate-limited per USER, not per IP: an invitation puts a dialog in front of somebody mid-broadcast, which makes this the most harassment-shaped endpoint in the module. A partial unique index also stops a second invitation to the same host while the first is pending.\n\n**Errors:** `NOT_LIVE` 409 (either host) · `PK_ALREADY_IN_BATTLE` 409 · `PK_INVITE_PENDING` 409 · `PK_SELF` 422 · `PK_UNAVAILABLE` 503 · `RATE_LIMITED` 429 (20 per 10 min)\n\n**`FEATURE_DISABLED` 403** — the `pk` switch is off in /admin/switches. Checked after auth and before the rate limiter, so no Idempotency-Key is needed to be told. `details.feature` names the switch."
           },
           "response": [],
           "event": [
@@ -5475,7 +5475,7 @@
                 }
               }
             },
-            "description": "Starts the battle. The window is the ACCEPTING host’s choice — they are the one agreeing to be on camera for it — and is clamped to `min`/`maxDurationSeconds`.\n\nEvery other invitation either host is holding is expired in the same transaction.\n\n**Errors:** `PK_INVITE_NOT_FOUND` 404 · `PK_INVITE_ANSWERED` 409 · `PK_INVITE_EXPIRED` 409 · `PK_ALREADY_IN_BATTLE` 409 · `NOT_LIVE` 409"
+            "description": "Starts the battle. The window is the ACCEPTING host’s choice — they are the one agreeing to be on camera for it — and is clamped to `min`/`maxDurationSeconds`.\n\nEvery other invitation either host is holding is expired in the same transaction.\n\n**Errors:** `PK_INVITE_NOT_FOUND` 404 · `PK_INVITE_ANSWERED` 409 · `PK_INVITE_EXPIRED` 409 · `PK_ALREADY_IN_BATTLE` 409 · `NOT_LIVE` 409\n\n**`FEATURE_DISABLED` 403** — the `pk` switch is off in /admin/switches. Checked after auth and before the rate limiter, so no Idempotency-Key is needed to be told. `details.feature` names the switch."
           },
           "response": [],
           "event": [
@@ -5642,7 +5642,7 @@
                 }
               }
             },
-            "description": "The “Random PK”. Matching happens in the `pk_match` worker every 10s, not in this request: pairing inline would mean the second host to arrive does the work while the first one’s request has already returned, so one of two matched hosts learns about their battle from a push and the other from a response.\n\nPairing is OLDEST-FIRST. “Random” describes who you get, not how long you wait.\n\nReturns `{ position }`. The battle itself arrives as `pk:started` over the gateway."
+            "description": "The “Random PK”. Matching happens in the `pk_match` worker every 10s, not in this request: pairing inline would mean the second host to arrive does the work while the first one’s request has already returned, so one of two matched hosts learns about their battle from a push and the other from a response.\n\nPairing is OLDEST-FIRST. “Random” describes who you get, not how long you wait.\n\nReturns `{ position }`. The battle itself arrives as `pk:started` over the gateway.\n\n**`FEATURE_DISABLED` 403** — the `pk` switch is off in /admin/switches. Checked after auth and before the rate limiter, so no Idempotency-Key is needed to be told. `details.feature` names the switch."
           },
           "response": [],
           "event": [
@@ -5821,6 +5821,92 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Appeals",
+      "description": "A suspended host asks for a second look (migration 034).\n\n**One appeal per suspension** — the suspension is an `enforcement_actions` row and `appeals.action_id` is UNIQUE on it. A host suspended twice can appeal twice; nobody can appeal the same decision repeatedly.\n\n**Decided by someone other than the person who suspended them**, from the Review queue in `/admin`. Lifting the suspension goes through `enforce()` with `source = 'appeal'`, so the log says why. The reviewer's note IS shown to the host; the original suspension note is not.",
+      "item": [
+        {
+          "name": "1 · My standing",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/appeals/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "appeals",
+                "me"
+              ]
+            },
+            "description": "`{ appeal: { suspended, suspendedAt, appeal: { id, status, message, createdAt, reviewedAt, note } | null } }`.\n\n`status` is `open`, `upheld` or `overturned`. `appeal` is the one filed against the CURRENT (latest) suspension."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2 · File an appeal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/appeals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "appeals"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"That was my sister using my phone while I was travelling. It will not happen again.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "`message` 20–1000 characters. Five attempts a day; the table enforces one per suspension.\n\n**Errors:** `NOT_SUSPENDED` 409 · `APPEAL_PENDING` 409 · `APPEAL_DECIDED` 409 · `VALIDATION_FAILED` 422 · `REGISTRATION_REQUIRED` 403"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 or 409', () => pm.expect(pm.response.code).to.be.oneOf([201, 409]));"
                 ]
               }
             }

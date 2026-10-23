@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { useAgencyTransfers, useInventory, useMyAgency } from '@/api/queries/useAgency';
+import { useFlag } from '@/config/flags';
 import { TransferRow } from '@/features/agency/TransferRow';
 import { TransferSheet } from '@/features/agency/TransferSheet';
 import { useTranslation } from '@/i18n';
@@ -41,6 +42,7 @@ export default function AgencyCoinsScreen() {
   const inventory = useInventory(isOwner);
   const transfers = useAgencyTransfers(isOwner);
   const sheet = useRef<SheetHandle>(null);
+  const transfersEnabled = useFlag('agencyCoinsEnabled');
 
   const notTrading = errorCode(inventory.error) === 'COIN_TRADING_DISABLED';
 
@@ -123,13 +125,16 @@ export default function AgencyCoinsScreen() {
                   </Row>
                 )}
 
+                {!transfersEnabled && (
+                  <Banner tone="info" message={t('paused.agencyCoins')} testID="transfers-paused" />
+                )}
                 <Button
                   label={t('agencyCoins.transferTitle')}
                   onPress={() => {
                     haptic.selection();
                     sheet.current?.present();
                   }}
-                  disabled={inventory.data.coins === 0}
+                  disabled={inventory.data.coins === 0 || !transfersEnabled}
                   fullWidth
                   testID="open-transfer"
                 />

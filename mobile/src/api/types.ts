@@ -173,6 +173,16 @@ export const ApiErrorCode = {
   VALIDATION_FAILED: 'VALIDATION_FAILED',
   RATE_LIMITED: 'RATE_LIMITED',
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+  /** A kill switch is off. `details.feature` names it. */
+  FEATURE_DISABLED: 'FEATURE_DISABLED',
+  // verification
+  VERIFICATION_PENDING: 'VERIFICATION_PENDING',
+  VERIFICATION_DONE: 'VERIFICATION_DONE',
+  // suspension and appeals
+  HOST_SUSPENDED: 'HOST_SUSPENDED',
+  NOT_SUSPENDED: 'NOT_SUSPENDED',
+  APPEAL_PENDING: 'APPEAL_PENDING',
+  APPEAL_DECIDED: 'APPEAL_DECIDED',
   TIMEOUT: 'TIMEOUT',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
   /** Client-side only: the request never reached the server. */
@@ -485,6 +495,42 @@ export interface ColdStartConfig {
   peakStartIst: string;
   peakEndIst: string;
   dropNewUsersIntoRoom: boolean;
+}
+
+// --- verification ------------------------------------------------------------
+
+/**
+ * Host identity verification, the face half. Phone OTP is separate and is
+ * what `ProfileSummary.verified` reports.
+ *
+ * Reviewed by a PERSON in the admin panel, so a status moves when a moderator
+ * gets to it, not on a timer. `note` is the reviewer's reason on a rejection,
+ * written to be shown.
+ */
+export interface HostVerification {
+  status: 'none' | 'pending' | 'approved' | 'rejected';
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  note: string | null;
+}
+
+/**
+ * A host's standing, and the appeal against their current suspension if any.
+ *
+ * `appeal` is the one filed against the LATEST suspension; a host suspended
+ * twice can appeal twice. `note` is written by the reviewer to be shown.
+ */
+export interface MyAppeal {
+  suspended: boolean;
+  suspendedAt: string | null;
+  appeal: {
+    id: string;
+    status: 'open' | 'upheld' | 'overturned';
+    message: string;
+    createdAt: string;
+    reviewedAt: string | null;
+    note: string | null;
+  } | null;
 }
 
 // --- rewards -----------------------------------------------------------------

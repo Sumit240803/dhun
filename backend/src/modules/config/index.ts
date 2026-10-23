@@ -13,3 +13,29 @@ export {
   roomBackgrounds,
 } from './appConfig.service.js';
 export type { ClientConfig, ColdStartConfig, RoomBackground } from './appConfig.service.js';
+export {
+  appVersions,
+  assertFeature,
+  FEATURE_KEYS,
+  FEATURES,
+  featureEnabled,
+  featureStates,
+  isFeatureKey,
+  recentConfigChanges,
+  requireFeature,
+  setAppVersions,
+  setFeature,
+} from './features.js';
+export type { AppVersions, ConfigChange, FeatureKey, FeatureSpec } from './features.js';
+export {
+  adminGifts,
+  adminPacks,
+  DIAL_KEYS,
+  DIALS,
+  dial,
+  isDialKey,
+  setDial,
+  updateGift,
+  updatePack,
+} from './catalog.admin.js';
+export type { AdminGift, AdminPack, DialKey } from './catalog.admin.js';

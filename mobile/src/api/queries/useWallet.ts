@@ -1,7 +1,7 @@
 // WORKED EXAMPLE for `api/queries/`: a hook per resource, keys from keys.ts,
 // invalidation that cannot miss a screen.
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { catalogApi, walletApi } from '@/api/endpoints/wallet';
 import { queryKeys } from '@/api/queries/keys';
@@ -41,6 +41,27 @@ export function useCoinPacks() {
     // Server-driven config that changes rarely. Long stale time so opening the
     // buy sheet is instant — it is the moment money gets spent.
     staleTime: 10 * 60_000,
+  });
+}
+
+/** A page of the statement. The server caps at 200; fifty is a screenful and a half. */
+const TXN_PAGE = 50;
+
+/**
+ * The statement, newest first, paged by transaction id.
+ *
+ * The cursor is the LAST id on the page rather than an offset: ids are
+ * time-ordered (uuidv7), so a transaction landing while the user scrolls
+ * shifts nothing and is never shown twice.
+ */
+export function useTransactions() {
+  return useInfiniteQuery({
+    queryKey: queryKeys.wallet.transactions(),
+    queryFn: async ({ pageParam }) =>
+      (await walletApi.transactions({ limit: TXN_PAGE, before: pageParam })).transactions,
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => (last.length === TXN_PAGE ? last[last.length - 1]!.id : undefined),
+    staleTime: 30_000,
   });
 }
 

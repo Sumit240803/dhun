@@ -11,6 +11,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProfileSummary } from '@/api/queries/useFeed';
 import { useMyAgency } from '@/api/queries/useAgency';
 import { useRewards } from '@/api/queries/useGrowth';
+import { useMyAppeal } from '@/api/queries/useAppeal';
+import { useMyVerification } from '@/api/queries/useVerification';
 import { useWallet } from '@/api/queries/useWallet';
 import { signOut } from '@/features/auth/session';
 import { useTranslation, type LocaleCode, type MessageKey } from '@/i18n';
@@ -60,6 +62,8 @@ export default function MeTab() {
   const wallet = useWallet();
   const rewards = useRewards(user?.status === 'active');
   const agency = useMyAgency(user?.status === 'active');
+  const verification = useMyVerification(user?.status === 'active');
+  const standing = useMyAppeal(user?.status === 'active');
   // Something is waiting to be claimed — the dot is what brings a user in.
   const rewardWaiting =
     rewards.data !== undefined &&
@@ -256,6 +260,36 @@ export default function MeTab() {
             </Card>
           )}
 
+          {/*
+            A suspended host learns it here, not at the go-live button — and
+            learns in the same breath that they can appeal. One appeal per
+            suspension, read by someone other than the person who decided it.
+          */}
+          {standing.data?.suspended === true && (
+            <Card selected>
+              <Column gap="md">
+                <Row gap="sm">
+                  <Ionicons name="ban-outline" size={18} color={colors.status.danger} />
+                  <Text variant="bodyStrong">{t('appeal.meTitle')}</Text>
+                </Row>
+                <Text variant="caption" tone="secondary">
+                  {standing.data.appeal?.status === 'open'
+                    ? t('appeal.meBodyPending')
+                    : t('appeal.meBody')}
+                </Text>
+                <Button
+                  label={standing.data.appeal === null ? t('appeal.open') : t('appeal.title')}
+                  onPress={() => {
+                    haptic.tap();
+                    router.push('/(app)/host/appeal');
+                  }}
+                  size="sm"
+                  testID="appeal-card"
+                />
+              </Column>
+            </Card>
+          )}
+
           <Card padded={false}>
             <ListItem
               title={t('profile.visitors')}
@@ -309,6 +343,42 @@ export default function MeTab() {
               }}
               testID="agency-row"
             />
+            {!isGuest && (
+              <>
+                <Divider />
+                <ListItem
+                  title={t('verification.title')}
+                  subtitle={
+                    verification.data === undefined
+                      ? undefined
+                      : verification.data.status === 'approved'
+                        ? t('verification.meApproved')
+                        : verification.data.status === 'pending'
+                          ? t('verification.mePending')
+                          : verification.data.status === 'rejected'
+                            ? t('verification.meRejected')
+                            : t('verification.meNotStarted')
+                  }
+                  left={
+                    <Ionicons
+                      name="shield-checkmark-outline"
+                      size={20}
+                      color={
+                        verification.data?.status === 'approved'
+                          ? colors.status.success
+                          : colors.text.secondary
+                      }
+                    />
+                  }
+                  right={<Ionicons name="chevron-forward" size={18} color={colors.text.faint} />}
+                  onPress={() => {
+                    haptic.selection();
+                    router.push('/(app)/host/verification');
+                  }}
+                  testID="verification-row"
+                />
+              </>
+            )}
             <Divider />
             <ListItem
               title={t('store.title')}

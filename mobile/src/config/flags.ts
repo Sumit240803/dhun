@@ -8,6 +8,11 @@
 // Defaults are LOCAL and conservative. Remote values arrive from the server config
 // endpoint and override them, so a bad flag can be corrected without a release —
 // which is the entire point of having flags rather than build constants.
+//
+// Since migration 033 most of these are the client end of a KILL SWITCH thrown
+// from /admin/switches: the same action refuses the request on the server and
+// deactivates the feature's ledger transaction types, so hiding the button here
+// is a courtesy to the user, never the thing that guards money.
 
 import { useSyncExternalStore } from 'react';
 
@@ -21,6 +26,14 @@ export interface Flags {
   showWebRechargeLink: boolean;
   /** Coins to gems. Off if the conversion rate is being retuned. */
   conversionEnabled: boolean;
+  /** The cosmetics store. Off hides buying; items already owned keep working. */
+  cosmeticsEnabled: boolean;
+  /** Starting a room. Off shows the go-live screen's paused state; rooms already live keep running. */
+  goLiveEnabled: boolean;
+  /** Free coins — check-in, watch, invite, new-user. Off hides every sheet and prompt. */
+  rewardsEnabled: boolean;
+  /** An agency moving inventory to a user. */
+  agencyCoinsEnabled: boolean;
   /** Live video rooms. Audio-only rooms stay available when off. */
   videoRoomsEnabled: boolean;
   /** Hindi UI. Lets the translation ship dark and be enabled per cohort. */
@@ -41,6 +54,10 @@ const defaults: Flags = {
   purchasesEnabled: true,
   showWebRechargeLink: false,
   conversionEnabled: true,
+  cosmeticsEnabled: true,
+  goLiveEnabled: true,
+  rewardsEnabled: true,
+  agencyCoinsEnabled: true,
   videoRoomsEnabled: false,
   hindiEnabled: true,
   socialLoginEnabled: true,

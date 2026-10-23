@@ -47,3 +47,13 @@ export {
 export type { PendingFaceCheck, PendingVerification } from './queue.service.js';
 
 export { buildVerificationRouter } from './verification.routes.js';
+
+export {
+  decideAppeal,
+  fileAppeal,
+  myAppeal,
+  openAppealCount,
+  openAppeals,
+} from './appeals.service.js';
+export type { AppealStatus, MyAppeal, OpenAppeal } from './appeals.service.js';
+export { buildAppealsRouter } from './appeals.routes.js';

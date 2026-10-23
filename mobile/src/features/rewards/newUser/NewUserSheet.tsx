@@ -38,6 +38,7 @@ import {
   useRewards,
 } from '@/api/queries/useGrowth';
 import type { NewUserTaskId } from '@/api/types';
+import { useFlag } from '@/config/flags';
 import { roomAssetPath } from '@/features/room/roomAssets';
 import { useTranslation, type MessageKey } from '@/i18n';
 import { errorMessage } from '@/lib/errors';
@@ -80,6 +81,7 @@ export function NewUserSheet() {
   const queryClient = useQueryClient();
   const isRegistered = useIsRegistered();
   const open = useNewUserSheetOpen();
+  const rewardsEnabled = useFlag('rewardsEnabled');
 
   const newUser = useNewUserRewards(isRegistered);
   const rewards = useRewards(isRegistered);
@@ -111,7 +113,7 @@ export function NewUserSheet() {
   // ── Once a day, on its own ────────────────────────────────────────────────
   const decided = useRef(false);
   useEffect(() => {
-    if (!anythingLeft || expired || decided.current) return;
+    if (!anythingLeft || expired || !rewardsEnabled || decided.current) return;
     decided.current = true;
 
     void (async () => {
@@ -120,7 +122,7 @@ export function NewUserSheet() {
       await preferences.set(SHOWN_ON, today);
       newUserSheet.open();
     })();
-  }, [anythingLeft, expired]);
+  }, [anythingLeft, expired, rewardsEnabled]);
 
   // The window closed while the app was open: drop the sheet and let the
   // server say so, which removes the floating entry too.
@@ -130,7 +132,7 @@ export function NewUserSheet() {
     void queryClient.invalidateQueries({ queryKey: queryKeys.rewards.newUser() });
   }, [expired, queryClient]);
 
-  if (!data || expired) return null;
+  if (!data || expired || !rewardsEnabled) return null;
 
   const close = () => {
     haptic.selection();

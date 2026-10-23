@@ -59,6 +59,9 @@ export const en = {
     network: 'No internet connection. Check your network and try again.',
     timeout: 'That took too long. Try again.',
     rateLimited: 'Too many attempts. Wait a moment and try again.',
+    featurePaused: 'This is paused for maintenance. Try again in a little while.',
+    hostSuspended:
+      'Your account cannot go live right now. Open Appeal from your profile to ask for a review.',
     serviceUnavailable: 'Dhun is briefly unavailable. Try again in a minute.',
     unexpected: 'Something went wrong. Try again.',
     banned: 'This account has been suspended.',
@@ -243,6 +246,21 @@ export const en = {
     loadFailed: 'Could not load this conversation',
   },
 
+  // A feature switched off from the admin panel. Each screen says what is
+  // paused and what is not touched — a user reading "paused" first wonders
+  // about their coins.
+  paused: {
+    goLiveTitle: 'Going live is paused',
+    goLiveBody:
+      'We are working on live rooms right now. Rooms already live keep running. Try again in a little while.',
+    rewardsTitle: 'Free coins are paused',
+    rewardsBody:
+      'Check-in, watch and invite rewards are paused while we fix something. Coins you already have are not affected.',
+    store: 'Buying items is paused for maintenance. Everything you own still works.',
+    purchases: 'Buying coins is paused for maintenance. Try again in a little while.',
+    agencyCoins: 'Coin transfers are paused for maintenance. Your inventory is not affected.',
+  },
+
   update: {
     requiredTitle: 'Update Dhun to continue',
     requiredBody:
@@ -412,6 +430,37 @@ export const en = {
     insufficientCoins: 'Not enough coins',
     insufficientGems: 'Not enough gems',
     purchaseSuccess: 'Added {coins} coins and {gems} gems',
+  },
+
+  // The wallet statement. One word per ledger transaction type; anything
+  // unlisted is an "adjustment" rather than a raw code.
+  txns: {
+    title: 'Transactions',
+    today: 'Today',
+    yesterday: 'Yesterday',
+    loadMore: 'Show earlier',
+    emptyTitle: 'No transactions yet',
+    emptyBody: 'Coins you buy, earn or spend will show up here.',
+    giftSend: 'Gift sent',
+    purchase: 'Coins bought',
+    purchaseWeb: 'Coins bought online',
+    fromAgency: 'Coins from an agency',
+    freeCoins: 'Free coins',
+    converted: 'Converted to gems',
+    storePurchase: 'Store purchase',
+    levelReward: 'Level reward',
+    bonus: 'Bonus',
+    referralBonus: 'Invite bonus',
+    pointsReleased: 'Points released',
+    payoutRequested: 'Withdrawal requested',
+    payoutPaid: 'Withdrawal paid',
+    commission: 'Commission',
+    commissionPaid: 'Commission paid out',
+    vip: 'VIP',
+    vipRenewed: 'VIP renewed',
+    vipRefund: 'VIP refund',
+    roomEntry: 'Room entry',
+    adjustment: 'Adjustment',
   },
 
   gifting: {
@@ -958,6 +1007,87 @@ export const en = {
     inviteClosed: 'That invitation is no longer open.',
     agentNotInAgency: 'That agent is not in your agency.',
     cannotRemoveOwner: 'The agency owner cannot be removed.',
+  },
+
+  // Host identity verification: the phone step and the reviewed face photo.
+  verification: {
+    title: 'Verification',
+    heading: 'Verify your identity',
+    intro:
+      'Hosts verify once. It takes about a minute, and it is what lets you withdraw your earnings.',
+    stepPhone: 'Phone number',
+    phoneVerified: '{phone} · verified',
+    phoneMissing: 'Add a phone number',
+    stepFace: 'Face photo',
+    faceHint: 'A clear selfie in good light, face uncovered.',
+    faceDone: 'Approved',
+    facePending: 'Under review',
+    faceRetry: 'Take another photo',
+    takeSelfie: 'Take a selfie',
+    retake: 'Retake',
+    tipLight: 'Good light',
+    tipFace: 'Face uncovered',
+    tipAlone: 'Just you',
+    privacy: 'Only our review team sees this photo. It is removed if you delete your account.',
+    submit: 'Submit for review',
+    submitted: 'Photo sent. We will show the result here.',
+    pendingTitle: 'Under review',
+    pendingBody: 'Usually within a day. You will see the result here.',
+    approvedTitle: 'You are verified',
+    approvedBody: 'Reviewed on {date}.',
+    rejectedTitle: 'Photo not accepted',
+    rejectedBody: 'Take another photo below and send it again.',
+    reviewerNote: 'From the reviewer: {note}',
+    cameraDenied: 'Camera access is needed to take the photo. Allow it in your phone settings.',
+    meNotStarted: 'Needed before you can withdraw earnings',
+    mePending: 'Under review',
+    meApproved: 'Verified',
+    meRejected: 'Photo not accepted. Try again.',
+  },
+
+  // A suspended host asking for a second look. Says what the suspension means
+  // for them, takes one appeal, and reports what a second reviewer decided.
+  appeal: {
+    title: 'Appeal',
+    suspendedTitle: 'Your hosting is suspended',
+    suspendedBody:
+      'Since {date}. You can still watch rooms and chat, but you cannot go live or earn until this is lifted.',
+    suspendedShort: 'You cannot go live until this is reviewed.',
+    open: 'Appeal this decision',
+    meTitle: 'Your hosting is suspended',
+    meBody:
+      'You cannot go live or earn until this is reviewed. If you think it was a mistake, you can appeal once.',
+    meBodyPending: 'Your appeal is under review. You will hear back here.',
+    formLabel: 'Tell us what happened',
+    formPlaceholder: 'In your own words. At least a sentence.',
+    formHelper: 'Someone other than the person who made the decision will read this.',
+    counter: '{count} / {max}',
+    send: 'Send appeal',
+    sent: 'Appeal sent. You will hear back here.',
+    pendingTitle: 'Under review',
+    pendingBody:
+      'A second reviewer will read this, usually within two days. The result shows here.',
+    overturnedTitle: 'Suspension lifted',
+    overturnedBody: 'Reviewed {date}. You can go live again.',
+    upheldTitle: 'Decision upheld',
+    upheldBody: 'Reviewed {date}. This suspension stays.',
+    reviewerNote: 'From the reviewer: {note}',
+    yourWords: 'What you said',
+    clearTitle: 'Your account is in good standing',
+    clearBody:
+      'There is nothing to appeal. If a decision is ever made about your account, this is where you will hear back.',
+    grievance: 'Still have a concern? Contact the Grievance Officer',
+  },
+
+  appealErrors: {
+    pending: 'Your appeal is already being reviewed.',
+    decided: 'This suspension has already been reviewed.',
+    notSuspended: 'Your account is not suspended.',
+  },
+
+  verificationErrors: {
+    pending: 'Your photo is already under review.',
+    done: 'You are already verified.',
   },
 
   legal: {

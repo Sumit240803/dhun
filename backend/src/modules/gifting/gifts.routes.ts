@@ -9,6 +9,7 @@ import {
 import { requireIdempotencyKey } from '../../middleware/idempotency.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { validate } from '../../middleware/validate.js';
+import { requireFeature } from '../config/index.js';
 import { GIFT_QUANTITIES, roomLeaderboard, sendGift, type GiftQuantity } from './gifts.service.js';
 
 export function buildGiftsRouter(): Router {
@@ -26,6 +27,7 @@ export function buildGiftsRouter(): Router {
     authGuard(),
     requireRegistered(),
     requireAdult(),
+    requireFeature('gifting'),
     // Its own scope rather than the shared `money` one. A combo is a thumb
     // tapping as fast as it can, several times a second, and thirty a minute
     // would throttle a genuine whale mid-streak — the worst moment to refuse

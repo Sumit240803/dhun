@@ -88,6 +88,14 @@ export const queryKeys = {
     commission: () => [...queryKeys.agency.all, 'commission'] as const,
   },
 
+  verification: {
+    all: ['verification'] as const,
+    me: () => [...queryKeys.verification.all, 'me'] as const,
+  },
+  appeals: {
+    all: ['appeals'] as const,
+    me: () => [...queryKeys.appeals.all, 'me'] as const,
+  },
   config: {
     all: ['config'] as const,
     banners: () => [...queryKeys.config.all, 'banners'] as const,

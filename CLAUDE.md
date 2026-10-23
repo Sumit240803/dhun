@@ -535,7 +535,7 @@ walk away from a vendor and an SDK spread across four modules cannot walk anywhe
 One repo, pushed to `git@github.com:Sumit240803/dhun.git` (`main`).
 Verify everything with **`npm run check`** from the root.
 
-### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5, M6, M7 and M10 built, unverified. 360 tests.
+### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5–M7, M10, M12–M18 built, unverified on devices. {{BACKEND_TESTS}} tests.
 
 Seventeen migrations, 68 routes, and all three processes built: API, workers, and the
 realtime gateway. **M10 was built before M8 and M9, by agreement** — both are blocked on
@@ -592,8 +592,13 @@ external accounts (CA + RazorpayX, Hive) and neither is skipped.
    `checkin:{user}:{IST date}`, `watch:{user}:{date}:{slot}`, `referral:{referred user}`.
    The same reasoning as purchases keying on the receipt: the claim IS the money event, so
    one claim can only ever be one credit, however it is retried or raced.
+10. **A feature's state lives in one row.** `app_config.features` is the source; the client
+    flag the app reads and the feature's `ledger_txn_types.is_active` are DERIVED from it
+    in the same transaction by `setFeature()`. Flip one by hand and the server, the ledger
+    and the app disagree about whether gifting is on — which is the outage a kill switch
+    exists to end, not cause.
 
-### `mobile/` — 31 routes, 23 of them built.
+### `mobile/` — 33 routes, 29 of them built (the four legal pages wait for a lawyer's text).
 
 Expo SDK 57 · React Native 0.86 · React 19.2 · expo-router. EAS project
 `@sumitsumit/dhun` (`c7c547aa-86e2-4d02-befa-b5e643fde400`). 114 tests.
@@ -617,10 +622,12 @@ Read **`mobile/ARCHITECTURE.md`** before adding a file. The essentials:
   endpoints existed. TanStack Query throughout, keys centralised in
   `api/queries/keys.ts`.
 
-**Built:** the five tabs (home feed, party, discover placeholder, messages, me),
-auth (phone, OTP, email sign-in/up, forgot and reset password), profile setup,
-email confirmation, account and security (password, phone number, signed-in
-devices, delete), wallet, thread, public profile, visitors.
+**Built:** the five tabs (home feed, party, discover, messages, me), auth (phone, OTP,
+email sign-in/up, forgot and reset password), profile setup, email confirmation, account
+and security (password, phone number, signed-in devices, delete), wallet and its
+transactions statement, store, rewards and the new-user rewards sheet, host verification,
+appeal, go-live, the live room, agency screens, thread, public profile, visitors. Every
+kill switch has a designed paused state on the screen it affects.
 
 **Adding a route needs the typed-route file regenerated** — it comes from
 `expo start`, not from `tsc` or `expo export`, and until it runs a new
@@ -701,24 +708,44 @@ catch is early enough. The one hard stop is suspension. Three severities: `flag`
 append-only by trigger — a log that can be rewritten is not evidence.
 
 **The admin panel is server-rendered HTML on the API** (`src/admin/`), mounted BEFORE the
-JSON body parser because it takes form posts. Four screens: review queue, live rooms,
-users, enforcement log. **`html` escapes every interpolation** and `raw()` is the
+JSON body parser because it takes form posts. Eight screens: **review queue**
+(onboarding photos, go-live frames, appeals), **reports**, **live rooms**, **users**,
+**agencies**, **catalog**, **enforcement log**, and **switches** — the kill switch per
+feature and the version floor (migration 033). One form post flips `app_config.features`, the feature's
+`ledger_txn_types.is_active` and the client flag the app reads, in one transaction, and
+records who and why in the append-only `config_changes`. `requireFeature(key)` guards
+the routes; a feature missing from the row is ON, so a typo can never switch the product
+off.
+
+**Reports:** a decision about the person (flag, suspend) closes every open report about
+them; a dismissal closes only the one in hand; the action is taken before the report is
+closed. **Appeals** (migration 034): one per suspension, decided by someone other than the
+suspender, lifted through `enforce()` with `source = 'appeal'`; the reviewer's note is
+shown to the host, the moderator's suspension note never is. **Agencies** and **catalog**
+call the same service functions as the JSON API, so there is one set of rules however the
+back office is driven; a prepay's maker-checker is a database constraint AND a named
+refusal. **Catalog** edits never re-price anything already sent — `gift_sends` carries
+its points at the moment of sending — and each is recorded in `config_changes`.
+
+**`html` escapes every interpolation** and `raw()` is the
 spelled-out opt-out — an XSS there is script in a session that can suspend accounts. Its
 own CSP (`script-src 'none'`), a cookie scoped to `/admin` so it is never sent to `/v1`,
 roles re-read from the database on every request, and a CSRF token in every form.
 
 ### Not built yet
 
-OAuth (Google / Facebook / Instagram) · host tools and payouts (M8) · trust & safety (M9) ·
-super messages and VIP ·
-stand-in art files · Firebase credentials for Android push · the legal screens' actual text ·
-analytics pipeline · CI beyond typecheck and tests · Terraform and environments ·
-the reports queue inside the admin panel · appeals (M9).
+OAuth (Google / Facebook / Instagram) · host tools and payouts (M8) · Hive moderation and
+the rest of trust & safety (M9; reports queue and appeals are done) · platform rankings
+and the region picker (both waiting on a decision) · super messages and VIP · stand-in art
+files · Firebase credentials for Android push · the legal screens' actual text and the
+Grievance Officer's name · analytics pipeline · Terraform and environments.
 
-Built but **unverified on devices**: M5 (two phones, live audio, chat under 200ms, an API
-redeploy with a room live), M6 (a real gift between two accounts, animation under 500ms)
-M7 (a real purchase, its frame visible to someone else in a room) and M10 (a check-in, five
-minutes watched paying out, a follow's live notification arriving).
+Built but **unverified on devices**: everything from M5 on — M5 (two phones, live audio,
+chat under 200ms, an API redeploy with a room live), M6 (a real gift between two accounts,
+animation under 500ms), M7 (a real purchase, its frame visible to someone else in a room),
+M10 (a check-in, five minutes watched paying out, a follow's live notification arriving),
+and M13–M18 (the room, PK, the rewards sheet, verification, appeal, the paused states).
+This is the largest risk in the codebase and needs no decision: a dev build and two phones.
 
 Honest read: the foundation is stronger than the budget suggests, the product does
 not exist yet, and the things most likely to kill this are people problems —

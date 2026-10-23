@@ -5,11 +5,13 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
+import { useMyAppeal } from '@/api/queries/useAppeal';
 import { useGoLive } from '@/api/queries/useRoom';
 import { getDeviceId } from '@/features/auth/device';
 import { captureFaceForGoLive } from '@/features/verification/faceCapture';
 import { ApiErrorCode, type RoomTag } from '@/api/types';
 import { CoverPicker } from '@/features/media/CoverPicker';
+import { useFlag } from '@/config/flags';
 import { useTranslation, type MessageKey } from '@/i18n';
 import { track } from '@/lib/analytics';
 import { errorMessage, isErrorCode, traceReference } from '@/lib/errors';
@@ -44,6 +46,12 @@ export default function GoLiveScreen() {
   const [coverKey, setCoverKey] = useState<string | null>(null);
   const [coverUri, setCoverUri] = useState<string | null>(null);
   const isRegistered = useIsRegistered();
+  const goLiveEnabled = useFlag('goLiveEnabled');
+  // A suspended host is told at the door, with the way to appeal, rather than
+  // after naming a room. Unknown (still loading, or failed) reads as not
+  // suspended: the server refuses with HOST_SUSPENDED either way.
+  const standing = useMyAppeal(isRegistered);
+  const suspended = standing.data?.suspended === true;
 
   const [title, setTitle] = useState('');
   const [tag, setTag] = useState<RoomTag>('chatting');
@@ -102,7 +110,44 @@ export default function GoLiveScreen() {
   // but letting someone name a room, pick a tag, choose a type and only THEN
   // telling them they need an account wastes their effort and reads as a
   // failure rather than as a step they have not taken yet.
-  if (!isRegistered) {
+  //
+  // The same door handles the kill switch: when going live is paused the
+  // person is told here, with the form never shown, rather than after naming
+  // a room and being refused.
+  const notice = !isRegistered
+    ? {
+        icon: 'mic-outline' as const,
+        title: t('room.guestTitle'),
+        body: t('room.guestBody'),
+        actionLabel: t('room.guestAction'),
+        onAction: () => {
+          haptic.tap();
+          router.push('/(auth)');
+        },
+        testID: 'go-live-signup',
+      }
+    : suspended
+      ? {
+          icon: 'ban-outline' as const,
+          title: t('appeal.suspendedTitle'),
+          body: t('appeal.suspendedShort'),
+          actionLabel: t('appeal.open'),
+          onAction: () => {
+            haptic.tap();
+            router.push('/(app)/host/appeal');
+          },
+          testID: 'go-live-suspended',
+        }
+      : !goLiveEnabled
+        ? {
+            icon: 'pause-circle-outline' as const,
+            title: t('paused.goLiveTitle'),
+            body: t('paused.goLiveBody'),
+            testID: 'go-live-paused',
+          }
+        : null;
+
+  if (notice) {
     return (
       <Screen padded>
         <Row style={styles.guestHeader} gap="md">
@@ -116,17 +161,7 @@ export default function GoLiveScreen() {
           </Pressable>
         </Row>
         <View style={styles.centre}>
-          <EmptyState
-            icon="mic-outline"
-            title={t('room.guestTitle')}
-            body={t('room.guestBody')}
-            actionLabel={t('room.guestAction')}
-            onAction={() => {
-              haptic.tap();
-              router.push('/(auth)');
-            }}
-            testID="go-live-signup"
-          />
+          <EmptyState {...notice} />
         </View>
       </Screen>
     );

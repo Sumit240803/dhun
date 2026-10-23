@@ -258,6 +258,19 @@ export async function confirmPrepay(adminUserId: string, prepayId: string): Prom
   if (prepay.status !== 'pending') {
     throw new AppError('PREPAY_DECIDED', 'That prepay has already been decided', 409);
   }
+  // Maker-checker. The CHECK constraint on agency_prepays is the guarantee;
+  // this is the sentence a person reads instead of "constraint violation".
+  const { rows: who } = await pool.query<{ recorded_by: string }>(
+    'SELECT recorded_by FROM agency_prepays WHERE id = $1',
+    [prepay.id],
+  );
+  if (who[0]?.recorded_by === adminUserId) {
+    throw new AppError(
+      'PREPAY_SAME_PERSON',
+      'The person who recorded a prepay cannot be the one who confirms it',
+      403,
+    );
+  }
 
   await postTransaction({
     txnType: 'reseller_prepay',

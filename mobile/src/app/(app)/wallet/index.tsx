@@ -7,6 +7,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { useCoinPacks, useWallet } from '@/api/queries/useWallet';
 import type { CoinPack } from '@/api/types';
+import { useFlag } from '@/config/flags';
 import { useTranslation } from '@/i18n';
 import { errorMessage } from '@/lib/errors';
 import { haptic } from '@/lib/haptics';
@@ -19,6 +20,7 @@ export default function TopUpScreen() {
   const { t } = useTranslation();
   const wallet = useWallet();
   const packs = useCoinPacks();
+  const purchasesEnabled = useFlag('purchasesEnabled');
 
   const [selected, setSelected] = useState<string | null>(null);
   const [agreed, setAgreed] = useState(false);
@@ -140,12 +142,15 @@ export default function TopUpScreen() {
             // silently does nothing.
             setNotice(t('topUp.unavailable'));
           }}
-          disabled={pack === null || !agreed}
+          disabled={pack === null || !agreed || !purchasesEnabled}
           size="lg"
           fullWidth
           testID="recharge"
         />
 
+        {!purchasesEnabled && (
+          <Banner tone="info" message={t('paused.purchases')} testID="purchases-paused" />
+        )}
         {notice !== null && <Banner tone="warning" message={notice} />}
 
         {pack === null && notice === null && (

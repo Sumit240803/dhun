@@ -18,22 +18,39 @@ import { AppError } from '../infra/errors.js';
 import { logger } from '../infra/logger.js';
 import { rateLimit } from '../middleware/rateLimit.js';
 import { verifyPassword } from '../modules/auth/password.js';
+import { openReport, openReports, resolveReport } from '../modules/moderation/index.js';
 import {
+  appVersions,
+  featureStates,
+  FEATURES,
+  isFeatureKey,
+  recentConfigChanges,
+  setAppVersions,
+  setFeature,
+} from '../modules/config/index.js';
+import {
+  decideAppeal,
   decideFaceCheck,
   decideVerification,
   enforce,
   enforcementHistory,
+  openAppeals,
   pendingFaceChecks,
   pendingVerifications,
   queueCounts,
   recentEnforcement,
 } from '../modules/verification/index.js';
+import { buildAgencyPages } from './agencies.routes.js';
+import { buildCatalogPages } from './catalog.routes.js';
 import { html } from './html.js';
-import { ADMIN_CSS, flash, loginPage, page, type Nav } from './layout.js';
+import { asText, CAN_SUSPEND, CAN_SWITCH, nav } from './nav.js';
+import { ADMIN_CSS, flash, loginPage, page } from './layout.js';
 import {
   logPage,
   queuePage,
+  reportsPage,
   roomsPage,
+  switchesPage,
   userPage,
   usersPage,
   type LiveRoomRow,
@@ -49,8 +66,6 @@ import {
   requireSession,
 } from './session.js';
 
-/** Actions only a lead or an admin may take. A moderator can flag, not suspend. */
-const CAN_SUSPEND = ['super_admin', 'ops_manager', 'ts_lead'];
 
 export function buildAdminRouter(): Router {
   const router = Router();
@@ -155,9 +170,10 @@ export function buildAdminRouter(): Router {
 
   router.use(requireSession);
 
-  async function nav(req: Parameters<typeof requireSession>[0], active: Nav['active']): Promise<Nav> {
-    return { active, counts: await queueCounts(), staffName: req.staff!.name };
-  }
+  // The larger sections are their own routers. Mounted here, after the
+  // session guard, so they inherit it.
+  router.use('/agencies', buildAgencyPages());
+  router.use('/catalog', buildCatalogPages());
 
   router.get('/', (_req, res) => res.redirect('/admin/queue'));
 
@@ -165,16 +181,24 @@ export function buildAdminRouter(): Router {
 
   router.get('/queue', async (req, res, next) => {
     try {
-      const [verifications, checks] = await Promise.all([
+      const [verifications, checks, appeals] = await Promise.all([
         pendingVerifications(),
         pendingFaceChecks(),
+        openAppeals(),
       ]);
       res.type('html').send(
         page(
           await nav(req, 'queue'),
           'Review queue',
-          html`${flash(asText(req.query.ok))}
-            ${queuePage({ verifications, checks, csrf: req.staff!.csrf })}`,
+          html`${flash(asText(req.query.ok))}${flash(asText(req.query.err), 'err')}
+            ${queuePage({
+              verifications,
+              checks,
+              appeals,
+              canDecideAppeals: req.staff!.roles.some((r) => CAN_SUSPEND.includes(r)),
+              staffId: req.staff!.userId,
+              csrf: req.staff!.csrf,
+            })}`,
         ),
       );
     } catch (err) {
@@ -238,6 +262,122 @@ export function buildAdminRouter(): Router {
       }
 
       res.redirect('/admin/queue?ok=' + encodeURIComponent('Recorded.'));
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /**
+   * An appeal is a lead's decision, and never the suspending moderator's. The
+   * service enforces the second rule; the first is the role check here.
+   */
+  router.post('/queue/appeal', requireRoles(...CAN_SUSPEND), requireCsrf, async (req, res, next) => {
+    try {
+      const decision = String(req.body.decision ?? '');
+      if (decision !== 'upheld' && decision !== 'overturned') {
+        throw new AppError('BAD_ACTION', 'Unknown decision', 422);
+      }
+      try {
+        await decideAppeal({
+          appealId: String(req.body.appealId ?? ''),
+          reviewerId: req.staff!.userId,
+          outcome: decision,
+          note: asText(req.body.note) || undefined,
+        });
+      } catch (err) {
+        if (err instanceof AppError && err.code === 'APPEAL_SAME_REVIEWER') {
+          return res.redirect('/admin/queue?err=' + encodeURIComponent(err.message));
+        }
+        throw err;
+      }
+      res.redirect(
+        '/admin/queue?ok=' +
+          encodeURIComponent(decision === 'overturned' ? 'Suspension lifted.' : 'Suspension upheld.'),
+      );
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ── Reports ─────────────────────────────────────────────────────────────
+
+  router.get('/reports', async (req, res, next) => {
+    try {
+      const reports = await openReports();
+      res.type('html').send(
+        page(
+          await nav(req, 'reports'),
+          'Reports',
+          html`${flash(asText(req.query.ok))}${flash(asText(req.query.err), 'err')}
+            ${reportsPage({
+              reports,
+              csrf: req.staff!.csrf,
+              canSuspend: req.staff!.roles.some((r) => CAN_SUSPEND.includes(r)),
+            })}`,
+        ),
+      );
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /**
+   * One form, four outcomes. The ACTION is taken first and the report closed
+   * after: if suspending fails, the report stays open and visible rather than
+   * vanishing with nothing done. A decision about the person closes every
+   * open report about them; a dismissal closes only this one.
+   */
+  router.post('/reports/decide', requireCsrf, async (req, res, next) => {
+    try {
+      const decision = String(req.body.decision ?? '');
+      if (!['dismiss', 'flag', 'suspend', 'end_room'].includes(decision)) {
+        throw new AppError('BAD_ACTION', 'Unknown decision', 422);
+      }
+      if (decision === 'suspend' && !req.staff!.roles.some((r) => CAN_SUSPEND.includes(r))) {
+        throw new AppError('FORBIDDEN', 'Only a lead can suspend a host', 403);
+      }
+
+      const report = await openReport(String(req.body.reportId ?? ''));
+      const note = asText(req.body.note) || undefined;
+
+      if (decision === 'dismiss') {
+        await resolveReport({ reportId: report.id, reviewerId: req.staff!.userId, outcome: 'dismissed' });
+        return res.redirect('/admin/reports?ok=' + encodeURIComponent('Dismissed.'));
+      }
+
+      if (report.subject === null) {
+        return res.redirect(
+          '/admin/reports?err=' + encodeURIComponent('That content no longer exists; dismiss it.'),
+        );
+      }
+      if (decision === 'end_room' && !(report.room?.live === true)) {
+        return res.redirect('/admin/reports?err=' + encodeURIComponent('That room is not live.'));
+      }
+
+      await enforce({
+        actorId: req.staff!.userId,
+        action: decision as 'flag' | 'suspend' | 'end_room',
+        subjectType: decision === 'end_room' ? 'room' : 'user',
+        subjectId: decision === 'end_room' ? report.room!.id : report.subject.userId,
+        source: 'report',
+        sourceId: report.id,
+        note,
+      });
+      const { closed } = await resolveReport({
+        reportId: report.id,
+        reviewerId: req.staff!.userId,
+        outcome: 'actioned',
+        // Ending a room answers the reports about THAT room, not about the
+        // person; a flag or a suspension answers all of them.
+        cascadeToUserId: decision === 'end_room' ? undefined : report.subject.userId,
+      });
+      res.redirect(
+        '/admin/reports?ok=' +
+          encodeURIComponent(
+            (decision === 'flag' ? 'Flagged.' : decision === 'suspend' ? 'Suspended.' : 'Room ended.') +
+              (closed > 1 ? ' ' + closed + ' reports closed.' : ''),
+          ),
+      );
     } catch (err) {
       next(err);
     }
@@ -407,6 +547,85 @@ export function buildAdminRouter(): Router {
     }
   });
 
+  // ── Switches ────────────────────────────────────────────────────────────
+
+  router.get('/switches', requireRoles(...CAN_SWITCH), async (req, res, next) => {
+    try {
+      const [states, versions, changes] = await Promise.all([
+        featureStates(),
+        appVersions(),
+        recentConfigChanges(40),
+      ]);
+      res.type('html').send(
+        page(
+          await nav(req, 'switches'),
+          'Switches',
+          html`${flash(asText(req.query.ok))}${flash(asText(req.query.err), 'err')}
+            ${switchesPage({ states, versions, changes, csrf: req.staff!.csrf })}`,
+        ),
+      );
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /**
+   * A refusal the operator can fix — a missing reason, a bad version — goes
+   * back to the page as a banner. Anything else is a real failure and takes
+   * the ordinary error path.
+   */
+  function backToSwitches(res: Parameters<typeof requireCsrf>[1], err: unknown): void {
+    if (err instanceof AppError && err.status === 422) {
+      res.redirect('/admin/switches?err=' + encodeURIComponent(err.message));
+      return;
+    }
+    throw err;
+  }
+
+  router.post('/switches/feature', requireRoles(...CAN_SWITCH), requireCsrf, async (req, res, next) => {
+    try {
+      const key = String(req.body.feature ?? '');
+      if (!isFeatureKey(key)) throw new AppError('BAD_ACTION', 'Unknown feature', 422);
+      const enabled = req.body.state === 'on';
+
+      try {
+        await setFeature({
+          key,
+          enabled,
+          actorId: req.staff!.userId,
+          reason: asText(req.body.reason),
+        });
+      } catch (err) {
+        return backToSwitches(res, err);
+      }
+      res.redirect(
+        '/admin/switches?ok=' +
+          encodeURIComponent(FEATURES[key].label + (enabled ? ' switched on.' : ' switched off.')),
+      );
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post('/switches/versions', requireRoles(...CAN_SWITCH), requireCsrf, async (req, res, next) => {
+    try {
+      try {
+        await setAppVersions({
+          minSupported: asText(req.body.minSupported),
+          latest: asText(req.body.latest),
+          storeUrl: asText(req.body.storeUrl),
+          actorId: req.staff!.userId,
+          reason: asText(req.body.reason),
+        });
+      } catch (err) {
+        return backToSwitches(res, err);
+      }
+      res.redirect('/admin/switches?ok=' + encodeURIComponent('Versions saved.'));
+    } catch (err) {
+      next(err);
+    }
+  });
+
   return router;
 }
 
@@ -427,10 +646,6 @@ function mediaOrigin(): string {
   }
 }
 
-/** Query strings are `string | string[] | ParsedQs`; this is the only shape we want. */
-function asText(value: unknown): string {
-  return typeof value === 'string' ? value : '';
-}
 
 async function findUsers(query: string): Promise<UserRow[]> {
   const asNumber = /^\d+$/.test(query) ? Number(query) : null;

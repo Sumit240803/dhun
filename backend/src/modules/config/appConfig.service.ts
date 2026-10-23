@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { getConfigNumber, getConfigValue } from '../economy/index.js';
 import { pool } from '../../infra/db.js';
+import { featureFlags } from './features.js';
 
 export interface OtpWidgetConfig {
   enabled: boolean;
@@ -28,7 +29,7 @@ export interface ClientConfig {
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
-const coldStartSchema = z.object({
+export const coldStartSchema = z.object({
   /** Null lifts the cap. */
   maxFeedRooms: z.number().int().min(1).max(100).nullable(),
   hideViewerCounts: z.boolean(),
@@ -104,10 +105,11 @@ export async function roomBackgroundPath(key: string | null): Promise<string | n
  * major feature. The client half has existed since the foundation
  * (`applyRemoteFlags`); this is what finally feeds it.
  *
- * Flags here are the NON-money switches. The money layer has a stronger one:
- * `ledger_txn_types.is_active` stops a flow inside the transaction itself, so
- * a client that ignores a flag — or a modified build that never asks — still
- * cannot move coins. A client-side flag hides a screen; it never guards money.
+ * The flags are derived from the kill switches in features.ts, which also
+ * refuse the request on the server and deactivate the feature's ledger
+ * transaction types — so a client that ignores a flag, or a modified build
+ * that never asks, still cannot move coins. A client-side flag hides a screen;
+ * it never guards money.
  */
 export async function getClientConfig(): Promise<ClientConfig> {
   const { rows } = await pool.query<{ key: string; value: unknown }>(
@@ -120,17 +122,23 @@ export async function getClientConfig(): Promise<ClientConfig> {
   const byKey = Object.fromEntries(rows.map((row) => [row.key, row.value]));
   const rawFlags = byKey.client_flags;
 
+  // Only booleans survive. A malformed row must not be able to hand the app
+  // a string where it expects a switch.
+  const cosmeticFlags =
+    rawFlags !== null && typeof rawFlags === 'object'
+      ? (Object.fromEntries(
+          Object.entries(rawFlags as Record<string, unknown>).filter(
+            ([, value]) => typeof value === 'boolean',
+          ),
+        ) as Record<string, boolean>)
+      : {};
+
   return {
-    // Only booleans survive. A malformed row must not be able to hand the app
-    // a string where it expects a switch.
-    flags:
-      rawFlags !== null && typeof rawFlags === 'object'
-        ? Object.fromEntries(
-            Object.entries(rawFlags as Record<string, unknown>).filter(
-              ([, value]) => typeof value === 'boolean',
-            ),
-          ) as Record<string, boolean>
-        : {},
+    // The kill switches win over client_flags. Since 033 a feature's state
+    // lives in ONE row (features), and the flag the app reads is derived from
+    // it — so the server refusing a request and the app hiding the button can
+    // never disagree.
+    flags: { ...cosmeticFlags, ...(await featureFlags()) },
     // Enabled only when it is BOTH switched on and actually configured. A
     // half-filled row would send the app down a path that cannot work, and the
     // failure would surface as a broken login rather than a missing setting.

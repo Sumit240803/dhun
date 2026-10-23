@@ -9,6 +9,7 @@ import {
 } from '../../middleware/authGuard.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { validate } from '../../middleware/validate.js';
+import { requireFeature } from '../config/index.js';
 import { createAgency, setCoinTrading } from './agency.admin.js';
 import { agencyDetail, auditTransfers, listAgencies, setAgencyStatus } from './admin.service.js';
 import { commissionSummary } from './commission.service.js';
@@ -275,6 +276,7 @@ export function buildAgencyRouter(): Router {
   router.post(
     '/transfers',
     requireAdult(),
+    requireFeature('agencyCoins'),
     // Deliberately tighter than the other writes: this is the one endpoint in
     // the module that moves currency.
     rateLimit({ scope: 'agency:transfer', limit: 60, windowMs: 60_000, by: 'user' }),

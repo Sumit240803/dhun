@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { authGuard, optionalAuth, requireRegistered } from '../../middleware/authGuard.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { validate } from '../../middleware/validate.js';
+import { assertFeature, requireFeature } from '../config/index.js';
 import { rankFor, topRooms } from './board.service.js';
 import { endRoom, getRoom, goLive, joinRoom, roomIdForCode } from './live.service.js';
 import { fullestRoom, listFeed } from './rooms.service.js';
@@ -68,6 +69,8 @@ export function buildRoomsRouter(): Router {
     '/live',
     authGuard(),
     requireRegistered(),
+    requireFeature('goLive'),
+    requireFeature('goLive'),
     // A host starting rooms in a loop is either a bug or an attempt to spam the
     // feed. Either way the ceiling is low, because going live is a rare act.
     rateLimit({ scope: 'room:golive', limit: 10, windowMs: 3_600_000, by: 'user' }),
@@ -87,6 +90,8 @@ export function buildRoomsRouter(): Router {
     ),
     async (req, res, next) => {
       try {
+        // Checked here and not as middleware because it depends on the body.
+        if (req.body.isVideo) await assertFeature('videoRooms');
         res.status(201).json(
           await goLive({
             hostId: req.userId!,

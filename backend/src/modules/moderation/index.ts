@@ -17,3 +17,5 @@ export {
   REPORT_REASONS,
 } from './moderation.service.js';
 export type { ReportReason, SubjectType } from './moderation.service.js';
+export { openReport, openReports, resolveReport } from './reports.queue.js';
+export type { OpenReport } from './reports.queue.js';

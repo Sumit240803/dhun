@@ -48,7 +48,9 @@ export async function resetLedger(): Promise<void> {
     // TRUNCATE, not DELETE: the append-only trigger refuses a row delete, and
     // it is right to — the log is evidence. TRUNCATE does not fire row
     // triggers, which is exactly what a test reset wants.
-    await c.query('TRUNCATE enforcement_actions');
+    // Appeals point at the log, and TRUNCATE refuses a table another one
+    // references unless both go in the same statement.
+    await c.query('TRUNCATE appeals, enforcement_actions');
     await c.query('DELETE FROM face_checks');
     await c.query('DELETE FROM host_verifications');
     await c.query('DELETE FROM referrals');
@@ -73,6 +75,11 @@ export async function resetLedger(): Promise<void> {
     await c.query('DELETE FROM agent_agency_assignments');
     await c.query('DELETE FROM agencies');
     await c.query('DELETE FROM agents');
+
+    // Config remembers who last changed it and the switches log remembers who
+    // threw them; both point at users and would block the delete below.
+    await c.query('TRUNCATE config_changes');
+    await c.query('UPDATE app_config SET updated_by = NULL WHERE updated_by IS NOT NULL');
 
     await c.query('DELETE FROM user_profiles');
     await c.query('DELETE FROM users');

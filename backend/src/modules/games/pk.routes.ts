@@ -4,6 +4,7 @@ import { AppError } from '../../infra/errors.js';
 import { authGuard, requireRegistered } from '../../middleware/authGuard.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { validate } from '../../middleware/validate.js';
+import { requireFeature } from '../config/index.js';
 import { pkConfig } from './pk.config.js';
 import {
   acceptInvite,
@@ -105,6 +106,7 @@ export function buildPkRouter(): Router {
    */
   router.post(
     '/invites',
+    requireFeature('pk'),
     rateLimit({ scope: 'pk:invite', limit: 20, windowMs: 600_000, by: 'user' }),
     validate(z.object({ toUserId: uuid }).strict()),
     async (req, res, next) => {
@@ -118,6 +120,7 @@ export function buildPkRouter(): Router {
 
   router.post(
     '/invites/:inviteId/accept',
+    requireFeature('pk'),
     rateLimit({ scope: 'pk:accept', limit: 30, windowMs: 600_000, by: 'user' }),
     validate({
       params: z.object({ inviteId: uuid }).strict(),
@@ -157,6 +160,7 @@ export function buildPkRouter(): Router {
 
   router.post(
     '/queue',
+    requireFeature('pk'),
     rateLimit({ scope: 'pk:queue', limit: 30, windowMs: 600_000, by: 'user' }),
     async (req, res, next) => {
       try {

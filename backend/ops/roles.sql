@@ -58,6 +58,11 @@ REVOKE UPDATE, DELETE ON reward_claims FROM :"app_role";
 -- Reference data. Changing a gift price or a rate is an ADMIN action through a
 -- reviewed path, never something an API request can do.
 REVOKE INSERT, UPDATE, DELETE ON ledger_txn_types FROM :"app_role";
+-- The one exception: the kill switch. /admin/switches runs inside the API
+-- process and flips is_active together with the client flag in a single
+-- transaction (033). One column, nothing else — a leg definition stays
+-- unreachable from a request.
+GRANT UPDATE (is_active) ON ledger_txn_types TO :"app_role";
 REVOKE INSERT, UPDATE, DELETE ON level_thresholds FROM :"app_role";
 REVOKE DELETE ON coin_packs, gift_catalog, cosmetics, app_config FROM :"app_role";
 

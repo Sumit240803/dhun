@@ -10,6 +10,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { useNewUserRewards } from '@/api/queries/useGrowth';
+import { useFlag } from '@/config/flags';
 import { useTranslation } from '@/i18n';
 import { haptic } from '@/lib/haptics';
 import { useIsRegistered } from '@/store/session';
@@ -26,8 +27,9 @@ export function NewUserEntry() {
   const isRegistered = useIsRegistered();
   const { data } = useNewUserRewards(isRegistered);
   const remaining = useCountdown(data?.endsAt ?? null, data?.clockOffsetMs ?? 0);
+  const rewardsEnabled = useFlag('rewardsEnabled');
 
-  if (!data || remaining.ms === 0) return null;
+  if (!data || remaining.ms === 0 || !rewardsEnabled) return null;
 
   return (
     <Animated.View entering={FadeIn.duration(200)} style={styles.wrapper}>

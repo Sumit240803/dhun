@@ -13,11 +13,17 @@ import { html, type Renderable, type SafeHtml } from './html.js';
 
 export interface Nav {
   /** Which tab is current. */
-  active: 'queue' | 'rooms' | 'users' | 'log';
+  active: 'queue' | 'reports' | 'rooms' | 'users' | 'agencies' | 'catalog' | 'log' | 'switches';
   /** Pending counts, shown as badges. A queue you cannot see is a queue nobody works. */
-  counts?: { verifications: number; faceChecks: number; reports: number };
+  counts?: { verifications: number; faceChecks: number; reports: number; appeals: number };
   /** Who is signed in. */
   staffName: string;
+  /**
+   * The session token, carried by the sign-out form on EVERY page. A page with
+   * no other form — an empty queue, an appeal that is not yours to decide —
+   * would otherwise render no token at all.
+   */
+  csrf: string;
 }
 
 export const ADMIN_CSS = `
@@ -95,6 +101,36 @@ export const ADMIN_CSS = `
   .flash { padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-weight: 600; }
   .flash.ok { background: rgba(49,196,141,.15); color: var(--ok); }
   .flash.err { background: rgba(255,59,48,.15); color: var(--danger); }
+  .tag.on { background: var(--ok); color: #11131a; border-color: var(--ok); }
+  .tag.off { background: var(--danger); color: #fff; border-color: var(--danger); }
+  td.desc { color: var(--muted); font-size: 13px; max-width: 420px; }
+  .quote {
+    margin: 4px 0 0; padding: 6px 10px; border-left: 2px solid var(--line);
+    color: var(--muted); font-size: 13px; max-width: 360px; white-space: pre-wrap;
+  }
+  .small { color: var(--muted); font-size: 12px; }
+  form.stack { display: flex; flex-direction: column; gap: 6px; min-width: 220px; }
+  form.stack .buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+  input.num { width: 110px; font-variant-numeric: tabular-nums; }
+  input.short { width: 160px; }
+  td.form-row form { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .tag.muted { color: var(--muted); }
+  .tag.house { background: var(--warn); color: #11131a; border-color: var(--warn); }
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .toolbar input[type=text] { width: 260px; }
+  .toolbar select { font: inherit; padding: 7px 10px; border-radius: 7px; border: 1px solid var(--line); background: #0f1118; color: var(--text); }
+  select { font: inherit; padding: 7px 10px; border-radius: 7px; border: 1px solid var(--line); background: #0f1118; color: var(--text); }
+  .kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; }
+  .kv dt { color: var(--muted); font-size: 12px; }
+  .kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+  h2 { font-size: 16px; margin: 24px 0 8px; }
+  .check { display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
+  form.inline { display: flex; gap: 8px; align-items: center; }
+  form.inline input[type=text] { width: 240px; }
+  .fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .fields label { display: block; color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+  .fields .wide { grid-column: 1 / -1; }
+  code { font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; color: var(--text); }
   .login { max-width: 360px; margin: 80px auto; }
   .login .card > * + * { margin-top: 12px; }
   a { color: var(--accent); }
@@ -102,13 +138,18 @@ export const ADMIN_CSS = `
 
 const TABS: { key: Nav['active']; href: string; label: string }[] = [
   { key: 'queue', href: '/admin/queue', label: 'Review queue' },
+  { key: 'reports', href: '/admin/reports', label: 'Reports' },
   { key: 'rooms', href: '/admin/rooms', label: 'Live rooms' },
   { key: 'users', href: '/admin/users', label: 'Users' },
+  { key: 'agencies', href: '/admin/agencies', label: 'Agencies' },
+  { key: 'catalog', href: '/admin/catalog', label: 'Catalog' },
   { key: 'log', href: '/admin/log', label: 'Enforcement log' },
+  { key: 'switches', href: '/admin/switches', label: 'Switches' },
 ];
 
 export function page(nav: Nav, title: string, body: Renderable): string {
-  const pending = (nav.counts?.verifications ?? 0) + (nav.counts?.faceChecks ?? 0);
+  const pending =
+    (nav.counts?.verifications ?? 0) + (nav.counts?.faceChecks ?? 0) + (nav.counts?.appeals ?? 0);
 
   return `<!doctype html>` + html`
 <html lang="en">
@@ -124,13 +165,20 @@ export function page(nav: Nav, title: string, body: Renderable): string {
     <span class="brand">Dhun admin</span>
     <nav>
       ${TABS.map(
-        (tab) => html`<a href="${tab.href}" class="${tab.key === nav.active ? 'on' : ''}"
-          >${tab.label}${tab.key === 'queue' && pending > 0 ? html`<span class="badge">${pending}</span>` : ''}</a
-        >`,
+        (tab) => {
+          const count =
+            tab.key === 'queue' ? pending : tab.key === 'reports' ? (nav.counts?.reports ?? 0) : 0;
+          return html`<a href="${tab.href}" class="${tab.key === nav.active ? 'on' : ''}"
+            >${tab.label}${count > 0 ? html`<span class="badge">${count}</span>` : ''}</a
+          >`;
+        },
       )}
     </nav>
     <span class="who">${nav.staffName}</span>
-    <form method="post" action="/admin/logout"><button>Sign out</button></form>
+    <form method="post" action="/admin/logout">
+      <input type="hidden" name="csrf" value="${nav.csrf}" />
+      <button>Sign out</button>
+    </form>
   </header>
   <main>${body}</main>
 </body>

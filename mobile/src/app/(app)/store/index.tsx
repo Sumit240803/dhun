@@ -63,6 +63,7 @@ export default function StoreScreen() {
   const isRegistered = useIsRegistered();
   const { user } = useSession();
   const conversionEnabled = useFlag('conversionEnabled');
+  const cosmeticsEnabled = useFlag('cosmeticsEnabled');
 
   const catalog = useCosmeticCatalog();
   const mine = useMyCosmetics(isRegistered);
@@ -89,7 +90,7 @@ export default function StoreScreen() {
   const short = selected !== null && gemBalance !== null && gemBalance < selected.gemPrice;
 
   function buyOrTopUp() {
-    if (!selected) return;
+    if (!selected || !cosmeticsEnabled) return;
     haptic.tap();
     if (short) {
       if (conversionEnabled) convertSheet.current?.present();
@@ -142,6 +143,12 @@ export default function StoreScreen() {
       </Row>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {!cosmeticsEnabled && (
+          <View style={styles.gutter}>
+            <Banner tone="info" message={t('paused.store')} testID="store-paused" />
+          </View>
+        )}
+
         {/* How you would look. Drawn from the same data a room uses. */}
         <Animated.View entering={FadeInDown.duration(260)} style={styles.preview}>
           <LookAvatar name={name} size="xl" frame={preview.frame} />
@@ -260,6 +267,7 @@ export default function StoreScreen() {
               <Button
                 label={t('store.extend')}
                 onPress={buyOrTopUp}
+                disabled={!cosmeticsEnabled}
                 variant="ghost"
                 size="lg"
                 testID="store-extend"
@@ -275,6 +283,7 @@ export default function StoreScreen() {
                     : t('store.buyFor', { gems: formatGems(gems(selected.gemPrice)) })
               }
               onPress={buyOrTopUp}
+              disabled={!cosmeticsEnabled}
               size="lg"
               fullWidth
               testID="store-buy"

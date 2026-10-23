@@ -791,6 +791,7 @@ while ahead therefore still wins.
 | D5 | **Coin float liability** and revenue-recognition reporting | [?] |
 | D7 | **Hourly room board** — `SUM(gift_sends.coins)` per room per hour, rolled up every 60s into `room_hour_scores`; a cache, never payable | [x] migration 029 |
 | D6 | **PK battle score** — `SUM(gift_sends.coins)` in the window, never a counter; frozen at settlement | [x] migration 028 |
+| D8 | **Kill switches and the catalog page** — switching a feature off sets its transaction types `is_active = false` in the SAME transaction as the client flag (`setFeature()`, 033), so the ledger and the app never disagree; catalog edits change `gift_catalog` / `coin_packs` only and never touch `gift_sends` or the ledger, so nothing already sent is re-priced. Every write is a `config_changes` row. | [x] migrations 033/034 |
 
 ## E. Reconciliation — the six mandated checks
 

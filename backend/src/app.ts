@@ -22,7 +22,7 @@ import { buildModerationRouter } from './modules/moderation/index.js';
 import { buildNotificationsRouter } from './modules/notifications/index.js';
 import { buildWebhooksRouter } from './modules/realtime/index.js';
 import { buildPkRouter } from './modules/games/index.js';
-import { buildVerificationRouter } from './modules/verification/index.js';
+import { buildAppealsRouter, buildVerificationRouter } from './modules/verification/index.js';
 import { buildRewardsRouter } from './modules/rewards/index.js';
 import { buildRoomsRouter } from './modules/rooms/index.js';
 import { buildUsersRouter } from './modules/users/index.js';
@@ -132,6 +132,7 @@ export function buildApp() {
   app.use('/v1/media', buildMediaRouter());
   app.use('/v1/pk', buildPkRouter());
   app.use('/v1/verification', buildVerificationRouter());
+  app.use('/v1/appeals', buildAppealsRouter());
 
   app.use(notFoundHandler());
   app.use(errorHandler());

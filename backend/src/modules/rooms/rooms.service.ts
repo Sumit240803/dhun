@@ -1,6 +1,6 @@
-import { pool } from "../../infra/db.js";
-import { coldStartConfig } from "../config/index.js";
-import { EMPTY_LOOK, looksFor, type UserLook } from "../cosmetics/index.js";
+import { pool } from '../../infra/db.js';
+import { coldStartConfig } from '../config/index.js';
+import { EMPTY_LOOK, looksFor, type UserLook } from '../cosmetics/index.js';
 
 /** Someone on a party room's seats, as the card's avatar stack draws them. */
 export interface SeatFace {
@@ -48,7 +48,7 @@ export interface FeedRoom {
   trending: boolean;
 }
 
-export type FeedCategory = "explore" | "party" | "following";
+export type FeedCategory = 'explore' | 'party' | 'following';
 
 /** How many rooms count as "trending" at any moment. */
 const TRENDING_COUNT = 10;
@@ -91,7 +91,7 @@ export async function listFeed(input: {
   // one a user opens has people in it. Following is exempt — someone who chose
   // to follow a host should always find their room.
   let limit = input.limit;
-  if (coldStart.maxFeedRooms !== null && input.category !== "following") {
+  if (coldStart.maxFeedRooms !== null && input.category !== 'following') {
     limit = Math.min(limit, Math.max(0, coldStart.maxFeedRooms - input.offset));
     if (limit === 0) return [];
   }
@@ -108,14 +108,12 @@ export async function listFeed(input: {
  * Never a room the viewer hosts, never one across a block. Null when nothing
  * is live, or when the dial is off.
  */
-export async function fullestRoom(
-  viewerId: string | undefined,
-): Promise<FeedRoom | null> {
+export async function fullestRoom(viewerId: string | undefined): Promise<FeedRoom | null> {
   const coldStart = await coldStartConfig();
   if (!coldStart.dropNewUsersIntoRoom) return null;
 
   const rows = await queryRooms({
-    category: "any",
+    category: 'any',
     viewerId,
     limit: 1,
     offset: 0,
@@ -126,12 +124,12 @@ export async function fullestRoom(
 }
 
 async function queryRooms(input: {
-  category: FeedCategory | "any";
+  category: FeedCategory | 'any';
   viewerId?: string;
   limit: number;
   offset: number;
 }): Promise<Row[]> {
-  const filters: string[] = ["r.ended_at IS NULL"];
+  const filters: string[] = ['r.ended_at IS NULL'];
   const params: unknown[] = [];
 
   // A block that does not hide the room is theatre. Applied in BOTH directions:
@@ -145,13 +143,13 @@ async function queryRooms(input: {
     );
   }
 
-  if (input.category === "any") {
+  if (input.category === 'any') {
     // Not a room of your own, which you cannot be "dropped into".
     if (input.viewerId) filters.push(`r.host_user_id <> $1::uuid`);
-  } else if (input.category === "party") {
-    filters.push("r.seat_capacity IS NOT NULL");
-  } else if (input.category === "explore") {
-    filters.push("r.seat_capacity IS NULL");
+  } else if (input.category === 'party') {
+    filters.push('r.seat_capacity IS NOT NULL');
+  } else if (input.category === 'explore') {
+    filters.push('r.seat_capacity IS NULL');
   } else {
     // Following. A guest follows nobody, and rather than returning everyone's
     // rooms we return none — the empty state says what to do next, which is
@@ -195,7 +193,7 @@ async function queryRooms(input: {
        FROM rooms r
        JOIN user_profiles p ON p.user_id = r.host_user_id
        LEFT JOIN user_stats s ON s.user_id = r.host_user_id
-      WHERE ${filters.join(" AND ")}
+      WHERE ${filters.join(' AND ')}
       ORDER BY r.viewer_count DESC, r.started_at DESC
       LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params,
@@ -203,17 +201,13 @@ async function queryRooms(input: {
   return rows;
 }
 
-function toFeedRoom(
-  row: Row,
-  hideViewerCounts: boolean,
-  looks: Map<string, UserLook>,
-): FeedRoom {
+function toFeedRoom(row: Row, hideViewerCounts: boolean, looks: Map<string, UserLook>): FeedRoom {
   return {
     id: row.id,
     hostId: row.host_user_id,
     // A host with no display name yet is still a real room. Falling back keeps
     // the card renderable rather than showing an empty line.
-    hostName: row.host_name ?? "Host",
+    hostName: row.host_name ?? 'Host',
     hostLevel: row.host_level ?? 1,
     hostLook: looks.get(row.host_user_id) ?? EMPTY_LOOK,
     title: row.title,

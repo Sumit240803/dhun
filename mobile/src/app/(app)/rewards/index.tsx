@@ -8,6 +8,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useClaimWelcome, useEnterReferralCode, useRewards } from '@/api/queries/useGrowth';
 import { ApiError } from '@/api/client';
 import { ApiErrorCode } from '@/api/types';
+import { useFlag } from '@/config/flags';
 import { CheckinCard } from '@/features/rewards/CheckinCard';
 import { useTranslation } from '@/i18n';
 import { errorMessage } from '@/lib/errors';
@@ -30,6 +31,7 @@ export default function RewardsScreen() {
   const { t } = useTranslation();
   const isRegistered = useIsRegistered();
   const rewards = useRewards(isRegistered);
+  const rewardsEnabled = useFlag('rewardsEnabled');
 
   return (
     <Screen padded={false} edges={['top', 'bottom']}>
@@ -56,6 +58,15 @@ export default function RewardsScreen() {
               haptic.tap();
               router.push('/(auth)');
             }}
+          />
+        </View>
+      ) : !rewardsEnabled ? (
+        <View style={styles.centre}>
+          <EmptyState
+            icon="pause-circle-outline"
+            title={t('paused.rewardsTitle')}
+            body={t('paused.rewardsBody')}
+            testID="rewards-paused"
           />
         </View>
       ) : rewards.isError ? (

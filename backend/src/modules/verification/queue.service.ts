@@ -183,16 +183,28 @@ export async function decideFaceCheck(input: {
 }
 
 /** How much is waiting. Drives the counts on the panel's front page. */
-export async function queueCounts(): Promise<{ verifications: number; faceChecks: number; reports: number }> {
-  const { rows } = await pool.query<{ verifications: string; face_checks: string; reports: string }>(
+export async function queueCounts(): Promise<{
+  verifications: number;
+  faceChecks: number;
+  reports: number;
+  appeals: number;
+}> {
+  const { rows } = await pool.query<{
+    verifications: string;
+    face_checks: string;
+    reports: string;
+    appeals: string;
+  }>(
     `SELECT
        (SELECT count(*) FROM host_verifications WHERE status = 'pending') AS verifications,
        (SELECT count(*) FROM face_checks WHERE status = 'pending') AS face_checks,
-       (SELECT count(*) FROM reports WHERE status = 'open') AS reports`,
+       (SELECT count(*) FROM reports WHERE status = 'open') AS reports,
+       (SELECT count(*) FROM appeals WHERE status = 'open') AS appeals`,
   );
   return {
     verifications: Number(rows[0]?.verifications ?? 0),
     faceChecks: Number(rows[0]?.face_checks ?? 0),
     reports: Number(rows[0]?.reports ?? 0),
+    appeals: Number(rows[0]?.appeals ?? 0),
   };
 }

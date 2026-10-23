@@ -126,17 +126,20 @@ with it, a Rive or SVGA version is hours of work.
 
 **Kill switch first. Always. Fix second.**
 
+Open **`/admin/switches`**, find the feature, write one line of why, switch it off.
+That single write refuses the feature on the server, deactivates its ledger transaction
+types (`is_active = false`) and hides it in the app on the next config fetch — and it
+is recorded in `config_changes` with your name. Verify it stopped, then diagnose
+without the clock running.
+
+If the panel itself is down, the ledger half by hand still works and is still first:
+
 ```sql
 UPDATE ledger_txn_types SET is_active = false WHERE code = 'gift_send';
 ```
 
-That stops the flow platform-wide, atomically, with no deploy. Verify it stopped,
-then diagnose without the clock running.
-
 Fixing first on a money path means the bug keeps happening while you work — and
 every occurrence is a ledger entry you will have to reverse.
-
-For non-money features, `config/flags.ts` does the same job client-side.
 
 Support quotes a `trace_id`. Every error response carries one, every log line is
 tagged with it, and Sentry indexes on it.

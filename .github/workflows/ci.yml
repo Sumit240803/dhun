@@ -36,12 +36,34 @@ jobs:
           --health-timeout 5s
           --health-retries 20
 
+      # The room bus and the gateway's fan-out are Redis pub/sub. Without this
+      # service every rooms-live and gateway test failed on ECONNREFUSED — the
+      # reason CI was red on every push until 2026-10-23.
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    # Everything the local .env supplies that a test depends on. The defaults
+    # are deliberately the UNCONFIGURED ones (EMAIL_PROVIDER=none fails loudly
+    # on the first send), which is right for a deploy and wrong for a test run.
     env:
       DATABASE_URL: postgres://liveapp:liveapp@localhost:5432/liveapp_test
       TEST_DATABASE_URL: postgres://liveapp:liveapp@localhost:5432/liveapp_test
       REDIS_URL: redis://localhost:6379
       JWT_SECRET: ci-only-secret-not-used-anywhere-real
       RAZORPAY_KEY_SECRET: razorpay-test-secret
+      EMAIL_PROVIDER: console
+      OTP_PROVIDER: console
+      IAP_PROVIDER: stub
+      PUSH_PROVIDER: console
+      # The widget tests stub MSG91 over HTTP; the service still has to believe
+      # it holds a server credential, or it answers 503 before the stub is hit.
+      MSG91_AUTH_KEY: ci-only-msg91-authkey
       NODE_ENV: test
 
     steps:

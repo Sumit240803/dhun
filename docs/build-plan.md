@@ -824,6 +824,130 @@ would stop the platform before it starts.
 
 ---
 
+### M18 · Kill switches, the back office, and the host's side of enforcement — ✅ COMPLETE, unverified on devices
+
+Built 2026-10-23, in the order agreed that morning: commit the pending work · force-update
+and kill switches · the host verification screen · the reports queue · CI · appeals · the
+agency back office · catalog editing · the transactions screen. The new-user rewards sheet
+and the feed's server-side search and seat-face cards from the day before went in first,
+as their own commit.
+
+**Kill switches** (migration 033). The force-update gate and the client flags had existed
+since 007; what was missing was the thing an incident needs — ONE write that stops a
+feature on the server (`requireFeature()` refuses), in the ledger (the feature's
+`ledger_txn_types.is_active`) and in the app (the derived client flag), recorded in the
+append-only `config_changes` with who and why. Nine switches; a key missing from the row
+is ON, so a typo can never switch the product off. The app shows a designed paused state
+for each — the go-live door, the rewards screen, the store, the wallet, agency transfers.
+
+**Verification screen** — the "Auth" entry on the reference Me screen. Two steps on one
+page: the phone number (already verified for most) and a face photo a person reviews; the
+status strip says pending / approved / rejected with the reviewer's note. Takes the photo
+with `expo-image-picker` (no new native dependency), uploads under the avatar purpose,
+submits the key. A row on Me carries the state.
+
+**Reports queue** — the table and the API had existed since 008 with nobody able to see
+them. Live-room reports first. A decision about the PERSON (flag, suspend) closes every
+open report about them; a dismissal closes only the one in hand; the action is taken
+before the report is closed, so a failed suspension leaves the report visible.
+
+**CI** had failed on every push since the first run. Not code: the backend job had no
+Redis service (the room bus) and none of the provider env the local `.env` supplies
+(`EMAIL_PROVIDER=console`, `MSG91_AUTH_KEY`). Fixed in the workflow.
+
+**Appeals** (migration 034). One appeal per suspension (`appeals.action_id` UNIQUE on
+the enforcement row), decided by someone OTHER than the person who suspended them — the
+form knows who you are and refuses the suspender — and lifting goes through `enforce()`
+with `source = 'appeal'`. The host sees it at the go-live door, on a Me card, and on the
+appeal screen; the reviewer's note is shown, the moderator's suspension note is not.
+
+**Agency back office** — M12's API-only actions as pages: list and search, create,
+grant coin trading, record a prepay, confirm it as a DIFFERENT person (the database's
+maker-checker constraint, now also a named refusal `PREPAY_SAME_PERSON`), suspend with a
+reason, the transfer audit by user ID. **Catalog** — gift prices and per-gift payout,
+packs, and the free-coin, new-user and cold-start dials, each validated with the schema
+the reading code uses (moved to `shared/rewardsConfig.ts`), each recorded in
+`config_changes`. Nothing re-prices anything already sent: `gift_sends` carries its
+points at the moment of sending.
+
+**Transactions screen** — the wallet statement, grouped by IST day, each row showing
+every balance it moved in its reserved currency colour, paged by uuidv7 id.
+
+**Found on the way:** the backend has no Prettier config and a run with defaults had
+turned seven files to double quotes — restored. A test's CSRF token came from a page
+with no form on it, so the sign-out form now carries the token on every page.
+
+**Exit criteria met:** {{BACKEND_TESTS}} backend tests · {{MOBILE_TESTS}} mobile ·
+`npm run check` clean · CI green on `main` for the first time.
+
+**Outstanding:** device verification of everything since M5; the legal pages' text and
+the Grievance Officer's name; platform rankings and the region picker, both waiting on a
+decision (daily or weekly boards; what a region is).
+
+---
+
+### M18 · Kill switches, the back office, and the host's side of enforcement — ✅ COMPLETE, unverified on devices
+
+Built 2026-10-23, in the order agreed that morning: commit the pending work · force-update
+and kill switches · the host verification screen · the reports queue · CI · appeals · the
+agency back office · catalog editing · the transactions screen. The new-user rewards sheet
+and the feed's server-side search and seat-face cards from the day before went in first,
+as their own commit.
+
+**Kill switches** (migration 033). The force-update gate and the client flags had existed
+since 007; what was missing was the thing an incident needs — ONE write that stops a
+feature on the server (`requireFeature()` refuses), in the ledger (the feature's
+`ledger_txn_types.is_active`) and in the app (the derived client flag), recorded in the
+append-only `config_changes` with who and why. Nine switches; a key missing from the row
+is ON, so a typo can never switch the product off. The app shows a designed paused state
+for each — the go-live door, the rewards screen, the store, the wallet, agency transfers.
+
+**Verification screen** — the "Auth" entry on the reference Me screen. Two steps on one
+page: the phone number (already verified for most) and a face photo a person reviews; the
+status strip says pending / approved / rejected with the reviewer's note. Takes the photo
+with `expo-image-picker` (no new native dependency), uploads under the avatar purpose,
+submits the key. A row on Me carries the state.
+
+**Reports queue** — the table and the API had existed since 008 with nobody able to see
+them. Live-room reports first. A decision about the PERSON (flag, suspend) closes every
+open report about them; a dismissal closes only the one in hand; the action is taken
+before the report is closed, so a failed suspension leaves the report visible.
+
+**CI** had failed on every push since the first run. Not code: the backend job had no
+Redis service (the room bus) and none of the provider env the local `.env` supplies
+(`EMAIL_PROVIDER=console`, `MSG91_AUTH_KEY`). Fixed in the workflow.
+
+**Appeals** (migration 034). One appeal per suspension (`appeals.action_id` UNIQUE on
+the enforcement row), decided by someone OTHER than the person who suspended them — the
+form knows who you are and refuses the suspender — and lifting goes through `enforce()`
+with `source = 'appeal'`. The host sees it at the go-live door, on a Me card, and on the
+appeal screen; the reviewer's note is shown, the moderator's suspension note is not.
+
+**Agency back office** — M12's API-only actions as pages: list and search, create,
+grant coin trading, record a prepay, confirm it as a DIFFERENT person (the database's
+maker-checker constraint, now also a named refusal `PREPAY_SAME_PERSON`), suspend with a
+reason, the transfer audit by user ID. **Catalog** — gift prices and per-gift payout,
+packs, and the free-coin, new-user and cold-start dials, each validated with the schema
+the reading code uses (moved to `shared/rewardsConfig.ts`), each recorded in
+`config_changes`. Nothing re-prices anything already sent: `gift_sends` carries its
+points at the moment of sending.
+
+**Transactions screen** — the wallet statement, grouped by IST day, each row showing
+every balance it moved in its reserved currency colour, paged by uuidv7 id.
+
+**Found on the way:** the backend has no Prettier config and a run with defaults had
+turned seven files to double quotes — restored. A test's CSRF token came from a page
+with no form on it, so the sign-out form now carries the token on every page.
+
+**Exit criteria met:** {{BACKEND_TESTS}} backend tests · {{MOBILE_TESTS}} mobile ·
+`npm run check` clean · CI green on `main` for the first time.
+
+**Outstanding:** device verification of everything since M5; the legal pages' text and
+the Grievance Officer's name; platform rankings and the region picker, both waiting on a
+decision (daily or weekly boards; what a region is).
+
+---
+
 ## Admin panel — threaded, not a milestone
 
 Your docs are explicit: *"Admin panel MVP ka hissa hai, baad mein nahi."* Each milestone

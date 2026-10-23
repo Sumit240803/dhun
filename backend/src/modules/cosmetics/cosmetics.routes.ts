@@ -4,6 +4,7 @@ import { authGuard, requireAdult, requireRegistered } from '../../middleware/aut
 import { requireIdempotencyKey } from '../../middleware/idempotency.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { validate } from '../../middleware/validate.js';
+import { requireFeature } from '../config/index.js';
 import { WEARABLE_KINDS } from '../../shared/cosmeticStyle.js';
 import {
   equipCosmetic,
@@ -35,6 +36,7 @@ export function buildCosmeticsRouter(): Router {
     '/purchase',
     requireRegistered(),
     requireAdult(),
+    requireFeature('cosmetics'),
     rateLimit({ scope: 'money', limit: 30, windowMs: 60_000, by: 'user' }),
     requireIdempotencyKey(),
     validate(

@@ -9,9 +9,9 @@
 //
 // Blocks hide in both directions, as they do in the feed.
 
-import { pool } from "../../infra/db.js";
-import { coldStartConfig } from "../config/index.js";
-import { EMPTY_LOOK, looksFor, type UserLook } from "../cosmetics/index.js";
+import { pool } from '../../infra/db.js';
+import { coldStartConfig } from '../config/index.js';
+import { EMPTY_LOOK, looksFor, type UserLook } from '../cosmetics/index.js';
 
 export interface PersonResult {
   userId: string;
@@ -45,7 +45,7 @@ export async function search(
   rawQuery: string,
   viewerId: string | undefined,
 ): Promise<{ people: PersonResult[]; rooms: RoomResult[] }> {
-  const query = rawQuery.trim().replace(/\s+/g, " ");
+  const query = rawQuery.trim().replace(/\s+/g, ' ');
   if (query.length === 0) return { people: [], rooms: [] };
 
   const prefix = `${escapeLike(query.toLowerCase())}%`;
@@ -129,7 +129,7 @@ export async function search(
       id: row.id,
       title: row.title,
       hostId: row.host_user_id,
-      hostName: row.host_name ?? "Host",
+      hostName: row.host_name ?? 'Host',
       viewers: coldStart.hideViewerCounts ? null : row.viewer_count,
       party: row.seat_capacity !== null,
     })),
