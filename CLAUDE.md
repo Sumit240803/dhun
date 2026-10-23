@@ -535,7 +535,7 @@ walk away from a vendor and an SDK spread across four modules cannot walk anywhe
 One repo, pushed to `git@github.com:Sumit240803/dhun.git` (`main`).
 Verify everything with **`npm run check`** from the root.
 
-### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5–M7, M10, M12–M18 built, unverified on devices. {{BACKEND_TESTS}} tests.
+### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5–M7, M10, M12–M18 built, unverified on devices. 573 tests.
 
 Seventeen migrations, 68 routes, and all three processes built: API, workers, and the
 realtime gateway. **M10 was built before M8 and M9, by agreement** — both are blocked on

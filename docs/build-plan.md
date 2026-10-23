@@ -877,7 +877,7 @@ every balance it moved in its reserved currency colour, paged by uuidv7 id.
 turned seven files to double quotes — restored. A test's CSRF token came from a page
 with no form on it, so the sign-out form now carries the token on every page.
 
-**Exit criteria met:** {{BACKEND_TESTS}} backend tests · {{MOBILE_TESTS}} mobile ·
+**Exit criteria met:** 573 backend tests · 153 mobile ·
 `npm run check` clean · CI green on `main` for the first time.
 
 **Outstanding:** device verification of everything since M5; the legal pages' text and
@@ -939,7 +939,7 @@ every balance it moved in its reserved currency colour, paged by uuidv7 id.
 turned seven files to double quotes — restored. A test's CSRF token came from a page
 with no form on it, so the sign-out form now carries the token on every page.
 
-**Exit criteria met:** {{BACKEND_TESTS}} backend tests · {{MOBILE_TESTS}} mobile ·
+**Exit criteria met:** 573 backend tests · 153 mobile ·
 `npm run check` clean · CI green on `main` for the first time.
 
 **Outstanding:** device verification of everything since M5; the legal pages' text and
