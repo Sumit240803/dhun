@@ -9,9 +9,9 @@
 //
 // Blocks hide in both directions, as they do in the feed.
 
-import { pool } from '../../infra/db.js';
-import { coldStartConfig } from '../config/index.js';
-import { EMPTY_LOOK, looksFor, type UserLook } from '../cosmetics/index.js';
+import { pool } from "../../infra/db.js";
+import { coldStartConfig } from "../config/index.js";
+import { EMPTY_LOOK, looksFor, type UserLook } from "../cosmetics/index.js";
 
 export interface PersonResult {
   userId: string;
@@ -45,7 +45,7 @@ export async function search(
   rawQuery: string,
   viewerId: string | undefined,
 ): Promise<{ people: PersonResult[]; rooms: RoomResult[] }> {
-  const query = rawQuery.trim().replace(/\s+/g, ' ');
+  const query = rawQuery.trim().replace(/\s+/g, " ");
   if (query.length === 0) return { people: [], rooms: [] };
 
   const prefix = `${escapeLike(query.toLowerCase())}%`;
@@ -98,13 +98,16 @@ export async function search(
         WHERE r.ended_at IS NULL
           -- Live rooms are few at any moment, so a contains-match on the title
           -- is cheap here where it would not be across every profile.
-          AND (lower(r.title) LIKE '%' || $1 OR lower(p.display_name) LIKE $1)
+          AND (lower(r.title) LIKE '%' || $1
+               OR lower(p.display_name) LIKE $1
+               -- The six-digit room code a host reads out on stream (029).
+               OR r.public_id = $4::bigint)
           AND NOT EXISTS (SELECT 1 FROM blocks b
                            WHERE (b.blocker_user_id = $2::uuid AND b.blocked_user_id = r.host_user_id)
                               OR (b.blocker_user_id = r.host_user_id AND b.blocked_user_id = $2::uuid))
-        ORDER BY r.viewer_count DESC, r.started_at DESC
+        ORDER BY (r.public_id = $4::bigint) DESC NULLS LAST, r.viewer_count DESC, r.started_at DESC
         LIMIT $3`,
-      [prefix, viewer, LIMIT],
+      [prefix, viewer, LIMIT, exactId],
     ),
     coldStartConfig(),
   ]);
@@ -126,7 +129,7 @@ export async function search(
       id: row.id,
       title: row.title,
       hostId: row.host_user_id,
-      hostName: row.host_name ?? 'Host',
+      hostName: row.host_name ?? "Host",
       viewers: coldStart.hideViewerCounts ? null : row.viewer_count,
       party: row.seat_capacity !== null,
     })),

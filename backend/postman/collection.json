@@ -1659,7 +1659,7 @@
                 }
               ]
             },
-            "description": "Live rooms, most watched first. Readable WITHOUT a session — browsing is the top of the funnel and a signed-out user has to see what the app is before being asked for a phone number.\n\n`following` needs a viewer and returns empty without one. `trending` is computed in the same query, so it can never disagree with the ordering."
+            "description": "Live rooms, most watched first. Readable WITHOUT a session — browsing is the top of the funnel and a signed-out user has to see what the app is before being asked for a phone number.\n\n`following` needs a viewer and returns empty without one. `trending` is computed in the same query, so it can never disagree with the ordering.\n\n**Card fields (added 2026-10-16):** `hostLevel` (number), `hostLook` (the host's worn cosmetics — the card uses `nameColor`), and `seatFaces` — up to three `{ userId, avatarUrl }` for the people seated, host's seat excluded, in seat order. Empty for a room without seats."
           },
           "response": [],
           "event": [
@@ -3815,6 +3815,79 @@
               }
             }
           ]
+        },
+        {
+          "name": "5 — New-user rewards",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rewards/new-user",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rewards",
+                "new-user"
+              ]
+            },
+            "description": "The new-user sheet: `{ newUser: { endsAt, serverNow, tasks: [{ id, coins, done, claimed }] } }`, or `{ newUser: null }` when there is no sheet.\n\n**The window is signup + `windowDays` (7) and never restarts.** A user returning after a month gets `null`. `serverNow` lets the app count down on the server clock rather than the phone.\n\nTasks: `follow`, `gift`, `chat`. `done` is DERIVED from follows, gift_sends and room_messages (a filter-blocked message does not count). The sheet's check-in row is the ordinary check-in (`POST /rewards/checkin`), not a task here.\n\n`null` also when another account on the same phone has already claimed one of these. Amounts in `app_config.new_user_rewards`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6 — Claim a new-user task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rewards/new-user/follow",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rewards",
+                "new-user",
+                "follow"
+              ]
+            },
+            "description": "`:task` is `follow` | `gift` | `chat`. Pays once, ever — the ledger key is `new_user:{task}:{user}`, derived from the claim, so no Idempotency-Key header. A repeat returns `alreadyClaimed: true`.\n\n**Errors:** `REWARD_NOT_EARNED` 409 (task not done) · `NEW_USER_WINDOW_CLOSED` 409 · `NEW_USER_ALREADY_USED_ON_DEVICE` 409 · `REWARD_UNAVAILABLE` 409 (task set to 0) · `REGISTRATION_REQUIRED` 403 · `VALIDATION_FAILED` 422 (unknown task)"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 or 409', () => pm.expect(pm.response.code).to.be.oneOf([200, 409]));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -3849,7 +3922,7 @@
                 }
               ]
             },
-            "description": "People by name PREFIX (case-insensitive) or exact public ID; live rooms by title or host name. Blocks hide in both directions. People carry `look` and `liveRoomId`. Viewer counts are null while cold start hides them."
+            "description": "People by name PREFIX (case-insensitive) or exact public ID; live rooms by title or host name. Blocks hide in both directions. People carry `look` and `liveRoomId`. Viewer counts are null while cold start hides them.\n\n**Room codes:** a six-digit query also matches a live room's `public_id`, the code a host reads out on stream, and that room sorts first. The Live and Party feeds' search bar calls this same endpoint."
           },
           "response": [],
           "event": [

@@ -7,6 +7,7 @@ import { useMessageThreads } from '@/api/queries/useFeed';
 import { useLocaleSync } from '@/features/auth/useLocaleSync';
 import { usePushNotifications } from '@/features/notifications/push';
 import { DailyPrompt } from '@/features/rewards/DailyPrompt';
+import { NewUserSheet } from '@/features/rewards/newUser/NewUserSheet';
 import { useTranslation, type MessageKey } from '@/i18n';
 import { haptic } from '@/lib/haptics';
 import { colors, radius, spacing, typography } from '@/theme';
@@ -47,6 +48,7 @@ export default function TabsLayout() {
   return (
     <>
       <DailyPrompt />
+      <NewUserSheet />
       <Tabs
         screenOptions={{
           headerShown: false,

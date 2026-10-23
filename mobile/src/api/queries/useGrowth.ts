@@ -50,6 +50,35 @@ export function useCheckin() {
   });
 }
 
+export function useNewUserRewards(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.rewards.newUser(),
+    queryFn: async () => {
+      const { newUser } = await rewardsApi.newUser();
+      if (!newUser) return null;
+      // Measured once, at arrival, so the countdown runs on the SERVER's clock:
+      // a phone set a day fast must not show a day less than it has.
+      return { ...newUser, clockOffsetMs: Date.parse(newUser.serverNow) - Date.now() };
+    },
+    enabled,
+    // Progress changes when the user follows, gifts or chats elsewhere in the
+    // app; a minute is short enough that the sheet catches up on next open.
+    staleTime: 60_000,
+  });
+}
+
+export function useClaimNewUserTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: rewardsApi.claimNewUser,
+    onSuccess: (result, task) => {
+      afterClaim(queryClient);
+      if (!result.alreadyClaimed)
+        track('free_coins_earned', { source: `new_user_${task}`, coins: result.coins });
+    },
+  });
+}
+
 export function useEnterReferralCode() {
   const queryClient = useQueryClient();
   return useMutation({

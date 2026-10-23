@@ -13,17 +13,17 @@
 //   · for registered accounts only. Guests cannot spend, and coins handed to
 //     accounts that cannot spend them are a liability with no purpose.
 
-import type { PoolClient } from 'pg';
-import { z } from 'zod';
-import { pool } from '../../infra/db.js';
-import { AppError } from '../../infra/errors.js';
-import { logger } from '../../infra/logger.js';
+import type { PoolClient } from "pg";
+import { z } from "zod";
+import { pool } from "../../infra/db.js";
+import { AppError } from "../../infra/errors.js";
+import { logger } from "../../infra/logger.js";
 import {
   ECONOMY,
   freeCoinGrantLegs,
   getConfigValue,
   postTransaction,
-} from '../economy/index.js';
+} from "../economy/index.js";
 
 // ── Config ──────────────────────────────────────────────────────────────────
 
@@ -53,9 +53,9 @@ const DEFAULTS: FreeCoinsConfig = {
 };
 
 export async function freeCoinsConfig(): Promise<FreeCoinsConfig> {
-  const parsed = freeCoinsSchema.safeParse(await getConfigValue('free_coins'));
+  const parsed = freeCoinsSchema.safeParse(await getConfigValue("free_coins"));
   if (!parsed.success) {
-    logger.error('app_config.free_coins is invalid; using defaults', {
+    logger.error("app_config.free_coins is invalid; using defaults", {
       issues: parsed.error.issues.length,
     });
     return DEFAULTS;
@@ -78,7 +78,7 @@ function previousDay(day: string): string {
 
 // ── The one way coins are granted ───────────────────────────────────────────
 
-type ClaimKind = 'signup' | 'checkin' | 'watch' | 'referral';
+type ClaimKind = "signup" | "checkin" | "watch" | "referral" | "new_user";
 
 interface Grant {
   userId: string;
@@ -91,9 +91,11 @@ interface Grant {
   alsoInTransaction?: (client: PoolClient) => Promise<void>;
 }
 
-async function grant(input: Grant): Promise<{ coins: number; replayed: boolean }> {
+async function grant(
+  input: Grant,
+): Promise<{ coins: number; replayed: boolean }> {
   const result = await postTransaction({
-    txnType: 'free_coin_grant',
+    txnType: "free_coin_grant",
     idempotencyKey: input.claimKey,
     identity: { source: input.kind, claim: input.claimKey },
     rates: {
@@ -121,7 +123,7 @@ async function grant(input: Grant): Promise<{ coins: number; replayed: boolean }
     events: [
       {
         // The event taxonomy's name for it (data-and-launch-plan-v1).
-        eventType: 'free_coins_earned',
+        eventType: "free_coins_earned",
         partitionKey: input.userId,
         payload: {
           user_id: input.userId,
@@ -134,7 +136,10 @@ async function grant(input: Grant): Promise<{ coins: number; replayed: boolean }
     response: { coins: input.coins, kind: input.kind },
   });
 
-  return { coins: Number(result.response.coins ?? input.coins), replayed: result.replayed };
+  return {
+    coins: Number(result.response.coins ?? input.coins),
+    replayed: result.replayed,
+  };
 }
 
 // ── Welcome bonus ───────────────────────────────────────────────────────────
@@ -146,23 +151,35 @@ async function grant(input: Grant): Promise<{ coins: number; replayed: boolean }
  * new number, claim again — rather than a determined one. The determined one
  * is M9's fraud work; this keeps it from being free.
  */
-async function welcomeTakenOnDevice(userId: string): Promise<boolean> {
+async function takenOnDevice(
+  userId: string,
+  kind: "signup" | "new_user",
+): Promise<boolean> {
   const { rowCount } = await pool.query(
     `SELECT 1
        FROM user_devices mine
        JOIN user_devices theirs ON theirs.device_id = mine.device_id AND theirs.user_id <> mine.user_id
-       JOIN reward_claims rc ON rc.user_id = theirs.user_id AND rc.kind = 'signup'
+       JOIN reward_claims rc ON rc.user_id = theirs.user_id AND rc.kind = $2
       WHERE mine.user_id = $1
       LIMIT 1`,
-    [userId],
+    [userId, kind],
   );
   return rowCount! > 0;
 }
 
-export async function claimWelcome(userId: string): Promise<{ coins: number; alreadyClaimed: boolean }> {
+const welcomeTakenOnDevice = (userId: string) =>
+  takenOnDevice(userId, "signup");
+
+export async function claimWelcome(
+  userId: string,
+): Promise<{ coins: number; alreadyClaimed: boolean }> {
   const config = await freeCoinsConfig();
   if (config.signup === 0) {
-    throw new AppError('REWARD_UNAVAILABLE', 'This reward is not available right now', 409);
+    throw new AppError(
+      "REWARD_UNAVAILABLE",
+      "This reward is not available right now",
+      409,
+    );
   }
 
   const claimKey = `signup:${userId}`;
@@ -171,15 +188,15 @@ export async function claimWelcome(userId: string): Promise<{ coins: number; alr
 
   if (await welcomeTakenOnDevice(userId)) {
     throw new AppError(
-      'WELCOME_ALREADY_USED_ON_DEVICE',
-      'The welcome bonus has already been claimed on this phone',
+      "WELCOME_ALREADY_USED_ON_DEVICE",
+      "The welcome bonus has already been claimed on this phone",
       409,
     );
   }
 
   const result = await grant({
     userId,
-    kind: 'signup',
+    kind: "signup",
     claimKey,
     coins: config.signup,
     dayIst: istDate(),
@@ -189,12 +206,18 @@ export async function claimWelcome(userId: string): Promise<{ coins: number; alr
 
 // ── Daily check-in ──────────────────────────────────────────────────────────
 
-async function claimExists(claimKey: string): Promise<{ coins: number; streakDay: number | null } | null> {
-  const { rows } = await pool.query<{ coins: string; streak_day: number | null }>(
-    'SELECT coins, streak_day FROM reward_claims WHERE claim_key = $1',
-    [claimKey],
-  );
-  return rows[0] ? { coins: Number(rows[0].coins), streakDay: rows[0].streak_day } : null;
+async function claimExists(
+  claimKey: string,
+): Promise<{ coins: number; streakDay: number | null } | null> {
+  const { rows } = await pool.query<{
+    coins: string;
+    streak_day: number | null;
+  }>("SELECT coins, streak_day FROM reward_claims WHERE claim_key = $1", [
+    claimKey,
+  ]);
+  return rows[0]
+    ? { coins: Number(rows[0].coins), streakDay: rows[0].streak_day }
+    : null;
 }
 
 /**
@@ -205,7 +228,9 @@ async function claimExists(claimKey: string): Promise<{ coins: number; streakDay
  * a running counter, so it can never disagree with the claims that exist.
  */
 async function nextStreakDay(userId: string, today: string): Promise<number> {
-  const yesterday = await claimExists(`checkin:${userId}:${previousDay(today)}`);
+  const yesterday = await claimExists(
+    `checkin:${userId}:${previousDay(today)}`,
+  );
   return yesterday?.streakDay ? (yesterday.streakDay % 7) + 1 : 1;
 }
 
@@ -216,19 +241,27 @@ export async function claimCheckin(
   const claimKey = `checkin:${userId}:${today}`;
   const existing = await claimExists(claimKey);
   if (existing) {
-    return { coins: existing.coins, streakDay: existing.streakDay ?? 1, alreadyClaimed: true };
+    return {
+      coins: existing.coins,
+      streakDay: existing.streakDay ?? 1,
+      alreadyClaimed: true,
+    };
   }
 
   const config = await freeCoinsConfig();
   const streakDay = await nextStreakDay(userId, today);
   const coins = config.checkinLadder[streakDay - 1];
   if (coins === 0) {
-    throw new AppError('REWARD_UNAVAILABLE', 'This reward is not available right now', 409);
+    throw new AppError(
+      "REWARD_UNAVAILABLE",
+      "This reward is not available right now",
+      409,
+    );
   }
 
   const result = await grant({
     userId,
-    kind: 'checkin',
+    kind: "checkin",
     claimKey,
     coins,
     dayIst: today,
@@ -260,7 +293,7 @@ export async function grantWatchReward(
             (SELECT status FROM users WHERE id = $1) AS status`,
     [userId, today],
   );
-  if (rows[0]?.status !== 'active') return null;
+  if (rows[0]?.status !== "active") return null;
 
   const earned = Number(rows[0].count);
   if (earned >= config.watch.dailyCap) return null;
@@ -268,7 +301,7 @@ export async function grantWatchReward(
   const slot = earned + 1;
   const result = await grant({
     userId,
-    kind: 'watch',
+    kind: "watch",
     // The slot number is part of the key: two racing calls for slot 4 collide
     // on the key and only one pays, and neither can ever claim slot 11.
     claimKey: `watch:${userId}:${today}:${slot}`,
@@ -277,16 +310,27 @@ export async function grantWatchReward(
   });
   if (result.replayed) return null;
 
-  return { coins: result.coins, earnedToday: slot, dailyCap: config.watch.dailyCap };
+  return {
+    coins: result.coins,
+    earnedToday: slot,
+    dailyCap: config.watch.dailyCap,
+  };
 }
 
 // ── Referrals ───────────────────────────────────────────────────────────────
 
-export async function attachReferral(userId: string, code: string): Promise<{ referrerName: string | null }> {
+export async function attachReferral(
+  userId: string,
+  code: string,
+): Promise<{ referrerName: string | null }> {
   const config = await freeCoinsConfig();
 
   if (!/^\d{1,18}$/.test(code)) {
-    throw new AppError('REFERRAL_CODE_INVALID', 'That invite code does not exist', 404);
+    throw new AppError(
+      "REFERRAL_CODE_INVALID",
+      "That invite code does not exist",
+      404,
+    );
   }
 
   const { rows } = await pool.query<{
@@ -313,19 +357,31 @@ export async function attachReferral(userId: string, code: string): Promise<{ re
   );
 
   const row = rows[0];
-  if (!row?.referrer_id || row.referrer_status !== 'active') {
-    throw new AppError('REFERRAL_CODE_INVALID', 'That invite code does not exist', 404);
+  if (!row?.referrer_id || row.referrer_status !== "active") {
+    throw new AppError(
+      "REFERRAL_CODE_INVALID",
+      "That invite code does not exist",
+      404,
+    );
   }
   if (row.referrer_id === userId) {
-    throw new AppError('REFERRAL_SELF', 'You cannot use your own invite code', 422);
+    throw new AppError(
+      "REFERRAL_SELF",
+      "You cannot use your own invite code",
+      422,
+    );
   }
   if (row.already_referred) {
-    throw new AppError('REFERRAL_ALREADY_SET', 'You have already used an invite code', 409);
+    throw new AppError(
+      "REFERRAL_ALREADY_SET",
+      "You have already used an invite code",
+      409,
+    );
   }
   if (Number(row.account_age_days) > config.referral.attachWindowDays) {
     throw new AppError(
-      'REFERRAL_WINDOW_CLOSED',
-      'Invite codes can only be used by new accounts',
+      "REFERRAL_WINDOW_CLOSED",
+      "Invite codes can only be used by new accounts",
       409,
       { days: config.referral.attachWindowDays },
     );
@@ -334,11 +390,15 @@ export async function attachReferral(userId: string, code: string): Promise<{ re
   // invalid one would be too obvious a hint; this one is named, because a
   // family sharing a phone deserves to know why.
   if (row.shares_device) {
-    throw new AppError('REFERRAL_NOT_ALLOWED', 'Invites cannot come from an account on this phone', 422);
+    throw new AppError(
+      "REFERRAL_NOT_ALLOWED",
+      "Invites cannot come from an account on this phone",
+      422,
+    );
   }
 
   await pool.query(
-    'INSERT INTO referrals (referred_user_id, referrer_user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+    "INSERT INTO referrals (referred_user_id, referrer_user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
     [userId, row.referrer_id],
   );
   return { referrerName: row.referrer_name };
@@ -351,13 +411,22 @@ export async function attachReferral(userId: string, code: string): Promise<{ re
  * at least once, possibly more. Safe to repeat: the claim key is the referred
  * user, so a referrer is paid once per friend, ever.
  */
-export async function rewardReferral(event: { userId: string; amountPaise: number }): Promise<boolean> {
+export async function rewardReferral(event: {
+  userId: string;
+  amountPaise: number;
+}): Promise<boolean> {
   const config = await freeCoinsConfig();
-  if (config.referral.coins === 0 || event.amountPaise < config.referral.minPurchasePaise) {
+  if (
+    config.referral.coins === 0 ||
+    event.amountPaise < config.referral.minPurchasePaise
+  ) {
     return false;
   }
 
-  const { rows } = await pool.query<{ referrer_user_id: string; status: string }>(
+  const { rows } = await pool.query<{
+    referrer_user_id: string;
+    status: string;
+  }>(
     `SELECT r.referrer_user_id, u.status
        FROM referrals r
        JOIN users u ON u.id = r.referrer_user_id
@@ -367,18 +436,19 @@ export async function rewardReferral(event: { userId: string; amountPaise: numbe
   const referral = rows[0];
   // A banned or deleted referrer is not paid — and the row stays unrewarded,
   // which is the honest record of what happened.
-  if (!referral || referral.status !== 'active') return false;
+  if (!referral || referral.status !== "active") return false;
 
   const result = await grant({
     userId: referral.referrer_user_id,
-    kind: 'referral',
+    kind: "referral",
     claimKey: `referral:${event.userId}`,
     coins: config.referral.coins,
     dayIst: istDate(),
     alsoInTransaction: async (client) => {
-      await client.query('UPDATE referrals SET rewarded_at = now() WHERE referred_user_id = $1', [
-        event.userId,
-      ]);
+      await client.query(
+        "UPDATE referrals SET rewarded_at = now() WHERE referred_user_id = $1",
+        [event.userId],
+      );
     },
   });
   return !result.replayed;
@@ -394,7 +464,12 @@ export interface RewardsStatus {
     /** Today's ladder day if claimed, otherwise the day a claim now would be. */
     streakDay: number;
   };
-  watch: { coins: number; minutes: number; dailyCap: number; earnedToday: number };
+  watch: {
+    coins: number;
+    minutes: number;
+    dailyCap: number;
+    earnedToday: number;
+  };
   referral: {
     code: string;
     coins: number;
@@ -407,7 +482,10 @@ export interface RewardsStatus {
   };
 }
 
-export async function rewardsStatus(userId: string, today: string = istDate()): Promise<RewardsStatus> {
+export async function rewardsStatus(
+  userId: string,
+  today: string = istDate(),
+): Promise<RewardsStatus> {
   const config = await freeCoinsConfig();
 
   const { rows } = await pool.query<{
@@ -440,14 +518,21 @@ export async function rewardsStatus(userId: string, today: string = istDate()): 
     [userId, today],
   );
   const row = rows[0];
-  if (!row) throw new AppError('USER_NOT_FOUND', 'That account does not exist', 404);
+  if (!row)
+    throw new AppError("USER_NOT_FOUND", "That account does not exist", 404);
 
   const welcomeClaimed = row.welcome_claimed;
   const welcomeAvailable =
-    !welcomeClaimed && config.signup > 0 && !(await welcomeTakenOnDevice(userId));
+    !welcomeClaimed &&
+    config.signup > 0 &&
+    !(await welcomeTakenOnDevice(userId));
 
   return {
-    welcome: { coins: config.signup, claimed: welcomeClaimed, available: welcomeAvailable },
+    welcome: {
+      coins: config.signup,
+      claimed: welcomeClaimed,
+      available: welcomeAvailable,
+    },
     checkin: {
       ladder: config.checkinLadder,
       claimedToday: row.today_streak !== null,
@@ -461,8 +546,182 @@ export async function rewardsStatus(userId: string, today: string = istDate()): 
       invited: Number(row.invited),
       rewarded: Number(row.rewarded),
       canEnterCode:
-        !row.is_referred && Number(row.account_age_days) <= config.referral.attachWindowDays,
+        !row.is_referred &&
+        Number(row.account_age_days) <= config.referral.attachWindowDays,
       referredBy: row.referred_by,
     },
   };
+}
+
+// ── New-user rewards ────────────────────────────────────────────────────────
+//
+// First actions, each paid once, inside a window that opens when the account
+// is created. The window is ACCOUNT-relative and never restarts: someone who
+// signs up and returns a month later finds it closed, because a window that
+// reopened on return would be a reward for leaving.
+//
+// Progress is DERIVED from the tables the actions already write — follows,
+// gift_sends, room_messages — never a counter this module keeps. A counter can
+// disagree with what happened; an EXISTS cannot.
+
+const newUserSchema = z.object({
+  windowDays: z.number().int().min(0).max(90),
+  tasks: z.object({
+    follow: z.number().int().min(0),
+    gift: z.number().int().min(0),
+    chat: z.number().int().min(0),
+  }),
+});
+
+type NewUserConfig = z.infer<typeof newUserSchema>;
+export type NewUserTask = keyof NewUserConfig["tasks"];
+export const NEW_USER_TASKS: readonly NewUserTask[] = [
+  "follow",
+  "gift",
+  "chat",
+];
+
+const NEW_USER_DEFAULTS: NewUserConfig = {
+  windowDays: 7,
+  tasks: { follow: 200, gift: 600, chat: 200 },
+};
+
+async function newUserConfig(): Promise<NewUserConfig> {
+  const parsed = newUserSchema.safeParse(
+    await getConfigValue("new_user_rewards"),
+  );
+  if (!parsed.success) {
+    logger.error("app_config.new_user_rewards is invalid; using defaults", {
+      issues: parsed.error.issues.length,
+    });
+    return NEW_USER_DEFAULTS;
+  }
+  return parsed.data;
+}
+
+export interface NewUserRewards {
+  /** When the window closes. Fixed at signup + windowDays; never moves. */
+  endsAt: string;
+  /** The server's clock, so a phone with the wrong time still counts down correctly. */
+  serverNow: string;
+  tasks: { id: NewUserTask; coins: number; done: boolean; claimed: boolean }[];
+}
+
+interface NewUserRow {
+  ends_at: Date;
+  open: boolean;
+  status: string;
+  follow_done: boolean;
+  gift_done: boolean;
+  chat_done: boolean;
+  claimed: string[];
+}
+
+async function loadNewUser(
+  userId: string,
+  windowDays: number,
+): Promise<NewUserRow | null> {
+  const { rows } = await pool.query<NewUserRow>(
+    `SELECT u.created_at + make_interval(days => $2) AS ends_at,
+            now() < u.created_at + make_interval(days => $2) AS open,
+            u.status,
+            EXISTS (SELECT 1 FROM follows WHERE follower_user_id = u.id) AS follow_done,
+            EXISTS (SELECT 1 FROM gift_sends WHERE sender_user_id = u.id) AS gift_done,
+            -- A message the filter BLOCKED was never seen by anyone, so it
+            -- does not count as having said something.
+            EXISTS (SELECT 1 FROM room_messages
+                     WHERE user_id = u.id AND verdict <> 'blocked') AS chat_done,
+            ARRAY(SELECT split_part(claim_key, ':', 2) FROM reward_claims
+                   WHERE user_id = u.id AND kind = 'new_user') AS claimed
+       FROM users u
+      WHERE u.id = $1`,
+    [userId, windowDays],
+  );
+  return rows[0] ?? null;
+}
+
+/**
+ * The sheet's state, or null when there is no sheet to show: the window has
+ * closed, the feature is off, or another account on this phone already took
+ * these rewards (the same casual-farm stop as the welcome bonus).
+ */
+export async function newUserRewards(
+  userId: string,
+): Promise<NewUserRewards | null> {
+  const config = await newUserConfig();
+  if (config.windowDays === 0) return null;
+
+  const row = await loadNewUser(userId, config.windowDays);
+  if (!row?.open || row.status !== "active") return null;
+  if (row.claimed.length === 0 && (await takenOnDevice(userId, "new_user")))
+    return null;
+
+  const done: Record<NewUserTask, boolean> = {
+    follow: row.follow_done,
+    gift: row.gift_done,
+    chat: row.chat_done,
+  };
+
+  return {
+    endsAt: row.ends_at.toISOString(),
+    serverNow: new Date().toISOString(),
+    tasks: NEW_USER_TASKS.filter((id) => config.tasks[id] > 0).map((id) => ({
+      id,
+      coins: config.tasks[id],
+      done: done[id],
+      claimed: row.claimed.includes(id),
+    })),
+  };
+}
+
+export async function claimNewUserTask(
+  userId: string,
+  task: NewUserTask,
+): Promise<{ coins: number; alreadyClaimed: boolean }> {
+  const claimKey = `new_user:${task}:${userId}`;
+  const existing = await claimExists(claimKey);
+  if (existing) return { coins: existing.coins, alreadyClaimed: true };
+
+  const config = await newUserConfig();
+  const coins = config.tasks[task];
+  if (config.windowDays === 0 || coins === 0) {
+    throw new AppError(
+      "REWARD_UNAVAILABLE",
+      "This reward is not available right now",
+      409,
+    );
+  }
+
+  const row = await loadNewUser(userId, config.windowDays);
+  if (!row?.open) {
+    throw new AppError(
+      "NEW_USER_WINDOW_CLOSED",
+      "New-user rewards have ended for this account",
+      409,
+    );
+  }
+  const done = {
+    follow: row.follow_done,
+    gift: row.gift_done,
+    chat: row.chat_done,
+  }[task];
+  if (!done) {
+    throw new AppError("REWARD_NOT_EARNED", "Finish the task first", 409);
+  }
+  if (row.claimed.length === 0 && (await takenOnDevice(userId, "new_user"))) {
+    throw new AppError(
+      "NEW_USER_ALREADY_USED_ON_DEVICE",
+      "New-user rewards have already been claimed on this phone",
+      409,
+    );
+  }
+
+  const result = await grant({
+    userId,
+    kind: "new_user",
+    claimKey,
+    coins,
+    dayIst: istDate(),
+  });
+  return { coins: result.coins, alreadyClaimed: result.replayed };
 }

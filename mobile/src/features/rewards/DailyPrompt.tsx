@@ -8,7 +8,7 @@
 import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
-import { useRewards } from '@/api/queries/useGrowth';
+import { useNewUserRewards, useRewards } from '@/api/queries/useGrowth';
 import { useTranslation } from '@/i18n';
 import { haptic } from '@/lib/haptics';
 import { istDate, preferences } from '@/lib/preferences';
@@ -22,10 +22,19 @@ export function DailyPrompt() {
   const { t } = useTranslation();
   const isRegistered = useIsRegistered();
   const rewards = useRewards(isRegistered);
+  // During the first week the new-user sheet carries the check-in as its
+  // first row, so this prompt stands aside: two sheets on one open is one too many.
+  const newUser = useNewUserRewards(isRegistered);
   const sheet = useRef<SheetHandle>(null);
   const decided = useRef(false);
 
-  const claimable = rewards.data !== undefined && !rewards.data.checkin.claimedToday;
+  const claimable =
+    rewards.data !== undefined &&
+    !rewards.data.checkin.claimedToday &&
+    // Settled, and no sheet. An error counts as no sheet — a failed fetch of
+    // the new-user state must not cost the user their daily prompt.
+    !newUser.isPending &&
+    !newUser.data;
 
   useEffect(() => {
     if (!claimable || decided.current) return;

@@ -4,16 +4,23 @@
 // and referrals. Coins move only through economy's ledger; this module decides
 // who has earned what and makes sure nobody earns it twice.
 
-export { buildRewardsRouter } from './rewards.routes.js';
+export { buildRewardsRouter } from "./rewards.routes.js";
 
 export {
   attachReferral,
   claimCheckin,
+  claimNewUserTask,
   claimWelcome,
   freeCoinsConfig,
   grantWatchReward,
   istDate,
+  newUserRewards,
   rewardReferral,
   rewardsStatus,
-} from './rewards.service.js';
-export type { FreeCoinsConfig, RewardsStatus } from './rewards.service.js';
+} from "./rewards.service.js";
+export type {
+  FreeCoinsConfig,
+  NewUserRewards,
+  NewUserTask,
+  RewardsStatus,
+} from "./rewards.service.js";

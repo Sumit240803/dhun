@@ -94,8 +94,24 @@ export const ROOM_ASSETS = {
     path: 'rooms/rewards/chest.v1.webp',
     available: false,
     spec:
-      '512×512 WebP, transparent, ≤60 KB. A closed treasure chest, lit ' +
-      'from the upper left to match the gift icons.',
+      '512×512 WebP, transparent, ≤60 KB. An OPEN treasure chest overflowing ' +
+      'with gold coins, a few coins in flight and the light burst baked in. ' +
+      'Stylized 3D (C4D look), lit from the upper left to match the gift icons. ' +
+      'Also heads the new-user rewards sheet.',
+  },
+  /**
+   * The icon beside "More ways to earn coins" on the new-user sheet.
+   *
+   * NO question mark on it. A "?" box is loot-box iconography, and a reward
+   * surface that looks like a mystery box invites exactly the reading hard
+   * rule #1 exists to keep away from this app.
+   */
+  rewardGiftBox: {
+    path: 'rooms/rewards/gift-box.v1.webp',
+    available: false,
+    spec:
+      '192×192 WebP, transparent, ≤20 KB. A wrapped gift box with a ribbon, ' +
+      'same 3D style as the chest. No question mark, no lock, nothing hidden.',
   },
 } as const satisfies Record<string, RoomAsset>;
 

@@ -158,6 +158,24 @@ const light = {
     googleSurface: p.external.googleSurface,
   },
 
+  /**
+   * Promotional sheets — the new-user rewards sheet first.
+   *
+   * Its own group rather than `brand`, so a campaign surface can be recoloured
+   * without the app's buttons changing with it, and violet rather than rose so
+   * a reward never reads as an error or a LIVE badge.
+   */
+  promo: {
+    headerStart: p.violet[700],
+    headerEnd: p.violet[500],
+    body: p.violet[100],
+    card: p.neutral[0],
+    cta: p.violet[500],
+    ctaPressed: p.violet[700],
+    chip: p.alpha.violet16,
+    link: p.violet[700],
+  },
+
   /** Translucent fills over video or imagery, where a solid surface would hide content. */
   glass: {
     fill: p.alpha.warmInk08,
@@ -288,6 +306,17 @@ const dark: Themed<typeof light> = {
     c: p.neutral[800],
     d: p.neutral[700],
     e: p.neutral[800],
+  },
+
+  promo: {
+    headerStart: p.violet[700],
+    headerEnd: p.violet[500],
+    body: p.violet[900],
+    card: p.neutral[800],
+    cta: p.violet[500],
+    ctaPressed: p.violet[700],
+    chip: p.alpha.violet16,
+    link: p.violet[300],
   },
 
   glass: {

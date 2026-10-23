@@ -1,7 +1,14 @@
 // Rewards, search and push — the M10 surface.
 
 import { api } from '@/api/client';
-import type { FeedRoom, PersonResult, RewardsStatus, RoomResult } from '@/api/types';
+import type {
+  FeedRoom,
+  NewUserRewards,
+  NewUserTaskId,
+  PersonResult,
+  RewardsStatus,
+  RoomResult,
+} from '@/api/types';
 
 export const rewardsApi = {
   status: () => api.get<{ rewards: RewardsStatus }>('rewards'),
@@ -10,6 +17,9 @@ export const rewardsApi = {
   claimWelcome: () => api.post<{ coins: number; alreadyClaimed: boolean }>('rewards/welcome', {}),
   checkin: () =>
     api.post<{ coins: number; streakDay: number; alreadyClaimed: boolean }>('rewards/checkin', {}),
+  newUser: () => api.get<{ newUser: NewUserRewards | null }>('rewards/new-user'),
+  claimNewUser: (task: NewUserTaskId) =>
+    api.post<{ coins: number; alreadyClaimed: boolean }>(`rewards/new-user/${task}`, {}),
   enterCode: (code: string) =>
     api.post<{ referrerName: string | null }>('rewards/referral', { code }),
 };

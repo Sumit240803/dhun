@@ -59,7 +59,7 @@ export const primitives = {
   // lightness, so they stay distinguishable to a colour-blind user and on a
   // cheap screen in a bright room.
   amber: { 300: '#FFD97D', 500: '#FFC53D', 700: '#D9A21E' },
-  violet: { 300: '#A594FF', 500: '#7B61FF', 700: '#5B41D9' },
+  violet: { 100: '#EFEBFF', 300: '#A594FF', 500: '#7B61FF', 700: '#5B41D9', 900: '#1E1830' },
   emerald: { 300: '#6EDCB0', 500: '#31C48D', 700: '#1F9B6C' },
 
   // Gift tiers. The escalation is the product — a Tier 5 must look expensive.

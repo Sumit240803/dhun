@@ -106,6 +106,9 @@ export const ApiErrorCode = {
   // rewards
   WELCOME_ALREADY_USED_ON_DEVICE: 'WELCOME_ALREADY_USED_ON_DEVICE',
   REWARD_UNAVAILABLE: 'REWARD_UNAVAILABLE',
+  REWARD_NOT_EARNED: 'REWARD_NOT_EARNED',
+  NEW_USER_WINDOW_CLOSED: 'NEW_USER_WINDOW_CLOSED',
+  NEW_USER_ALREADY_USED_ON_DEVICE: 'NEW_USER_ALREADY_USED_ON_DEVICE',
   REFERRAL_CODE_INVALID: 'REFERRAL_CODE_INVALID',
   REFERRAL_SELF: 'REFERRAL_SELF',
   REFERRAL_ALREADY_SET: 'REFERRAL_ALREADY_SET',
@@ -262,10 +265,19 @@ export interface OtpRequestResponse {
 export type RoomTag = 'singing' | 'dancing' | 'chatting' | 'gaming' | 'friends' | 'esports';
 export type FeedCategory = 'explore' | 'party' | 'following';
 
+/** Someone seated in a party room, as a feed card's avatar stack draws them. */
+export interface SeatFace {
+  userId: string;
+  avatarUrl: string | null;
+}
+
 export interface FeedRoom {
   id: string;
   hostId: string;
   hostName: string;
+  hostLevel: number;
+  /** What the host is wearing; the card shows the name colour. */
+  hostLook: UserLook;
   title: string;
   tag: RoomTag;
   /** ISO 3166-1 alpha-2, rendered as a flag. */
@@ -276,6 +288,8 @@ export interface FeedRoom {
   /** Non-null ONLY for a party room. Its presence is what tells the two apart. */
   seatCount: number | null;
   seatCapacity: number | null;
+  /** The first few seated, host excluded, in seat order. Empty for a live room. */
+  seatFaces: SeatFace[];
   video: boolean;
   trending: boolean;
 }
@@ -494,6 +508,17 @@ export interface RewardsStatus {
     canEnterCode: boolean;
     referredBy: string | null;
   };
+}
+
+export type NewUserTaskId = 'follow' | 'gift' | 'chat';
+
+/** The new-user sheet. Absent (null) once the window has closed — it never reopens. */
+export interface NewUserRewards {
+  /** Fixed at signup + the window. Never moves. */
+  endsAt: string;
+  /** The server's clock, so a phone set to the wrong time still counts down correctly. */
+  serverNow: string;
+  tasks: { id: NewUserTaskId; coins: number; done: boolean; claimed: boolean }[];
 }
 
 // --- discover ----------------------------------------------------------------

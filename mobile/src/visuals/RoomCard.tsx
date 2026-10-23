@@ -5,6 +5,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { formatCompact } from '@/lib/money';
 import type { FeedRoom } from '@/api/types';
+import { LevelBadge } from '@/visuals/LevelBadge';
+import { themed } from '@/visuals/look';
 import { absoluteFill, colors, radius, spacing } from '@/theme';
 import { Text } from '@/ui/Text';
 
@@ -91,14 +93,35 @@ export function RoomCard({ room, onPress, onPressHost, tagLabel, testID }: RoomC
         {isParty && (
           <View style={styles.seats}>
             {/*
-              Seat dots stand in for the occupants' avatars. Party rooms live or
-              die on looking OCCUPIED — an empty-looking seat grid is the single
-              strongest reason someone scrolls past.
+              The faces of the people on the seats. Party rooms live or die on
+              looking OCCUPIED — a stack of real faces is the strongest reason
+              to tap in, and blank circles are the strongest reason not to.
             */}
-            {Array.from({ length: Math.min(3, room.seatCount ?? 0) }, (_, index) => (
-              <View key={index} style={[styles.seat, { marginLeft: index === 0 ? 0 : -8 }]} />
+            {room.seatFaces.map((face, index) => (
+              <View
+                key={face.userId}
+                style={[styles.seat, { marginLeft: index === 0 ? 0 : -8 }]}
+                testID={`seat-face-${face.userId}`}
+              >
+                {face.avatarUrl ? (
+                  <Image
+                    source={{ uri: face.avatarUrl }}
+                    style={styles.face}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                  />
+                ) : (
+                  <Ionicons name="person" size={12} color={colors.text.faint} />
+                )}
+              </View>
             ))}
-            <View style={[styles.seat, styles.seatCount, { marginLeft: -8 }]}>
+            <View
+              style={[
+                styles.seat,
+                styles.seatCount,
+                { marginLeft: room.seatFaces.length === 0 ? 0 : -8 },
+              ]}
+            >
               <Text variant="micro" tone="onMedia">
                 {room.seatCount}
               </Text>
@@ -107,9 +130,18 @@ export function RoomCard({ room, onPress, onPressHost, tagLabel, testID }: RoomC
         )}
 
         <View style={styles.nameRow}>
-          <Text variant="caption" tone="onMedia" numberOfLines={1} style={styles.name}>
+          <Text
+            variant="caption"
+            tone="onMedia"
+            numberOfLines={1}
+            style={[
+              styles.name,
+              room.hostLook.nameColor ? { color: themed(room.hostLook.nameColor).color } : null,
+            ]}
+          >
             {room.hostName}
           </Text>
+          <LevelBadge level={room.hostLevel} kind="host" size="sm" />
           <Text variant="caption" tone="onMedia">
             {flagFor(room.country)}
           </Text>
@@ -204,8 +236,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg.raised,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   seatCount: { backgroundColor: colors.glass.scrim },
+  face: { width: '100%', height: '100%', borderRadius: radius.pill },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   name: { flexShrink: 1 },
   viewers: { flexDirection: 'row', alignItems: 'center', gap: 3 },

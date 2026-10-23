@@ -33,6 +33,7 @@ export const queryKeys = {
   rewards: {
     all: ['rewards'] as const,
     status: () => [...queryKeys.rewards.all, 'status'] as const,
+    newUser: () => [...queryKeys.rewards.all, 'newUser'] as const,
   },
 
   discover: {
