@@ -48,7 +48,7 @@ export interface FeedRoom {
   trending: boolean;
 }
 
-export type FeedCategory = 'explore' | 'party' | 'following';
+export type FeedCategory = 'explore' | 'party' | 'following' | 'trending';
 
 /** How many rooms count as "trending" at any moment. */
 const TRENDING_COUNT = 10;
@@ -146,6 +146,13 @@ async function queryRooms(input: {
   if (input.category === 'any') {
     // Not a room of your own, which you cannot be "dropped into".
     if (input.viewerId) filters.push(`r.host_user_id <> $1::uuid`);
+  } else if (input.category === 'trending') {
+    // Rooms earning on the hourly board right now, in board order — the same
+    // rollup the rank pill reads, so the two never disagree about who is hot.
+    filters.push(
+      `EXISTS (SELECT 1 FROM room_hour_scores h
+                WHERE h.room_id = r.id AND h.hour_start = date_trunc('hour', now()) AND h.coins > 0)`,
+    );
   } else if (input.category === 'party') {
     filters.push('r.seat_capacity IS NOT NULL');
   } else if (input.category === 'explore') {
@@ -194,7 +201,12 @@ async function queryRooms(input: {
        JOIN user_profiles p ON p.user_id = r.host_user_id
        LEFT JOIN user_stats s ON s.user_id = r.host_user_id
       WHERE ${filters.join(' AND ')}
-      ORDER BY r.viewer_count DESC, r.started_at DESC
+      ORDER BY ${
+        input.category === 'trending'
+          ? `(SELECT h.coins FROM room_hour_scores h
+               WHERE h.room_id = r.id AND h.hour_start = date_trunc('hour', now())) DESC,`
+          : ''
+      } r.viewer_count DESC, r.started_at DESC
       LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params,
   );

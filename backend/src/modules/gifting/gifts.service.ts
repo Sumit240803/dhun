@@ -27,6 +27,7 @@ import { logger } from '../../infra/logger.js';
 import { publishGlobal, publishToRoom } from '../../infra/roomBus.js';
 import { cachedLeaderboard } from './board.cache.js';
 import { lookFor, type UserLook } from '../cosmetics/index.js';
+import { assertMaySpend } from '../moderation/index.js';
 import {
   ECONOMY,
   findCompletedTransaction,
@@ -198,6 +199,9 @@ export async function sendGift(input: {
   }
 
   const coins = gift.coinPrice * input.quantity;
+  // The sender's own limits (036). Checked after every "is this gift even
+  // possible" test and before the ledger, so a refusal here costs nothing.
+  await assertMaySpend(input.senderId, coins);
   const points = giftPoints(coins, gift.payoutRateBp);
 
   const buildView = (txnId: string): GiftView => ({

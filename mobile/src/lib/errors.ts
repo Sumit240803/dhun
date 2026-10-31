@@ -87,6 +87,13 @@ const codeMessages: Partial<Record<string, MessageKey>> = {
   [ApiErrorCode.COSMETIC_NOT_OWNED]: 'cosmeticErrors.notOwned',
   [ApiErrorCode.COSMETIC_EXPIRED]: 'cosmeticErrors.expired',
   [ApiErrorCode.GIFT_NOT_FOUND]: 'gifting.giftUnavailable',
+  // SPEND_LIMIT_REACHED is deliberately absent: the gift sheet names the
+  // period (day or month) from details, which a flat sentence cannot.
+  [ApiErrorCode.SELF_EXCLUDED]: 'spendErrors.excluded',
+  [ApiErrorCode.EXCLUSION_ACTIVE]: 'spendErrors.exclusionActive',
+  [ApiErrorCode.CANNOT_MESSAGE_SELF]: 'dmErrors.self',
+  [ApiErrorCode.THREAD_READ_ONLY]: 'thread.officialNotice',
+  [ApiErrorCode.MESSAGE_BLOCKED]: 'dmErrors.blocked',
   [ApiErrorCode.RECIPIENT_NOT_IN_ROOM]: 'gifting.recipientGone',
 
   [ApiErrorCode.ALREADY_IN_AGENCY]: 'agencyErrors.alreadyInAgency',

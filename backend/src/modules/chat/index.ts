@@ -6,3 +6,5 @@
 export { buildMessagesRouter } from './threads.routes.js';
 export { listThreads, listMessages, markThreadRead } from './threads.service.js';
 export type { ThreadSummary, ThreadFilter, ThreadMessage } from './threads.service.js';
+export { openDirectThread, sendMessage } from './direct.service.js';
+export type { DirectThread } from './direct.service.js';

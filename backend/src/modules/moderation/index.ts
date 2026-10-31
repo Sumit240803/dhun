@@ -18,4 +18,6 @@ export {
 } from './moderation.service.js';
 export type { ReportReason, SubjectType } from './moderation.service.js';
 export { openReport, openReports, resolveReport } from './reports.queue.js';
+export { assertMaySpend, setSpendControls, spendStatus } from './spend.service.js';
+export type { Exclusion, PendingRaise, SpendControls, SpendStatus } from './spend.service.js';
 export type { OpenReport } from './reports.queue.js';

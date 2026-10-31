@@ -24,7 +24,7 @@ export function buildRoomsRouter(): Router {
     validate({
       query: z
         .object({
-          category: z.enum(['explore', 'party', 'following']).default('explore'),
+          category: z.enum(['explore', 'party', 'following', 'trending']).default('explore'),
           // Bounded. An unbounded limit is a denial-of-service that costs the
           // attacker exactly one request.
           limit: z.coerce.number().int().min(1).max(50).default(20),
@@ -39,7 +39,7 @@ export function buildRoomsRouter(): Router {
         // the raw one loses every zod default — `category` came back undefined
         // and every unfiltered request silently fell through to Following.
         const query = req.validatedQuery as {
-          category: 'explore' | 'party' | 'following';
+          category: 'explore' | 'party' | 'following' | 'trending';
           limit: number;
           offset: number;
         };

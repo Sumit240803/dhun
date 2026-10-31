@@ -76,6 +76,8 @@ export const queryKeys = {
     summary: () => [...queryKeys.profile.all, 'summary'] as const,
     visitors: () => [...queryKeys.profile.all, 'visitors'] as const,
     public: (userId: string) => [...queryKeys.profile.all, 'public', userId] as const,
+    friends: () => [...queryKeys.profile.all, 'friends'] as const,
+    spend: () => [...queryKeys.profile.all, 'spend'] as const,
   },
 
   agency: {

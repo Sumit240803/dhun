@@ -35,6 +35,9 @@ export interface AdminGift {
   effect: string;
   isActive: boolean;
   sortOrder: number;
+  /** Seasonal window, ISO or null. A gift outside it is hidden from the tray. */
+  visibleFrom: string | null;
+  visibleTo: string | null;
 }
 
 export async function adminGifts(): Promise<AdminGift[]> {
@@ -47,8 +50,11 @@ export async function adminGifts(): Promise<AdminGift[]> {
     effect: string;
     is_active: boolean;
     sort_order: number;
+    visible_from: Date | null;
+    visible_to: Date | null;
   }>(
-    `SELECT id, name, tier, coin_price, payout_rate_bp, effect, is_active, sort_order
+    `SELECT id, name, tier, coin_price, payout_rate_bp, effect, is_active, sort_order,
+            visible_from, visible_to
        FROM gift_catalog ORDER BY tier, sort_order, id`,
   );
   return rows.map((r) => ({
@@ -60,22 +66,34 @@ export async function adminGifts(): Promise<AdminGift[]> {
     effect: r.effect,
     isActive: r.is_active,
     sortOrder: r.sort_order,
+    visibleFrom: r.visible_from?.toISOString() ?? null,
+    visibleTo: r.visible_to?.toISOString() ?? null,
   }));
 }
 
-const giftEdit = z.object({
-  coinPrice: z.number().int().min(1).max(10_000_000),
+const giftEdit = z
+  .object({
+    coinPrice: z.number().int().min(1).max(10_000_000),
   // Per gift, never a global constant (day-1 non-negotiable #12). 60% is the
   // advertised base; the panel can hand a single gift 70% for an event.
-  payoutRateBp: z.number().int().min(0).max(10_000),
-  isActive: z.boolean(),
-});
+    payoutRateBp: z.number().int().min(0).max(10_000),
+    isActive: z.boolean(),
+    // Seasonal: shown only inside the window. Both optional; "from" before "to".
+    visibleFrom: z.string().datetime().nullable(),
+    visibleTo: z.string().datetime().nullable(),
+  })
+  .refine((g) => !g.visibleFrom || !g.visibleTo || g.visibleFrom < g.visibleTo, {
+    message: 'The window must end after it starts',
+    path: ['visibleTo'],
+  });
 
 export async function updateGift(input: {
   id: string;
   coinPrice: number;
   payoutRateBp: number;
   isActive: boolean;
+  visibleFrom: string | null;
+  visibleTo: string | null;
   actorId: string;
   reason: string;
 }): Promise<void> {
@@ -87,20 +105,28 @@ export async function updateGift(input: {
       coin_price: string;
       payout_rate_bp: number;
       is_active: boolean;
-    }>('SELECT coin_price, payout_rate_bp, is_active FROM gift_catalog WHERE id = $1 FOR UPDATE', [
-      input.id,
-    ]);
+      visible_from: Date | null;
+      visible_to: Date | null;
+    }>(
+      `SELECT coin_price, payout_rate_bp, is_active, visible_from, visible_to
+         FROM gift_catalog WHERE id = $1 FOR UPDATE`,
+      [input.id],
+    );
     if (!rows[0]) throw new AppError('GIFT_NOT_FOUND', 'That gift does not exist', 404);
     const before = {
       coinPrice: Number(rows[0].coin_price),
       payoutRateBp: rows[0].payout_rate_bp,
       isActive: rows[0].is_active,
+      visibleFrom: rows[0].visible_from?.toISOString() ?? null,
+      visibleTo: rows[0].visible_to?.toISOString() ?? null,
     };
     if (sameValue(before, next)) throw new AppError('NO_CHANGE', 'Nothing changed', 422);
 
     await client.query(
-      'UPDATE gift_catalog SET coin_price = $2, payout_rate_bp = $3, is_active = $4 WHERE id = $1',
-      [input.id, next.coinPrice, next.payoutRateBp, next.isActive],
+      `UPDATE gift_catalog
+          SET coin_price = $2, payout_rate_bp = $3, is_active = $4, visible_from = $5, visible_to = $6
+        WHERE id = $1`,
+      [input.id, next.coinPrice, next.payoutRateBp, next.isActive, next.visibleFrom, next.visibleTo],
     );
     await recordChange(client, `gift.${input.id}`, before, next, reason, input.actorId);
   });

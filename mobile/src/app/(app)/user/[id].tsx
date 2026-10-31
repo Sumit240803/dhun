@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { usersApi } from '@/api/endpoints/feed';
 import { queryKeys } from '@/api/queries/keys';
-import { recordVisit } from '@/api/queries/useSocial';
+import { recordVisit, useOpenDirectThread } from '@/api/queries/useSocial';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { registerForPush } from '@/features/notifications/push';
 import { useTranslation } from '@/i18n';
@@ -70,6 +70,21 @@ export default function UserProfileScreen() {
   useEffect(() => {
     if (targetId && targetId !== user?.id) recordVisit(targetId);
   }, [targetId, user?.id]);
+
+  const openChat = useOpenDirectThread();
+
+  function message() {
+    haptic.tap();
+    openChat.mutate(targetId, {
+      onSuccess: ({ thread }) => {
+        router.push({
+          pathname: '/(app)/thread/[id]',
+          params: { id: thread.id, title: thread.title },
+        });
+      },
+      onError: () => haptic.error(),
+    });
+  }
 
   const toggleFollow = useMutation({
     mutationFn: () =>
@@ -217,18 +232,39 @@ export default function UserProfileScreen() {
           </Row>
 
           <Column gap="md">
-            <Button
-              label={data?.isFollowing ? t('hostProfile.following') : t('hostProfile.follow')}
-              onPress={() => {
-                haptic.tap();
-                toggleFollow.mutate();
-              }}
-              variant={data?.isFollowing ? 'secondary' : 'primary'}
-              disabled={data === undefined}
-              size="lg"
-              fullWidth
-              testID="toggle-follow"
-            />
+            {/*
+              Follow first and primary — it is the action this screen exists
+              for. Message beside it, secondary: it opens a thread, not a
+              payment, and the two never trade places.
+            */}
+            <Row gap="sm">
+              <View style={styles.flex}>
+                <Button
+                  label={data?.isFollowing ? t('hostProfile.following') : t('hostProfile.follow')}
+                  onPress={() => {
+                    haptic.tap();
+                    toggleFollow.mutate();
+                  }}
+                  variant={data?.isFollowing ? 'secondary' : 'primary'}
+                  disabled={data === undefined}
+                  size="lg"
+                  fullWidth
+                  testID="toggle-follow"
+                />
+              </View>
+              <View style={styles.flex}>
+                <Button
+                  label={t('hostProfile.message')}
+                  onPress={message}
+                  variant="secondary"
+                  disabled={data === undefined}
+                  loading={openChat.isPending}
+                  size="lg"
+                  fullWidth
+                  testID="message-user"
+                />
+              </View>
+            </Row>
 
             {data?.liveRoomId != null ? (
               <Button
@@ -309,11 +345,15 @@ export default function UserProfileScreen() {
 
       <ReportSheet ref={reportSheet} subjectType="user" subjectId={targetId} />
 
-      {toggleFollow.isError && (
+      {toggleFollow.isError ? (
         <View style={styles.error}>
           <Banner message={errorMessage(toggleFollow.error)} />
         </View>
-      )}
+      ) : openChat.isError ? (
+        <View style={styles.error}>
+          <Banner message={errorMessage(openChat.error)} />
+        </View>
+      ) : null}
     </Screen>
   );
 }
@@ -349,6 +389,7 @@ function Stat({ label, value }: { label: string; value?: number }) {
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   scroll: { paddingBottom: spacing.xxxl },
   hero: { paddingBottom: spacing.xl },
   heroBar: { paddingHorizontal: spacing.lg },

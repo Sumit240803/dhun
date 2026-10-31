@@ -78,6 +78,7 @@ export async function resetLedger(): Promise<void> {
 
     // Config remembers who last changed it and the switches log remembers who
     // threw them; both point at users and would block the delete below.
+    await c.query('DELETE FROM spend_controls');
     await c.query('TRUNCATE config_changes');
     await c.query('UPDATE app_config SET updated_by = NULL WHERE updated_by IS NOT NULL');
 

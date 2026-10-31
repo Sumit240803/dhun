@@ -10,7 +10,8 @@ import {
   recordVisit,
   unfollowUser,
 } from './follows.service.js';
-import { blockUser, unblockUser } from '../moderation/index.js';
+import { blockUser, setSpendControls, spendStatus, unblockUser } from '../moderation/index.js';
+import { listFriends } from './friends.service.js';
 import { getPublicProfile } from './publicProfile.service.js';
 import { getProfileSummary } from './summary.service.js';
 
@@ -24,6 +25,56 @@ export function buildUsersRouter(): Router {
   // gating it behind a phone number would cost more than the spam it prevents.
   // The rate limits below are what actually bound the abuse.
   router.use(authGuard());
+
+  /** A follow in both directions. Modelled, never stored. */
+  router.get('/me/friends', async (req, res, next) => {
+    try {
+      res.json({ friends: await listFriends(req.userId!) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ── Spend controls (036) ──────────────────────────────────────────────────
+  //
+  // The user's own brakes: daily and monthly caps on gifts, and a pause of 30
+  // or 90 days or for good. A cap lowers at once and raises after a delay; a
+  // pause cannot be shortened while it runs. Settings, so a session suffices.
+
+  router.get('/me/spend-controls', async (req, res, next) => {
+    try {
+      res.json({ spend: await spendStatus(req.userId!) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.put(
+    '/me/spend-controls',
+    rateLimit({ scope: 'spend-controls', limit: 20, windowMs: 3_600_000, by: 'user' }),
+    validate(
+      z
+        .object({
+          dailyCapCoins: z.number().int().min(100).max(100_000_000).nullable(),
+          monthlyCapCoins: z.number().int().min(100).max(1_000_000_000).nullable(),
+          // Omitted = unchanged, so caps can be edited under a running pause
+          // without asking to lift it (which would be refused).
+          exclusion: z.enum(['none', '30d', '90d', 'permanent']).optional(),
+        })
+        .strict()
+        .refine(
+          (v) => v.dailyCapCoins === null || v.monthlyCapCoins === null || v.dailyCapCoins <= v.monthlyCapCoins,
+          { message: 'A daily limit cannot be above the monthly one', path: ['dailyCapCoins'] },
+        ),
+    ),
+    async (req, res, next) => {
+      try {
+        res.json({ spend: await setSpendControls(req.userId!, req.body) });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
 
   router.get('/me/summary', async (req, res, next) => {
     try {

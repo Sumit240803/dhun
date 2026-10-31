@@ -47,7 +47,7 @@ export class ApiError extends Error {
 }
 
 export interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
   /**
    * Required by every endpoint that moves money.
@@ -237,6 +237,9 @@ export const api = {
 
   patch: <T>(path: string, body?: unknown, options?: Omit<RequestOptions, 'method' | 'body'>) =>
     apiRequest<T>(path, { ...options, method: 'PATCH', body }),
+
+  put: <T>(path: string, body?: unknown, options?: Omit<RequestOptions, 'method' | 'body'>) =>
+    apiRequest<T>(path, { ...options, method: 'PUT', body }),
 
   // No body. A DELETE that carries one is legal and universally surprising —
   // proxies drop it, and half of every server framework ignores it.

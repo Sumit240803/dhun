@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { authGuard } from '../../middleware/authGuard.js';
+import { authGuard, requireRegistered } from '../../middleware/authGuard.js';
+import { rateLimit } from '../../middleware/rateLimit.js';
 import { validate } from '../../middleware/validate.js';
 import { AppError } from '../../infra/errors.js';
+import { openDirectThread, sendMessage } from './direct.service.js';
 import { listMessages, listThreads, markThreadRead, type ThreadFilter } from './threads.service.js';
 
 export function buildMessagesRouter(): Router {
@@ -40,6 +42,48 @@ export function buildMessagesRouter(): Router {
   );
 
   const threadIdParam = z.object({ id: z.string().uuid() }).strict();
+
+  // ── Private messages (036) ───────────────────────────────────────────────
+  //
+  // Registered accounts only, both ways: a guest has no name to be written
+  // to, and a DM from an account with no phone behind it is the spam shape.
+
+  /** The thread with this person, created if it does not exist yet. */
+  router.post(
+    '/threads/with/:userId',
+    requireRegistered(),
+    rateLimit({ scope: 'dm:open', limit: 60, windowMs: 3_600_000, by: 'user' }),
+    validate({ params: z.object({ userId: z.string().uuid() }).strict() }),
+    async (req, res, next) => {
+      try {
+        const { userId } = req.validatedParams as { userId: string };
+        res.json({ thread: await openDirectThread(req.userId!, userId) });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  router.post(
+    '/threads/:id/messages',
+    requireRegistered(),
+    // A person types a few a minute; a script does more.
+    rateLimit({ scope: 'dm:send', limit: 60, windowMs: 60_000, by: 'user' }),
+    validate({
+      params: threadIdParam,
+      body: z.object({ body: z.string().trim().min(1).max(2000) }).strict(),
+    }),
+    async (req, res, next) => {
+      try {
+        const { id } = req.validatedParams as { id: string };
+        res.status(201).json({
+          message: await sendMessage({ userId: req.userId!, threadId: id, body: req.body.body }),
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
 
   router.get(
     '/threads/:id/messages',

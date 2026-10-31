@@ -34,6 +34,7 @@ const SECTION_LABELS: Record<string, MessageKey> = {
   following: 'feed.following',
   explore: 'feed.explore',
   party: 'feed.party',
+  trending: 'feed.trending',
 };
 
 const TAG_LABELS: Record<RoomTag, MessageKey> = {
@@ -176,6 +177,16 @@ export function RoomFeed({ sections, action }: RoomFeedProps) {
                       setCategory(sections.find((section) => section !== 'following') ?? 'explore');
                     }}
                     testID="feed-empty-following"
+                  />
+                ) : category === 'trending' ? (
+                  // Trending is the hourly board's current hour, so at the top
+                  // of a quiet hour it is honestly empty. Say so rather than
+                  // padding it with rooms nobody is gifting in.
+                  <EmptyState
+                    icon="flame-outline"
+                    title={t('feed.emptyTrendingTitle')}
+                    body={t('feed.emptyTrendingBody')}
+                    testID="feed-empty-trending"
                   />
                 ) : (
                   <EmptyState

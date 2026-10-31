@@ -39,6 +39,18 @@ function need(value: unknown, field: string): number {
   return n;
 }
 
+/** A datetime-local value typed in IST, to an ISO instant; blank is null. */
+function istInstant(value: unknown, field: string): string | null {
+  const text = asText(value).trim();
+  if (text === '') return null;
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(text)) {
+    throw new AppError('BAD_INPUT', `${field} must be a date and time`, 422);
+  }
+  const instant = new Date(`${text}:00+05:30`);
+  if (Number.isNaN(instant.getTime())) throw new AppError('BAD_INPUT', `${field} is not a real date`, 422);
+  return instant.toISOString();
+}
+
 /** Rupees typed with or without paise, to paise. */
 function rupeesToPaise(value: unknown, field: string): number {
   const text = asText(value).trim().replace(/[,₹\s]/g, '');
@@ -81,6 +93,8 @@ export function buildCatalogPages(): Router {
         await updateGift({
           id,
           coinPrice: need(req.body.coinPrice, 'Price'),
+          visibleFrom: istInstant(req.body.visibleFrom, 'Visible from'),
+          visibleTo: istInstant(req.body.visibleTo, 'Visible until'),
           payoutRateBp: need(req.body.payoutRateBp, 'Payout'),
           isActive: asFlag(req.body.isActive),
           actorId: req.staff!.userId,

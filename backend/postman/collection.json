@@ -1235,7 +1235,7 @@
                 "gifts"
               ]
             },
-            "description": "20 gifts across 5 tiers, priced for 110 coins/rupee (migration 018 doubled every count).\n\n`payoutRateBp` is PER GIFT, never a global constant, so event gifts can carry a different rate later.\n\nEach gift carries `iconAsset` (every gift) and `animationAsset` (full-screen effects only — NULL for `basic`). Paths are versioned and immutable; until real art lands they sit under `placeholder/`, which production reconciliation refuses. See docs/asset-contract.md.",
+            "description": "20 gifts across 5 tiers, priced for 110 coins/rupee (migration 018 doubled every count).\n\n`payoutRateBp` is PER GIFT, never a global constant, so event gifts can carry a different rate later.\n\nEach gift carries `iconAsset` (every gift) and `animationAsset` (full-screen effects only — NULL for `basic`). Paths are versioned and immutable; until real art lands they sit under `placeholder/`, which production reconciliation refuses. See docs/asset-contract.md.\n\n**Seasonal windows (Phase 1):** a gift may carry `visibleFrom` / `visibleTo` (set from /admin/catalog in IST). Outside the window it leaves this list and a send is refused with `GIFT_NOT_FOUND`; nothing already sent changes. Both null = always on sale.",
             "auth": {
               "type": "noauth"
             }
@@ -1647,7 +1647,7 @@
                 {
                   "key": "category",
                   "value": "explore",
-                  "description": "explore | party | following"
+                  "description": "explore | party | following | trending"
                 },
                 {
                   "key": "limit",
@@ -3142,7 +3142,7 @@
                 }
               ]
             },
-            "description": "The feed the app opens on. **No session required** — browsing is the top of the funnel and a signed-out user must see what the app is before being asked for a phone number.\n\n`category=explore` returns single-host rooms, `party` returns rooms with seats, `following` needs a session and returns EMPTY without one rather than silently ignoring the filter.\n\nEnded rooms never appear. `trending` marks the top ten by viewers and is computed in the same query, so it can never disagree with the order."
+            "description": "The feed the app opens on. **No session required** — browsing is the top of the funnel and a signed-out user must see what the app is before being asked for a phone number.\n\n`category=explore` returns single-host rooms, `party` returns rooms with seats, `following` needs a session and returns EMPTY without one rather than silently ignoring the filter.\n\nEnded rooms never appear. `trending` marks the top ten by viewers and is computed in the same query, so it can never disagree with the order.\n\n**`category=trending` (Phase 1):** the rooms being gifted THIS HOUR, in board order — the same `room_hour_scores` rollup the room's rank pill reads, so the two never disagree about who is hot. Honestly empty at the top of a quiet hour. The per-card `trending` flag (top ten by viewers) is unrelated and older."
           },
           "response": [],
           "event": [
@@ -3617,6 +3617,245 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200,204]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "13 · Open a direct thread",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/messages/threads/with/{{otherUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "messages",
+                "threads",
+                "with",
+                "{{otherUserId}}"
+              ]
+            },
+            "description": "The one-to-one thread with this person, created if it does not exist yet — `{ thread: { id, title, avatarUrl } }`. Idempotent: the pair is a UNIQUE key (`message_threads.direct_key`, migration 036), so two opens from two phones land on one thread.\n\nRegistered users only. A block in EITHER direction answers 404 `USER_NOT_FOUND`, the same as a deleted account — the blocked side must not be able to tell which. `CANNOT_MESSAGE_SELF` 422.\n\n**No agency directory, no coin transfer** — this is a conversation and nothing else; hard rule #7 is unchanged."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 · Send a message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/messages/threads/{{threadId}}/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "messages",
+                "threads",
+                "{{threadId}}",
+                "messages"
+              ]
+            },
+            "description": "Appends a line to a direct thread and returns it as the thread GET would — `{ message }`, 201.\n\nThe body runs through the same text filter as room chat: only the abusive skeletons are refused (`MESSAGE_BLOCKED` 422), never ordinary Hinglish. An official (platform) thread is read-only: `THREAD_READ_ONLY` 409. A block that arrived after the thread was opened turns it into `USER_NOT_FOUND` 404 on send.\n\nRate limit 60/min per user — a person types a few a minute; a script does more.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"Kal ke room mein aana!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([201]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 · My friends",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/users/me/friends?limit=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "users",
+                "me",
+                "friends"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "100"
+                }
+              ]
+            },
+            "description": "People who follow you back — `{ friends: [{ userId, publicId, displayName, avatarUrl, userLevel, liveRoomId, look, since }] }`.\n\nDerived from the follow rows, never stored, so it can never disagree with the `friends` count on the profile summary. Who is live first, then newest friendship first. Blocked in either direction, or not active: absent."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 · My spend controls",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/users/me/spend-controls",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "users",
+                "me",
+                "spend-controls"
+              ]
+            },
+            "description": "The brakes the user put on their own gifting (migration 036) plus this period's spend:\n\n`{ spend: { dailyCapCoins, monthlyCapCoins, pending, excludedUntil, excludedPermanently, excluded, todayCoins, monthCoins, coolingOff, coolingOffAtCoins } }`\n\n`pending` is a cap RAISE waiting for its delay (`app_config.safety.capRaiseDelayHours`, 24) — `{ dailyCapCoins?, monthlyCapCoins?, appliesAt }`. `coolingOff` is true past `app_config.safety.coolingOffMonthlyPaise` (₹50,000) of gifts this month; the app shows a prompt, the server refuses nothing on it.\n\nMeasured on coins spent on GIFTS (`gift_sends`), IST days and months."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "17 · Set spend controls",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/users/me/spend-controls",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "users",
+                "me",
+                "spend-controls"
+              ]
+            },
+            "description": "Three rules, all enforced here and checked again inside `POST /gifts/send`:\n\n- a cap LOWERS at once and RAISES only after the delay (the raise sits in `pending` until `appliesAt`); removing a cap counts as a raise;\n- an exclusion cannot be shortened or lifted while it runs — `EXCLUSION_ACTIVE` 409; `permanent` cannot be undone from the app at all;\n- `exclusion` OMITTED means \"leave the pause as it is\", so caps can be edited under a running pause.\n\n`dailyCapCoins` / `monthlyCapCoins`: integer ≥ 100 or null (no cap); a daily cap above the monthly one is `VALIDATION_FAILED`. `exclusion`: `none` | `30d` | `90d` | `permanent`, optional.\n\nA gift past a cap is refused by the send with `SPEND_LIMIT_REACHED` 403 (`details.period` = `day` | `month`, `capCoins`, `spentCoins`); a paused account gets `SELF_EXCLUDED` 403 (`details.until`, `details.permanent`). Nothing is charged either way.\n\nRate limit 20/hour per user.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dailyCapCoins\": 5000,\n  \"monthlyCapCoins\": 50000,\n  \"exclusion\": \"none\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
                 ]
               }
             }

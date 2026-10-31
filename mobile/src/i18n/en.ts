@@ -152,6 +152,9 @@ export const en = {
     following: 'Following',
     explore: 'Explore',
     party: 'Party',
+    trending: 'Trending',
+    emptyTrendingTitle: 'Nothing trending yet',
+    emptyTrendingBody: 'Rooms being gifted this hour show up here. Check back in a few minutes.',
     searchPlaceholder: 'Search by name or ID',
     goLive: 'Go live',
     startParty: 'Start party',
@@ -244,6 +247,23 @@ export const en = {
     emptyTitle: 'No messages yet',
     emptyBody: 'Nothing has been sent in this conversation.',
     loadFailed: 'Could not load this conversation',
+    placeholder: 'Write a message',
+    send: 'Send',
+  },
+
+  dmErrors: {
+    self: 'You cannot message yourself.',
+    blocked: 'That message was not sent. Change the wording and try again.',
+  },
+
+  friends: {
+    title: 'Friends',
+    subtitle: 'People who follow you back',
+    live: 'Live',
+    emptyTitle: 'No friends yet',
+    emptyBody:
+      'When someone you follow follows you back, they show up here. Start with your visitors.',
+    emptyAction: 'See visitors',
   },
 
   // A feature switched off from the admin panel. Each screen says what is
@@ -276,6 +296,7 @@ export const en = {
     following: 'Following',
     followers: 'Followers',
     watchLive: 'Watch live',
+    message: 'Message',
     notLive: 'Not live right now',
     level: 'Level {level}',
     more: 'More',
@@ -364,6 +385,8 @@ export const en = {
     passwordSubtitle: 'Change the password you sign in with',
     sessions: 'Signed-in devices',
     sessionsSubtitle: 'See where your account is open',
+    spending: 'Spending limits',
+    spendingSubtitle: 'Set a daily or monthly limit on gifts, or pause',
     deleteRow: 'Delete account',
     deleteRowSubtitle: 'Close this account for good',
 
@@ -477,6 +500,11 @@ export const en = {
     sendFor: 'Send · {coins}',
     sendAgain: 'Again · x{count}',
     topUpFor: 'Top up to send · {coins}',
+    dailyLimitReached: 'This gift would pass the daily limit you set. Nothing was sent.',
+    monthlyLimitReached: 'This gift would pass the monthly limit you set. Nothing was sent.',
+    limitHint: 'Your limits are in Account.',
+    coolingOff: 'You have gifted {coins} coins this month.',
+    setLimit: 'Set a limit',
     noRecipients: 'Nobody is on stage to send a gift to.',
 
     tier1: 'Everyday',
@@ -1110,6 +1138,46 @@ export const en = {
     clearBody:
       'There is nothing to appeal. If a decision is ever made about your account, this is where you will hear back.',
     grievance: 'Still have a concern? Contact the Grievance Officer',
+  },
+
+  spendErrors: {
+    excluded: 'You paused spending on this account. Nothing was sent.',
+    exclusionActive: 'A pause cannot be shortened or lifted while it runs.',
+  },
+
+  spending: {
+    title: 'Spending limits',
+    intro:
+      'These limits are yours and apply to gifts. Lowering one takes effect at once; raising one takes a day.',
+    today: 'Gifted today',
+    thisMonth: 'Gifted this month',
+    noLimit: 'No limit',
+    ofLimit: 'of {coins}',
+    coolingOff: 'You have passed {coins} coins this month. Take a moment before gifting more.',
+    limitsTitle: 'Limits',
+    dailyLabel: 'Daily limit (coins)',
+    monthlyLabel: 'Monthly limit (coins)',
+    coinsHelper: 'Leave empty for no limit. Minimum 100 coins.',
+    issueNotANumber: 'Enter a number of coins',
+    issueTooSmall: 'At least 100 coins',
+    issueDailyAboveMonthly: 'The daily limit cannot be above the monthly one',
+    pendingRaise: 'A higher limit applies from {when}.',
+    raiseDelay: 'You are raising a limit. It will apply after 24 hours.',
+    lowerNow: 'Lowering a limit applies at once.',
+    pauseTitle: 'Pause spending',
+    pauseBody: 'While paused you cannot send gifts. A pause cannot be shortened or lifted early.',
+    pauseNone: 'Not paused',
+    pause30: 'Pause for 30 days',
+    pause90: 'Pause for 90 days',
+    pauseForever: 'Pause permanently',
+    pausedUntil: 'Spending is paused until {when}.',
+    pausedForever: 'Spending is paused permanently on this account.',
+    foreverTitle: 'Pause spending permanently?',
+    foreverBody:
+      'You will not be able to send gifts from this account again, and this cannot be undone from the app.',
+    foreverConfirm: 'Pause permanently',
+    save: 'Save',
+    saved: 'Saved',
   },
 
   appealErrors: {

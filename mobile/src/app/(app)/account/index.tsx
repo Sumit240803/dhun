@@ -58,6 +58,14 @@ export default function AccountScreen() {
       show: true,
       testID: 'account-sessions',
     },
+    {
+      href: '/(app)/account/spending',
+      title: 'account.spending',
+      subtitle: 'account.spendingSubtitle',
+      icon: 'speedometer-outline',
+      show: true,
+      testID: 'account-spending',
+    },
   ];
 
   const visible = rows.filter((row) => row.show);

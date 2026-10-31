@@ -24,6 +24,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { ApiError } from '@/api/client';
 import { useSendGift } from '@/api/queries/useGifts';
 import { queryKeys } from '@/api/queries/keys';
+import { useSpendStatus } from '@/api/queries/useSocial';
 import { useGiftCatalog, useWallet } from '@/api/queries/useWallet';
 import {
   ApiErrorCode,
@@ -136,6 +137,7 @@ function GiftPicker({
   const queryClient = useQueryClient();
   const catalog = useGiftCatalog();
   const wallet = useWallet();
+  const spend = useSpendStatus();
   const send = useSendGift(roomId);
 
   const [intents] = useState(() => new SendIntents(randomUUID));
@@ -218,8 +220,21 @@ function GiftPicker({
       if (error instanceof ApiError && error.code === ApiErrorCode.INSUFFICIENT_BALANCE) {
         void queryClient.invalidateQueries({ queryKey: queryKeys.wallet.balance() });
       }
+      // The server's view of today's spend moved; the sheet's prompt should too.
+      if (
+        error instanceof ApiError &&
+        (error.code === ApiErrorCode.SPEND_LIMIT_REACHED ||
+          error.code === ApiErrorCode.SELF_EXCLUDED)
+      ) {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.profile.spend() });
+      }
     }
   }
+
+  const limited =
+    failure instanceof ApiError &&
+    (failure.code === ApiErrorCode.SPEND_LIMIT_REACHED ||
+      failure.code === ApiErrorCode.SELF_EXCLUDED);
 
   const insufficient =
     failure instanceof ApiError && failure.code === ApiErrorCode.INSUFFICIENT_BALANCE;
@@ -345,9 +360,38 @@ function GiftPicker({
         <Animated.View entering={FadeIn.duration(160)}>
           <Banner
             message={giftFailureMessage(failure, t)}
-            tone={insufficient ? 'warning' : 'danger'}
+            tone={insufficient || limited ? 'warning' : 'danger'}
           />
         </Animated.View>
+      )}
+
+      {/*
+        trust-and-safety-v1 § financial harm: past the cooling-off line for the
+        month, every open of the sheet says so, once, above the send button. A
+        prompt that lives inside the error path only speaks after the money has
+        moved; this one speaks before.
+      */}
+      {(spend.data?.coolingOff || limited) && (
+        <Pressable
+          onPress={() => {
+            haptic.selection();
+            router.push('/(app)/account/spending');
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={t('gifting.setLimit')}
+          style={styles.coolingOff}
+          testID="gift-cooling-off"
+        >
+          <Ionicons name="speedometer-outline" size={16} color={colors.status.warning} />
+          <Text variant="caption" tone="secondary" style={styles.coolingOffText}>
+            {limited
+              ? t('gifting.limitHint')
+              : t('gifting.coolingOff', { coins: formatCoins(coins(spend.data?.monthCoins ?? 0)) })}
+          </Text>
+          <Text variant="caption" tone="brand">
+            {t('gifting.setLimit')}
+          </Text>
+        </Pressable>
       )}
 
       {insufficient || shortOfCoins ? (
@@ -427,6 +471,11 @@ function giftFailureMessage(error: unknown, t: ReturnType<typeof useTranslation>
   if (error instanceof ApiError) {
     if (error.code === ApiErrorCode.INSUFFICIENT_BALANCE) return t('gifting.notEnoughCoins');
     if (error.code === ApiErrorCode.TXN_TYPE_INACTIVE) return t('gifting.unavailable');
+    if (error.code === ApiErrorCode.SPEND_LIMIT_REACHED) {
+      // The server names which of the user's own limits this would pass.
+      const period = (error.details as { period?: string } | undefined)?.period;
+      return period === 'month' ? t('gifting.monthlyLimitReached') : t('gifting.dailyLimitReached');
+    }
   }
   return errorMessage(error);
 }
@@ -442,6 +491,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.currency.coinSoft,
   },
   balanceText: { color: colors.currency.coin, fontWeight: '700' },
+  coolingOff: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.bg.surface,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border.subtle,
+  },
+  coolingOffText: { flex: 1 },
   recipients: { gap: spacing.sm },
   recipient: {
     flexDirection: 'row',

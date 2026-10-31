@@ -10,6 +10,13 @@ function csrfField(csrf: string): SafeHtml {
   return html`<input type="hidden" name="csrf" value="${csrf}" />`;
 }
 
+/** An instant as the IST wall-clock value a datetime-local input shows. */
+function istLocal(iso: string | null): string {
+  if (iso === null) return '';
+  const ist = new Date(new Date(iso).getTime() + 5.5 * 3_600_000);
+  return ist.toISOString().slice(0, 16);
+}
+
 const EFFECTS: Record<string, string> = {
   basic: 'in chat',
   fullscreen: 'full screen',
@@ -53,7 +60,7 @@ export function catalogPage(data: {
       tray; the id stays, because every past send points at it.
     </p>
     <div class="card"><table>
-      <thead><tr><th>Gift</th><th>Tier</th><th>Plays</th><th>Price (coins)</th><th>Payout (bp)</th><th>On</th><th>Why</th><th></th></tr></thead>
+      <thead><tr><th>Gift</th><th>Tier</th><th>Plays</th><th>Price (coins)</th><th>Payout (bp)</th><th>On</th><th>Season (IST)</th><th>Why</th><th></th></tr></thead>
       <tbody>
         ${data.gifts.map(
           (g) => html`<tr class="${g.isActive ? '' : 'off'}">
@@ -67,6 +74,8 @@ export function catalogPage(data: {
                 <input type="text" name="coinPrice" class="num" inputmode="numeric" value="${String(g.coinPrice)}" aria-label="Price in coins" />
                 <input type="text" name="payoutRateBp" class="num" inputmode="numeric" value="${String(g.payoutRateBp)}" aria-label="Payout in basis points" />
                 <label class="check"><input type="checkbox" name="isActive" ${g.isActive ? 'checked' : ''} /> on</label>
+                <input type="datetime-local" name="visibleFrom" value="${istLocal(g.visibleFrom)}" aria-label="Visible from (IST)" />
+                <input type="datetime-local" name="visibleTo" value="${istLocal(g.visibleTo)}" aria-label="Visible until (IST)" />
                 <input type="text" name="reason" class="short" placeholder="Why (recorded)" required minlength="3" />
                 <button>Save</button>
               </form>
@@ -75,6 +84,11 @@ export function catalogPage(data: {
         )}
       </tbody>
     </table></div>
+    <p class="sub">
+      <strong>Season</strong>: leave both blank for a gift that is always on sale; set a window for a
+      festival gift. Outside the window it leaves the tray and nothing else changes — gifts already
+      sent keep their art and their record.
+    </p>
 
     <h2>Coin packs</h2>
     <p class="sub">

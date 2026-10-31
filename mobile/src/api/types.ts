@@ -168,6 +168,14 @@ export const ApiErrorCode = {
   GIFT_PRICE_CHANGED: 'GIFT_PRICE_CHANGED',
   /** The recipient left the stage — or blocked the sender, deliberately the same code. */
   RECIPIENT_NOT_IN_ROOM: 'RECIPIENT_NOT_IN_ROOM',
+  // spend controls (036) — every one of these is a limit the USER set
+  SPEND_LIMIT_REACHED: 'SPEND_LIMIT_REACHED',
+  SELF_EXCLUDED: 'SELF_EXCLUDED',
+  EXCLUSION_ACTIVE: 'EXCLUSION_ACTIVE',
+  // direct messages
+  CANNOT_MESSAGE_SELF: 'CANNOT_MESSAGE_SELF',
+  THREAD_READ_ONLY: 'THREAD_READ_ONLY',
+  MESSAGE_BLOCKED: 'MESSAGE_BLOCKED',
 
   // transport
   VALIDATION_FAILED: 'VALIDATION_FAILED',
@@ -273,7 +281,8 @@ export interface OtpRequestResponse {
 // --- rooms ------------------------------------------------------------------
 
 export type RoomTag = 'singing' | 'dancing' | 'chatting' | 'gaming' | 'friends' | 'esports';
-export type FeedCategory = 'explore' | 'party' | 'following';
+/** `trending` is the hourly board's current hour — rooms being gifted right now. */
+export type FeedCategory = 'explore' | 'party' | 'following' | 'trending';
 
 /** Someone seated in a party room, as a feed card's avatar stack draws them. */
 export interface SeatFace {
@@ -480,6 +489,54 @@ export interface Visitor {
   visitedAt: string;
   /** Whether you already follow them. Drives the button state without a second call. */
   following: boolean;
+}
+
+/** A one-to-one thread, as opening one returns it. Same id as in the list. */
+export interface DirectThread {
+  id: string;
+  title: string;
+  avatarUrl: string | null;
+}
+
+/** A follow in both directions. Modelled on the server, never stored. */
+export interface Friend {
+  userId: string;
+  publicId: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  userLevel: number;
+  liveRoomId: string | null;
+  look: UserLook;
+  /** When the second follow landed. */
+  since: string;
+}
+
+export type SpendExclusion = 'none' | '30d' | '90d' | 'permanent';
+
+/**
+ * The brakes a user puts on their own gifting (migration 036).
+ *
+ * Caps lower at once and raise only after a delay — `pending` holds the raise
+ * and when it applies. An exclusion cannot be shortened or lifted while it
+ * runs. The check happens on the server, in the gift send; the app only shows
+ * the state and explains the refusal.
+ */
+export interface SpendStatus {
+  dailyCapCoins: number | null;
+  monthlyCapCoins: number | null;
+  pending: {
+    dailyCapCoins?: number | null;
+    monthlyCapCoins?: number | null;
+    appliesAt: string;
+  } | null;
+  excludedUntil: string | null;
+  excludedPermanently: boolean;
+  excluded: boolean;
+  todayCoins: number;
+  monthCoins: number;
+  /** Past the cooling-off line this month. The gift sheet shows a prompt. */
+  coolingOff: boolean;
+  coolingOffAtCoins: number;
 }
 
 export interface ThreadMessage {

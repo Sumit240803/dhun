@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { messagesApi, usersApi } from '@/api/endpoints/feed';
 import { queryKeys } from '@/api/queries/keys';
-import type { ThreadMessage, Visitor } from '@/api/types';
+import type { SpendExclusion, ThreadMessage, Visitor } from '@/api/types';
 import { track } from '@/lib/analytics';
 
 /**
@@ -135,6 +135,83 @@ export function useMarkThreadRead() {
     onSuccess: () => {
       // Every filter's list AND the tab badge read from this branch.
       void queryClient.invalidateQueries({ queryKey: queryKeys.messages.all });
+    },
+  });
+}
+
+/**
+ * Sends a line in a direct thread.
+ *
+ * The reply is appended to the cached thread on success rather than waiting
+ * for a refetch, so the bubble appears the moment the server confirms it; the
+ * thread list is invalidated because its preview and order just changed.
+ */
+export function useSendDirectMessage(threadId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: string) => messagesApi.send(threadId, body),
+    onSuccess: ({ message }) => {
+      queryClient.setQueryData<ThreadMessage[]>(queryKeys.messages.thread(threadId), (current) =>
+        current === undefined || current.some((m) => m.id === message.id)
+          ? current
+          : [message, ...current],
+      );
+      void queryClient.invalidateQueries({ queryKey: queryKeys.messages.threads('all') });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.messages.threads('people') });
+    },
+  });
+}
+
+/** Opens (or finds) the thread with one person. The caller navigates to it. */
+export function useOpenDirectThread() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (userId: string) => messagesApi.open(userId),
+    onSuccess: () => {
+      // A brand-new thread has to show up in the list.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.messages.all });
+    },
+  });
+}
+
+/** People who follow you back. */
+export function useFriends(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.profile.friends(),
+    queryFn: async () => (await usersApi.friends()).friends,
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * The user's own spending limits and this month's gift spend.
+ *
+ * Disabled for guests — they cannot spend, so there is nothing to limit, and
+ * the endpoint would answer 403.
+ */
+export function useSpendStatus(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.profile.spend(),
+    queryFn: async () => (await usersApi.spendControls()).spend,
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
+export function useSetSpendControls() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (input: {
+      dailyCapCoins: number | null;
+      monthlyCapCoins: number | null;
+      exclusion?: SpendExclusion;
+    }) => usersApi.setSpendControls(input),
+    onSuccess: ({ spend }) => {
+      queryClient.setQueryData(queryKeys.profile.spend(), spend);
     },
   });
 }

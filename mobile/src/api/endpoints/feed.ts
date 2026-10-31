@@ -8,12 +8,16 @@ import { api } from '@/api/client';
 import type {
   AppBanner,
   ClientConfig,
+  DirectThread,
   FeedCategory,
   FeedRoom,
+  Friend,
   MessageThread,
   ProfileSummary,
   PublicProfile,
   ReportReason,
+  SpendExclusion,
+  SpendStatus,
   ThreadFilter,
   ThreadMessage,
   Visitor,
@@ -38,6 +42,13 @@ export const messagesApi = {
 
   /** Moves the read watermark. Idempotent, so it is safe on every open. */
   markRead: (threadId: string) => api.post<{ read: true }>(`messages/threads/${threadId}/read`, {}),
+
+  /** The thread with one person, created if it does not exist yet. */
+  open: (userId: string) =>
+    api.post<{ thread: DirectThread }>(`messages/threads/with/${userId}`, {}),
+
+  send: (threadId: string, body: string) =>
+    api.post<{ message: ThreadMessage }>(`messages/threads/${threadId}/messages`, { body }),
 };
 
 export const usersApi = {
@@ -59,6 +70,16 @@ export const usersApi = {
 
   block: (userId: string) => api.post<{ blocked: boolean }>(`users/${userId}/block`, {}),
   unblock: (userId: string) => api.delete<{ blocked: boolean }>(`users/${userId}/block`),
+
+  friends: (limit = 100) => api.get<{ friends: Friend[] }>(`users/me/friends?limit=${limit}`),
+
+  spendControls: () => api.get<{ spend: SpendStatus }>('users/me/spend-controls'),
+  setSpendControls: (input: {
+    dailyCapCoins: number | null;
+    monthlyCapCoins: number | null;
+    /** Omitted leaves a running pause as it is. */
+    exclusion?: SpendExclusion;
+  }) => api.put<{ spend: SpendStatus }>('users/me/spend-controls', input),
 };
 
 export const moderationApi = {

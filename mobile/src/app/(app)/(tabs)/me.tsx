@@ -397,7 +397,15 @@ export default function MeTab() {
             />
             <Divider />
             <Row style={styles.stats}>
-              <Stat label={t('profile.friends')} value={summary.data?.friends} />
+              <Stat
+                label={t('profile.friends')}
+                value={summary.data?.friends}
+                onPress={() => {
+                  haptic.selection();
+                  router.push('/(app)/friends');
+                }}
+                testID="friends-stat"
+              />
               <Stat label={t('profile.following')} value={summary.data?.following} />
               <Stat label={t('profile.followers')} value={summary.data?.followers} />
             </Row>
@@ -538,8 +546,18 @@ export default function MeTab() {
   );
 }
 
-function Stat({ label, value }: { label: string; value?: number }) {
-  return (
+function Stat({
+  label,
+  value,
+  onPress,
+  testID,
+}: {
+  label: string;
+  value?: number;
+  onPress?: () => void;
+  testID?: string;
+}) {
+  const body = (
     <Column align="center" gap="xs" flex={1}>
       {value === undefined ? (
         <Skeleton width={28} height={22} />
@@ -550,6 +568,18 @@ function Stat({ label, value }: { label: string; value?: number }) {
         {label}
       </Text>
     </Column>
+  );
+  if (!onPress) return body;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => [styles.stat, pressed && styles.statPressed]}
+      testID={testID}
+    >
+      {body}
+    </Pressable>
   );
 }
 
@@ -640,6 +670,8 @@ const styles = StyleSheet.create({
   heroContent: { alignItems: 'center', gap: spacing.sm },
   gutter: { paddingHorizontal: spacing.lg, gap: spacing.lg, marginTop: -spacing.sm },
   stats: { paddingVertical: spacing.lg },
+  stat: { flex: 1 },
+  statPressed: { opacity: 0.7 },
   balance: { flex: 1, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.sm },
   balanceAction: {
     paddingHorizontal: spacing.sm,
