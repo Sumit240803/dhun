@@ -56,6 +56,8 @@ export type AnalyticsEvent =
   | 'purchase_failed'
   | 'gift_sent'
   | 'cosmetic_purchased'
+  | 'vip_purchased'
+  | 'super_message_sent'
   | 'coins_converted'
   | 'free_coins_earned'
   | 'verification_submitted'

@@ -6,7 +6,16 @@
 // authorisation boundary of the whole media plane, and it stays server-side.
 
 import { api } from '@/api/client';
-import type { JoinedRoom, LiveRoom, RoomRank, RoomSeat, RoomTag, RtcJoinToken } from '@/api/types';
+import type {
+  JoinedRoom,
+  LiveRoom,
+  PollView,
+  PollsConfig,
+  RoomRank,
+  RoomSeat,
+  RoomTag,
+  RtcJoinToken,
+} from '@/api/types';
 
 export const liveRoomsApi = {
   /**
@@ -77,4 +86,16 @@ export const liveRoomsApi = {
     api.post<{ admins: string[] }>(`rooms/${roomId}/admins`, { userId }),
   removeAdmin: (roomId: string, userId: string) =>
     api.delete<{ admins: string[] }>(`rooms/${roomId}/admins/${userId}`),
+
+  // Polls. Free to ask, free to answer, one answer each — never a wager.
+  currentPoll: (roomId: string) =>
+    api.get<{ poll: PollView | null; config: PollsConfig }>(`rooms/${roomId}/polls/current`),
+  createPoll: (
+    roomId: string,
+    input: { question: string; options: string[]; durationSeconds?: number },
+  ) => api.post<{ poll: PollView }>(`rooms/${roomId}/polls`, input),
+  votePoll: (roomId: string, pollId: string, optionIndex: number) =>
+    api.post<{ poll: PollView }>(`rooms/${roomId}/polls/${pollId}/votes`, { optionIndex }),
+  closePoll: (roomId: string, pollId: string) =>
+    api.post<{ poll: PollView }>(`rooms/${roomId}/polls/${pollId}/close`, {}),
 };

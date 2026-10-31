@@ -176,6 +176,9 @@ export const ApiErrorCode = {
   CANNOT_MESSAGE_SELF: 'CANNOT_MESSAGE_SELF',
   THREAD_READ_ONLY: 'THREAD_READ_ONLY',
   MESSAGE_BLOCKED: 'MESSAGE_BLOCKED',
+  // polls
+  POLL_CLOSED: 'POLL_CLOSED',
+  POLL_NOT_FOUND: 'POLL_NOT_FOUND',
 
   // transport
   VALIDATION_FAILED: 'VALIDATION_FAILED',
@@ -646,6 +649,92 @@ export interface RewardsStatus {
   };
 }
 
+// Daily tasks (Phase 1). Progress is the server's reading of today; a claim
+// pays ordinary free coins once per task per IST day.
+export type TaskKind = 'watch_minutes' | 'chat' | 'gifts' | 'follows' | 'share';
+export interface DailyTask {
+  id: string;
+  kind: TaskKind;
+  target: number;
+  coins: number;
+  progress: number;
+  claimed: boolean;
+}
+export interface DailyTasks {
+  /** The IST day these count against. */
+  day: string;
+  tasks: DailyTask[];
+}
+
+/** A room poll. Tallies are the server's count; `myVote` is only ever the reader's own. */
+export interface PollView {
+  id: string;
+  question: string;
+  options: { text: string; votes: number }[];
+  total: number;
+  endsAt: string;
+  closedAt: string | null;
+  myVote: number | null;
+}
+export interface PollsConfig {
+  durationsSeconds: number[];
+  defaultSeconds: number;
+}
+
+/** A paid, pinned line in a room. The gems have already moved when this arrives. */
+export interface SuperView {
+  id: string;
+  roomId: string;
+  userId: string;
+  name: string | null;
+  avatarUrl: string | null;
+  look: UserLook;
+  body: string;
+  gems: number;
+  at: string;
+  pinSeconds: number;
+}
+export interface SuperMessageTerms {
+  gemPrice: number;
+  pinSeconds: number;
+  maxLength: number;
+}
+
+/** Fan level with ONE host — a reading of coins gifted to them, all time. Display only. */
+export interface FanLevel {
+  level: number;
+  coins: number;
+  nextAt: number | null;
+}
+
+export type VipBadge = 'silver' | 'gold' | 'platinum' | 'diamond';
+export type VipPerk =
+  | 'badge'
+  | 'name_color'
+  | 'bubble'
+  | 'entry'
+  | 'frame'
+  | 'stealth'
+  | 'global_badge'
+  | 'priority_mic';
+export interface VipTier {
+  id: string;
+  name: string;
+  badge: VipBadge;
+  gemPrice: number;
+  durationDays: number;
+  /** Cosmetic ids bundled for the same period. */
+  includes: string[];
+  perks: VipPerk[];
+}
+export interface VipPurchaseResult {
+  tierId: string;
+  badge: VipBadge;
+  gemsSpent: number;
+  expiresAt: string;
+  replayed: boolean;
+}
+
 export type NewUserTaskId = 'follow' | 'gift' | 'chat';
 
 /** The new-user sheet. Absent (null) once the window has closed — it never reopens. */
@@ -866,9 +955,17 @@ export interface UserLook {
   bubble: Themed<BubbleStyle> | null;
   nameColor: Themed<NameColorStyle> | null;
   entry: { asset: string | null; style: Themed<EntryStyle> } | null;
+  /** The VIP tier worn — silver, gold, platinum, diamond — or null. A badge beside the name. */
+  vip: string | null;
 }
 
-export const EMPTY_LOOK: UserLook = { frame: null, bubble: null, nameColor: null, entry: null };
+export const EMPTY_LOOK: UserLook = {
+  frame: null,
+  bubble: null,
+  nameColor: null,
+  entry: null,
+  vip: null,
+};
 
 /** Someone wearing an entry effect arrived in a room. Nobody else is announced. */
 export interface EntryView {
@@ -900,7 +997,8 @@ export interface CosmeticCatalog {
 
 export interface OwnedCosmetic {
   cosmeticId: string;
-  kind: CosmeticKind;
+  /** A wearable kind, or `vip` for a tier. */
+  kind: CosmeticKind | 'vip';
   name: string;
   /**
    * When it lapses, or NULL for an item that never does.

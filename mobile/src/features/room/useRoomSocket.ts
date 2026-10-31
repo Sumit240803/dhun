@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { GiftView, PkBattle, Reaction } from '@/api/types';
+import type { GiftView, PkBattle, PollView, Reaction, SuperView } from '@/api/types';
 import { tokenStorage } from '@/features/auth/storage';
 import {
   RoomSocket,
@@ -44,6 +44,10 @@ export interface RoomSocketState {
   lastError: { code: string; message: string } | null;
   /** Room admins, once the server has said who they are; null until then. */
   admins: string[] | null;
+  /** The poll on screen, or null. `myVote` is kept across broadcasts, which never carry it. */
+  poll: PollView | null;
+  /** A super message still pinned, or null. The pin component lets it lapse. */
+  pinned: SuperView | null;
 }
 
 interface Options {
@@ -77,6 +81,8 @@ interface Options {
    */
   onGlobalGift?: (gift: GiftView, roomId: string) => void;
   onReaction?: (emoji: Reaction, userId: string) => void;
+  /** A super message landed. State carries it; this is for the moment it arrives. */
+  onSuper?: (message: SuperView) => void;
 }
 
 export function useRoomSocket(roomId: string | undefined, options: Options = {}) {
@@ -90,8 +96,10 @@ export function useRoomSocket(roomId: string | undefined, options: Options = {})
   const onPkRef = useRef(options.onPk);
   const onGlobalGiftRef = useRef(options.onGlobalGift);
   const onReactionRef = useRef(options.onReaction);
+  const onSuperRef = useRef(options.onSuper);
   useEffect(() => {
     onReactionRef.current = options.onReaction;
+    onSuperRef.current = options.onSuper;
     onGiftRef.current = options.onGift;
     onEntryRef.current = options.onEntry;
     onRewardRef.current = options.onReward;
@@ -109,6 +117,8 @@ export function useRoomSocket(roomId: string | undefined, options: Options = {})
     ended: false,
     lastError: null,
     admins: null,
+    poll: null,
+    pinned: null,
   });
 
   useEffect(() => {
@@ -155,10 +165,28 @@ export function useRoomSocket(roomId: string | undefined, options: Options = {})
                 viewers: message.viewers,
                 chat: message.history,
                 micQueue: message.micQueue ?? [],
+                poll: message.poll ?? null,
+                pinned: message.pinned ?? null,
               };
 
             case 'chat':
               return { ...s, chat: [...s.chat, message.line].slice(-MAX_LINES) };
+
+            case 'poll':
+              // The broadcast carries nobody's own vote; ours survives it.
+              return {
+                ...s,
+                poll: message.poll
+                  ? {
+                      ...message.poll,
+                      myVote: s.poll?.id === message.poll.id ? s.poll.myVote : null,
+                    }
+                  : null,
+              };
+
+            case 'super':
+              onSuperRef.current?.(message.message);
+              return { ...s, pinned: message.message };
 
             case 'seats':
               return { ...s, seats: message.seats };
@@ -245,6 +273,9 @@ export function useRoomSocket(roomId: string | undefined, options: Options = {})
   );
 
   const clearError = useCallback(() => setState((s) => ({ ...s, lastError: null })), []);
+  /** A poll response from HTTP, which carries our own vote. */
+  const applyPoll = useCallback((poll: PollView | null) => setState((s) => ({ ...s, poll })), []);
+  const clearPinned = useCallback(() => setState((s) => ({ ...s, pinned: null })), []);
   const clearMicAnswer = useCallback(() => setState((s) => ({ ...s, micAnswer: null })), []);
 
   return {
@@ -256,5 +287,7 @@ export function useRoomSocket(roomId: string | undefined, options: Options = {})
     resolveMic,
     clearError,
     clearMicAnswer,
+    applyPoll,
+    clearPinned,
   };
 }

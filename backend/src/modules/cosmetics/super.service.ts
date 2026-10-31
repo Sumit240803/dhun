@@ -18,7 +18,7 @@ import { publishToRoom } from '../../infra/roomBus.js';
 import type { UserLook } from '../../shared/cosmeticStyle.js';
 import { ECONOMY, cosmeticPurchaseLegs, getConfigValue, getCosmeticForSale, postTransaction } from '../economy/index.js';
 import { filterText } from '../moderation/index.js';
-import { EMPTY_LOOK, lookFor } from './looks.js';
+import { lookFor } from './looks.js';
 
 export const SUPER_MESSAGE_ID = 'super_message';
 
@@ -165,7 +165,7 @@ export async function currentSuperMessage(roomId: string): Promise<SuperView | n
     userId: row.user_id,
     name: row.display_name,
     avatarUrl: row.avatar_url,
-    look: (await lookFor(row.user_id)) ?? EMPTY_LOOK,
+    look: await lookFor(row.user_id),
     body: filterText(row.body).body,
     gems: Number(row.gems),
     at: row.created_at.toISOString(),

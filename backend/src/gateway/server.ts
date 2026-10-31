@@ -22,7 +22,8 @@ import { AppError } from '../infra/errors.js';
 import { verifyAccessToken } from '../modules/auth/tokens.js';
 import { filterText } from '../modules/moderation/textFilter.js';
 import { freeCoinsConfig, grantWatchReward, istDate } from '../modules/rewards/index.js';
-import { takeSeat } from '../modules/rooms/index.js';
+import { currentSuperMessage } from '../modules/cosmetics/index.js';
+import { currentPoll, takeSeat } from '../modules/rooms/index.js';
 import { broadcast, join, leave, localRoomSize, send, startFanout, stopFanout, type Client } from './hub.js';
 import { decode, type ClientMessage } from './protocol.js';
 import * as state from './room.state.js';
@@ -277,6 +278,10 @@ async function handle(client: Client, message: ClientMessage): Promise<void> {
         // The queue is the host's business alone. Sending it to everyone would
         // publish who asked for the mic and was refused.
         ...(isHost ? { micQueue: await state.pendingMicRequests(message.roomId) } : {}),
+        // What is on screen besides chat: the poll, with THIS viewer's own
+        // vote, and a super message still pinned.
+        poll: await currentPoll(message.roomId, client.userId),
+        pinned: await currentSuperMessage(message.roomId),
       });
 
       broadcast(message.roomId, {

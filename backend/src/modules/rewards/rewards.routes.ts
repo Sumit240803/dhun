@@ -13,6 +13,7 @@ import {
   rewardsStatus,
   type NewUserTask,
 } from './rewards.service.js';
+import { claimTask, dailyTasks, recordShare } from './tasks.service.js';
 
 export function buildRewardsRouter(): Router {
   const router = Router();
@@ -40,6 +41,42 @@ export function buildRewardsRouter(): Router {
   // Every claim sits behind the free-coins switch. The ledger's own switch
   // (free_coin_grant inactive) backs it up for anything that gets past.
   const paused = requireFeature('rewards');
+
+  // ── Daily tasks (Phase 1) ──────────────────────────────────────────────
+  router.get('/tasks', async (req, res, next) => {
+    try {
+      res.json({ tasks: await dailyTasks(req.userId!) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // The share sheet closed. Recorded once a day, pays nothing by itself —
+  // the claim below does, and only if the task's target is met.
+  router.post('/tasks/share', requireRegistered(), claimLimit, async (req, res, next) => {
+    try {
+      await recordShare(req.userId!);
+      res.json({ tasks: await dailyTasks(req.userId!) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post(
+    '/tasks/:taskId',
+    requireRegistered(),
+    paused,
+    claimLimit,
+    validate({ params: z.object({ taskId: z.string().regex(/^[a-z0-9_]{1,32}$/) }).strict() }),
+    async (req, res, next) => {
+      try {
+        const { taskId } = req.validatedParams as { taskId: string };
+        res.json(await claimTask(req.userId!, taskId));
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
 
   router.post('/welcome', requireRegistered(), paused, claimLimit, async (req, res, next) => {
     try {

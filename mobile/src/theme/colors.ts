@@ -176,6 +176,17 @@ const light = {
     link: p.violet[700],
   },
 
+  /**
+   * VIP tiers. Reserved like the currency colours: a badge must mean its tier
+   * everywhere, and never borrow brand or a status colour.
+   */
+  vip: {
+    silver: p.neutral[400],
+    gold: p.amber[700],
+    platinum: p.blue[500],
+    diamond: p.violet[700],
+  },
+
   /** Translucent fills over video or imagery, where a solid surface would hide content. */
   glass: {
     fill: p.alpha.warmInk08,
@@ -268,6 +279,13 @@ const dark: Themed<typeof light> = {
     3: p.purple[500],
     4: p.orange[500],
     5: p.gold[500],
+  },
+
+  vip: {
+    silver: p.neutral[300],
+    gold: p.amber[500],
+    platinum: p.blue[500],
+    diamond: p.violet[300],
   },
 
   /**

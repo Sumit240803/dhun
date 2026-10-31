@@ -7,7 +7,9 @@ import { useTranslation } from '@/i18n';
 import { haptic } from '@/lib/haptics';
 import { colors, radius, spacing } from '@/theme';
 import { Row, Text } from '@/ui';
+import { FanBadge } from '@/visuals/FanBadge';
 import { themed } from '@/visuals/look';
+import { VipBadge } from '@/visuals/VipBadge';
 
 import type { ChatLine } from '@/features/room/gateway';
 
@@ -214,6 +216,8 @@ function ChatRow({
   return (
     <Animated.View entering={FadeIn.duration(160)} style={styles.line}>
       <Row gap="xs" align="center">
+        {line.look?.vip ? <VipBadge tier={line.look.vip} size="sm" /> : null}
+        {line.fan > 0 && <FanBadge level={line.fan} />}
         <Pressable
           onPress={() => onNamePress(line.userId, line.name)}
           accessibilityRole="button"

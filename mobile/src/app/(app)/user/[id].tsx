@@ -33,6 +33,7 @@ import {
 } from '@/ui';
 import { themed } from '@/visuals/look';
 import { LookAvatar } from '@/visuals/LookAvatar';
+import { VipBadge } from '@/visuals/VipBadge';
 
 /**
  * Someone else's profile.
@@ -212,6 +213,7 @@ export default function UserProfileScreen() {
 
             {data !== undefined && (
               <Row gap="xs">
+                {data.look?.vip ? <VipBadge tier={data.look.vip} /> : null}
                 <Badge label={t('hostProfile.level', { level: data.userLevel })} />
                 <Badge label={t('profile.idLabel', { id: data.publicId })} tone="neutral" />
               </Row>

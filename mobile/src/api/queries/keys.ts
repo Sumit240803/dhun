@@ -28,6 +28,8 @@ export const queryKeys = {
     all: ['catalog'] as const,
     gifts: () => [...queryKeys.catalog.all, 'gifts'] as const,
     cosmetics: () => [...queryKeys.catalog.all, 'cosmetics'] as const,
+    vip: () => [...queryKeys.catalog.all, 'vip'] as const,
+    superTerms: () => [...queryKeys.catalog.all, 'super'] as const,
   },
 
   gifts: {
@@ -38,6 +40,7 @@ export const queryKeys = {
     all: ['rewards'] as const,
     status: () => [...queryKeys.rewards.all, 'status'] as const,
     newUser: () => [...queryKeys.rewards.all, 'newUser'] as const,
+    tasks: () => [...queryKeys.rewards.all, 'tasks'] as const,
   },
 
   discover: {
@@ -77,6 +80,7 @@ export const queryKeys = {
     visitors: () => [...queryKeys.profile.all, 'visitors'] as const,
     public: (userId: string) => [...queryKeys.profile.all, 'public', userId] as const,
     friends: () => [...queryKeys.profile.all, 'friends'] as const,
+    fan: (hostId: string) => [...queryKeys.profile.all, 'fan', hostId] as const,
     spend: () => [...queryKeys.profile.all, 'spend'] as const,
   },
 

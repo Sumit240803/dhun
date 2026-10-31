@@ -108,5 +108,33 @@ export function useRoomActions(roomId: string) {
     retry: false,
   });
 
-  return { takeSeat, releaseSeat, muteSeat, kick, endRoom, appointAdmin, removeAdmin };
+  // Polls. The responses carry the caller's own vote, which the broadcast
+  // never does, so the screen applies them to the socket's copy.
+  const createPoll = useMutation({
+    mutationFn: (input: { question: string; options: string[]; durationSeconds?: number }) =>
+      liveRoomsApi.createPoll(roomId, input),
+    retry: false,
+  });
+  const votePoll = useMutation({
+    mutationFn: (input: { pollId: string; optionIndex: number }) =>
+      liveRoomsApi.votePoll(roomId, input.pollId, input.optionIndex),
+    retry: false,
+  });
+  const closePoll = useMutation({
+    mutationFn: (pollId: string) => liveRoomsApi.closePoll(roomId, pollId),
+    retry: false,
+  });
+
+  return {
+    takeSeat,
+    releaseSeat,
+    muteSeat,
+    kick,
+    endRoom,
+    appointAdmin,
+    removeAdmin,
+    createPoll,
+    votePoll,
+    closePoll,
+  };
 }

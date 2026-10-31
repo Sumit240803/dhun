@@ -10,6 +10,7 @@ import { ApiError } from '@/api/client';
 import { ApiErrorCode } from '@/api/types';
 import { useFlag } from '@/config/flags';
 import { CheckinCard } from '@/features/rewards/CheckinCard';
+import { TasksCard } from '@/features/rewards/TasksCard';
 import { useTranslation } from '@/i18n';
 import { errorMessage } from '@/lib/errors';
 import { haptic } from '@/lib/haptics';
@@ -85,6 +86,7 @@ export default function RewardsScreen() {
             <WelcomeCard coinsAmount={rewards.data.welcome.coins} />
           )}
           <CheckinCard checkin={rewards.data.checkin} />
+          <TasksCard />
           <WatchCard watch={rewards.data.watch} />
           <InviteCard referral={rewards.data.referral} />
         </ScrollView>

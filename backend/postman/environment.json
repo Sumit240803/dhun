@@ -253,6 +253,21 @@
       "value": "100001",
       "type": "default",
       "enabled": true
+    },
+    {
+      "key": "pollId",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "taskId",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "hostUserId",
+      "value": "",
+      "enabled": true
     }
   ],
   "_postman_variable_scope": "environment"

@@ -8,7 +8,16 @@ import { colors, radius, spacing } from '@/theme';
 import { Column, Sheet, Text, type SheetHandle } from '@/ui';
 
 export type RoomFeature =
-  'leaderboard' | 'share' | 'report' | 'rules' | 'rewards' | 'store' | 'cosmetics' | 'minimise';
+  | 'leaderboard'
+  | 'share'
+  | 'report'
+  | 'rules'
+  | 'rewards'
+  | 'store'
+  | 'cosmetics'
+  | 'minimise'
+  | 'poll'
+  | 'super';
 
 interface Entry {
   id: RoomFeature;
@@ -41,14 +50,18 @@ const FEATURES: Entry[] = [
   { id: 'report', icon: 'flag', label: 'room.featureReport', ready: true },
   { id: 'rules', icon: 'document-text', label: 'room.featureRules', ready: true },
   { id: 'minimise', icon: 'contract', label: 'room.featureMinimise', ready: true },
+  { id: 'poll', icon: 'stats-chart', label: 'room.featurePoll', ready: true },
+  { id: 'super', icon: 'megaphone', label: 'room.featureSuper', ready: true },
 ];
 
 interface Props {
   onSelect: (feature: RoomFeature) => void;
+  /** Tiles this viewer may not use right now — a poll for someone who is not the host. */
+  hidden?: readonly RoomFeature[];
 }
 
 export const FeaturesSheet = forwardRef<SheetHandle, Props>(function FeaturesSheet(
-  { onSelect },
+  { onSelect, hidden = [] },
   ref,
 ) {
   const { t } = useTranslation();
@@ -56,7 +69,7 @@ export const FeaturesSheet = forwardRef<SheetHandle, Props>(function FeaturesShe
   return (
     <Sheet ref={ref} title={t('room.features')}>
       <View style={styles.grid}>
-        {FEATURES.map((entry) => (
+        {FEATURES.filter((entry) => !hidden.includes(entry.id)).map((entry) => (
           <Pressable
             key={entry.id}
             onPress={() => {

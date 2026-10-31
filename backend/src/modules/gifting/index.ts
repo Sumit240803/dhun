@@ -9,5 +9,14 @@ export { hostEarnings } from './earnings.service.js';
 export type { EarningsDay, HostEarnings, TopGifter } from './earnings.service.js';
 
 export { GIFT_QUANTITIES, roomLeaderboard, sendGift } from './gifts.service.js';
+export {
+  clearFanCache,
+  fanLevel,
+  fanLevelFor,
+  fanLevelInRoom,
+  fanLevelsInRoom,
+  invalidateFan,
+} from './fans.service.js';
+export type { FanLevel } from './fans.service.js';
 export type { GiftQuantity, GiftView, LeaderboardEntry, SendGiftResult } from './gifts.service.js';
 export { clearLeaderboardCache, invalidateLeaderboard } from './board.cache.js';

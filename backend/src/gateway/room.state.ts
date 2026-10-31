@@ -14,6 +14,7 @@ import { uuidv7 } from 'uuidv7';
 import { pool } from '../infra/db.js';
 import { AppError } from '../infra/errors.js';
 import { EMPTY_LOOK, lookFor, looksFor } from '../modules/cosmetics/index.js';
+import { fanLevelInRoom, fanLevelsInRoom } from '../modules/gifting/index.js';
 import type { ChatLine, EntryView, MicRequest, SeatView } from './protocol.js';
 
 /** How much backlog a late arrival gets. Enough to look busy, not a transcript. */
@@ -99,7 +100,10 @@ export async function recentMessages(roomId: string): Promise<ChatLine[]> {
   );
 
   // One query for the whole backlog's senders, not one per line.
-  const looks = await looksFor(rows.map((r) => r.user_id));
+  const [looks, fans] = await Promise.all([
+    looksFor(rows.map((r) => r.user_id)),
+    fanLevelsInRoom(roomId, rows.map((r) => r.user_id)),
+  ]);
   return rows
     .map((r) => ({
       id: r.id,
@@ -108,6 +112,7 @@ export async function recentMessages(roomId: string): Promise<ChatLine[]> {
       body: r.body,
       at: r.created_at.toISOString(),
       look: looks.get(r.user_id) ?? EMPTY_LOOK,
+      fan: fans.get(r.user_id) ?? 0,
     }))
     .reverse();
 }
@@ -146,6 +151,7 @@ export async function recordMessage(input: {
     body: input.body,
     at: rows[0].created_at.toISOString(),
     look: await lookFor(input.userId),
+    fan: await fanLevelInRoom(input.roomId, input.userId),
   };
 }
 

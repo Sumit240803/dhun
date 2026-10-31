@@ -11,6 +11,7 @@ import { rateLimit } from '../../middleware/rateLimit.js';
 import { validate } from '../../middleware/validate.js';
 import { requireFeature } from '../config/index.js';
 import { hostEarnings } from './earnings.service.js';
+import { fanLevel } from './fans.service.js';
 import { GIFT_QUANTITIES, roomLeaderboard, sendGift, type GiftQuantity } from './gifts.service.js';
 
 export function buildGiftsRouter(): Router {
@@ -82,6 +83,21 @@ export function buildGiftsRouter(): Router {
    * The host's own earnings — balance, thirty days by day, top gifters,
    * hours live. Read from gift_sends and room_sessions, never a counter.
    */
+  /** Your fan level with one host. Display only — nothing is paid on a level. */
+  router.get(
+    '/fan-level/:hostId',
+    authGuard(),
+    validate({ params: z.object({ hostId: z.string().uuid() }).strict() }),
+    async (req, res, next) => {
+      try {
+        const { hostId } = req.validatedParams as { hostId: string };
+        res.json({ fan: await fanLevel(req.userId!, hostId) });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
   router.get('/earnings', authGuard(), requireRegistered(), async (req, res, next) => {
     try {
       res.json({ earnings: await hostEarnings(req.userId!) });

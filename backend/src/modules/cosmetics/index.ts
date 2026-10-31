@@ -14,6 +14,10 @@ export {
   unequipKind,
 } from './cosmetics.service.js';
 export type { CosmeticPurchaseResult, OwnedCosmetic } from './cosmetics.service.js';
+export { currentSuperMessage, sendSuperMessage, superMessageConfig } from './super.service.js';
+export type { SuperView } from './super.service.js';
+export { listVipTiers, purchaseVip, VIP_BADGES } from './vip.service.js';
+export type { VipBadge, VipPerk, VipPurchaseResult, VipTier } from './vip.service.js';
 export { grantLevelUnlocks } from './unlocks.service.js';
 
 export { clearLookCache, invalidateLook, lookFor, looksFor } from './looks.js';

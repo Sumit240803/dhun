@@ -12,7 +12,15 @@
 // of a two-person project costs more than it saves. The gateway tests are what
 // hold the two in step.
 
-import type { EntryView, GiftView, PkBattle, Reaction, UserLook } from '@/api/types';
+import type {
+  EntryView,
+  GiftView,
+  PkBattle,
+  PollView,
+  Reaction,
+  SuperView,
+  UserLook,
+} from '@/api/types';
 import { env } from '@/config/env';
 import { reportError } from '@/lib/reporting';
 
@@ -24,6 +32,8 @@ export interface ChatLine {
   at: string;
   /** The sender's bubble and name colour, as they are now. */
   look: UserLook;
+  /** Fan level with the room's host; 0 for none and for the host. */
+  fan: number;
 }
 
 export interface MicRequest {
@@ -51,8 +61,16 @@ export type ServerMessage =
       viewers: number;
       history: ChatLine[];
       micQueue?: MicRequest[];
+      /** The poll on screen, with THIS viewer's own vote. */
+      poll?: PollView | null;
+      /** A super message still pinned. */
+      pinned?: SuperView | null;
     }
   | { t: 'chat'; roomId: string; line: ChatLine }
+  /** A poll opened, took a vote or closed. Everyone's tallies, nobody's own vote. */
+  | { t: 'poll'; roomId: string; poll: PollView | null }
+  /** A paid, pinned line. The gems have already moved. */
+  | { t: 'super'; roomId: string; message: SuperView }
   | { t: 'seats'; roomId: string; seats: SeatView[] }
   | { t: 'presence'; roomId: string; viewers: number }
   | { t: 'mic:queue'; roomId: string; requests: MicRequest[] }

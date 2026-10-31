@@ -67,6 +67,11 @@ export async function looksFor(userIds: readonly string[]): Promise<Map<string, 
 
   for (const row of rows) {
     const look = built.get(row.user_id)!;
+    // A tier is not drawn from style data; its id names the badge.
+    if (row.kind === 'vip') {
+      look.vip = row.cosmetic_id.replace(/^vip_/, '');
+      continue;
+    }
     if (!isWearable(row.kind)) continue;
 
     // An item whose style was broken after someone bought it draws nothing,

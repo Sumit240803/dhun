@@ -5,9 +5,18 @@
 // when a key is reused and when a fresh one is minted.
 
 import { api } from '@/api/client';
-import type { GiftQuantity, HostEarnings, LeaderboardEntry, SendGiftResult } from '@/api/types';
+import type {
+  FanLevel,
+  GiftQuantity,
+  HostEarnings,
+  LeaderboardEntry,
+  SendGiftResult,
+} from '@/api/types';
 
 export const giftsApi = {
+  /** Your fan level with one host. A reading of gifts already sent; nothing is paid on it. */
+  fanLevel: (hostId: string) => api.get<{ fan: FanLevel }>(`gifts/fan-level/${hostId}`),
+
   send: (input: {
     roomId: string;
     recipientId: string;

@@ -932,6 +932,69 @@ simulator. First thing after the device pass if video ships at launch.
 
 ---
 
+### M20 · Phase 1 — ✅ COMPLETE for everything that needed no decision, unverified on devices
+
+Built 2026-10-31, in two slices (migrations 036 and 037). The blueprint's Phase 1 list,
+less the items that wait on a decision (listed at the end).
+
+**Slice 1 — people and brakes.**
+
+- **Private DMs.** One thread per pair, keyed on the sorted ids, so two people tapping
+  Message at the same moment land in the same thread. A Message button on every profile
+  and in the friends list; a composer in the thread screen. Lines run through the same
+  filter as room chat; a block in either direction reads as "no such account".
+- **Friends.** A follow in both directions, derived from the follow rows and never
+  stored, so the list can never disagree with the count on Me. Who is live first.
+- **Spend controls** (trust-and-safety-v1 § financial harm). The user's own daily and
+  monthly caps on gift coins, a pause of 30 or 90 days or for good, and a cooling-off
+  prompt past ₹50,000 a month. Three rules make them real: a cap lowers at once and
+  raises only after 24 hours; a pause cannot be shortened or lifted while it runs; the
+  check runs on the server, inside the gift send, never in the app. A spending-limits
+  screen under Account; the gift sheet names which limit a refused gift would have passed.
+- **Trending.** A feed category read from the hourly board's current hour — the same
+  rollup the rank pill reads, so the two never disagree about who is hot.
+- **Seasonal gifts.** `visible_from` / `visible_to` on a gift, set in IST from the
+  catalog page. Outside the window it leaves the tray; nothing already sent changes.
+
+**Slice 2 — the room and the store.**
+
+- **Polls.** A host or admin asks two to four options for 1, 2 or 5 minutes; the room
+  answers once each, for free. Tallies are counted from the votes on every read. A poll
+  never touches the ledger — a paid vote or a prize would be a wager (hard rule #1).
+- **Daily tasks.** Watch, chat, gift, follow, share, each paying ordinary free coins once
+  a day. Progress is DERIVED from the day's rows; the only stored event is a share, which
+  the server cannot see and the app reports once. Keyed `task:{user}:{date}:{task}`.
+- **Fan levels.** How much one person has given one host, all time, read into seven
+  steps. On every chat line as a badge, and on the host's card as your standing. Display
+  only; the number moves only when a gift does.
+- **Super messages.** A paid, highlighted line pinned over the chat for 30 seconds —
+  GEMS, so it pays the host nothing and rides the cosmetic transaction type. Filtered
+  before anything is charged. The sheet says plainly that gems do not go to the host.
+- **VIP.** Four monthly tiers, priced in gems, each a badge beside the name everywhere a
+  look is drawn plus a bundle of cosmetics for the same month. Renewal is another
+  purchase that adds a month; buying a higher tier swaps the badge. A VIP shelf in the
+  store. Stealth, the global badge and priority mic are listed as perks and marked
+  "soon" — they need enforcement in the gateway and the seat table, which comes after
+  the device pass.
+
+**Explicitly not built — each waits on a decision:**
+
+| Item | What is open |
+|---|---|
+| 1-on-1 paid calls | Per-minute price and the host's share; `private_call_charge` is seeded and inactive |
+| Fan club | Price, perks, and whether the host earns (it would be the first host-earning feature besides gifts) |
+| Lucky wheel | Only legal as a FREE daily spin — settle whether it exists at all |
+| Nearby | What a region is, and how precisely location may be used |
+| Live quiz / games | Gaming-law opinion first — anything with an entry fee is out |
+| Karaoke | Music licensing |
+| Voice effects, auto-preview | Native media processing; after the device pass |
+| Weekly events, platform rankings | The daily/weekly ranking decision |
+
+**Exit criteria met:** __BACKEND_TESTS__ backend tests · __MOBILE_TESTS__ mobile ·
+`npm run check` clean · CI green.
+
+---
+
 ## Admin panel — threaded, not a milestone
 
 Your docs are explicit: *"Admin panel MVP ka hissa hai, baad mein nahi."* Each milestone
@@ -952,6 +1015,18 @@ guardian slots · CP pairing · family/guild · stealth mode
 
 **Never build:** lucky gifts · mystery boxes · any paid chance-based game · user-to-user
 currency transfer · a lucky wheel that costs coins to spin.
+
+*(M20 later brought in polls, VIP, fan levels, DMs, the friend list, trending, daily
+tasks and super messages — Phase 1, after Phase 0 was finished. The rest of the list
+above still stands.)*
+
+*(M20 later brought in polls, VIP, fan levels, DMs, the friend list, trending, daily
+tasks and super messages — Phase 1, after Phase 0 was finished. The rest of the list
+above still stands.)*
+
+*(M20 later brought in polls, VIP, fan levels, DMs, the friend list, trending, daily
+tasks and super messages — Phase 1, after Phase 0 was finished. The rest of the list
+above still stands.)*
 
 ---
 

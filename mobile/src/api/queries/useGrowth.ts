@@ -50,6 +50,35 @@ export function useCheckin() {
   });
 }
 
+export function useDailyTasks(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.rewards.tasks(),
+    queryFn: async () => (await rewardsApi.tasks()).tasks,
+    enabled,
+    staleTime: 30_000,
+  });
+}
+
+export function useClaimTask() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: rewardsApi.claimTask,
+    onSuccess: (result, taskId) => {
+      afterClaim(queryClient);
+      if (!result.alreadyClaimed)
+        track('free_coins_earned', { source: 'task', task: taskId, coins: result.coins });
+    },
+  });
+}
+
+export function useRecordShare() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: rewardsApi.recordShare,
+    onSuccess: ({ tasks }) => queryClient.setQueryData(queryKeys.rewards.tasks(), tasks),
+  });
+}
+
 export function useNewUserRewards(enabled = true) {
   return useQuery({
     queryKey: queryKeys.rewards.newUser(),

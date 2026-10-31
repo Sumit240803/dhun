@@ -6,6 +6,7 @@ import { validate } from '../../middleware/validate.js';
 import { assertFeature, requireFeature } from '../config/index.js';
 import { rankFor, topRooms } from './board.service.js';
 import { appointAdmin, listAdmins, removeAdmin } from './admins.service.js';
+import { closePoll, createPoll, currentPoll, pollsConfig, vote } from './polls.service.js';
 import { endRoom, getRoom, goLive, joinRoom, roomIdForCode } from './live.service.js';
 import { fullestRoom, listFeed } from './rooms.service.js';
 import { kickFromRoom, releaseSeat, setSeatMuted, takeSeat } from './seats.service.js';
@@ -201,6 +202,79 @@ export function buildRoomsRouter(): Router {
       try {
         const { id } = req.validatedParams as { id: string };
         res.json({ ...(await getRoom(id)), admins: await listAdmins(id) });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------
+  // Polls (Phase 1). Free to ask, free to answer, one answer each.
+  // ---------------------------------------------------------------------
+  router.get('/:id/polls/current', validate({ params: roomIdParam }), async (req, res, next) => {
+    try {
+      const { id } = req.validatedParams as { id: string };
+      res.json({ poll: await currentPoll(id, req.userId), config: await pollsConfig() });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  router.post(
+    '/:id/polls',
+    authGuard(),
+    requireRegistered(),
+    rateLimit({ scope: 'polls:create', limit: 20, windowMs: 600_000, by: 'user' }),
+    validate({
+      params: roomIdParam,
+      body: z
+        .object({
+          question: z.string().trim().min(1).max(120),
+          options: z.array(z.string().trim().min(1).max(40)).min(2).max(4),
+          durationSeconds: z.number().int().min(15).max(3_600).optional(),
+        })
+        .strict(),
+    }),
+    async (req, res, next) => {
+      try {
+        const { id } = req.validatedParams as { id: string };
+        res.status(201).json({ poll: await createPoll({ roomId: id, actorId: req.userId!, ...req.body }) });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  router.post(
+    '/:id/polls/:pollId/votes',
+    authGuard(),
+    requireRegistered(),
+    rateLimit({ scope: 'polls:vote', limit: 60, windowMs: 60_000, by: 'user' }),
+    validate({
+      params: z.object({ id: z.string().uuid(), pollId: z.string().uuid() }).strict(),
+      body: z.object({ optionIndex: z.number().int().min(0).max(3) }).strict(),
+    }),
+    async (req, res, next) => {
+      try {
+        const { id, pollId } = req.validatedParams as { id: string; pollId: string };
+        res.json({
+          poll: await vote({ roomId: id, pollId, userId: req.userId!, optionIndex: req.body.optionIndex }),
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  router.post(
+    '/:id/polls/:pollId/close',
+    authGuard(),
+    requireRegistered(),
+    validate({ params: z.object({ id: z.string().uuid(), pollId: z.string().uuid() }).strict() }),
+    async (req, res, next) => {
+      try {
+        const { id, pollId } = req.validatedParams as { id: string; pollId: string };
+        res.json({ poll: await closePoll({ roomId: id, pollId, actorId: req.userId! }) });
       } catch (err) {
         next(err);
       }

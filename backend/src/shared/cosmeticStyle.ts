@@ -62,6 +62,8 @@ export interface UserLook {
   bubble: CosmeticStyle<'chat_bubble'> | null;
   nameColor: CosmeticStyle<'nickname_color'> | null;
   entry: { asset: string | null; style: CosmeticStyle<'entry_effect'> } | null;
+  /** The VIP tier worn — silver, gold, platinum, diamond — or null. Drawn as a badge beside the name. */
+  vip: string | null;
 }
 
-export const EMPTY_LOOK: UserLook = { frame: null, bubble: null, nameColor: null, entry: null };
+export const EMPTY_LOOK: UserLook = { frame: null, bubble: null, nameColor: null, entry: null, vip: null };

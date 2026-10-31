@@ -1276,7 +1276,7 @@
                 "cosmetics"
               ]
             },
-            "description": "Priced in GEMS, zero host payout — the margin path. Only the four wearable kinds sell in M7 (frame, chat_bubble, nickname_color, entry_effect); VIP and super message are hidden.\n\nEach item carries `asset` (frame WebP / entry Lottie, null for pure style data) and `style` — validated light/dark style data, see docs/asset-contract.md § 6. An item whose style does not validate is withheld from the catalog rather than sold as a blank.\n\n`conversion` carries the live coins→gems terms (`coinToGemRateBp`, `minimumCoins`) so the store never guesses them.",
+            "description": "Priced in GEMS, zero host payout — the margin path. Only the four wearable kinds sell in M7 (frame, chat_bubble, nickname_color, entry_effect); VIP and super message are hidden.\n\nEach item carries `asset` (frame WebP / entry Lottie, null for pure style data) and `style` — validated light/dark style data, see docs/asset-contract.md § 6. An item whose style does not validate is withheld from the catalog rather than sold as a blank.\n\n`conversion` carries the live coins→gems terms (`coinToGemRateBp`, `minimumCoins`) so the store never guesses them.\n\n**Since 037 this lists wearables only.** VIP tiers are `GET /cosmetics/vip` (with their bundles) and the super message is priced at `GET /cosmetics/super`.",
             "auth": {
               "type": "noauth"
             }
@@ -2331,6 +2331,201 @@
               }
             }
           ]
+        },
+        {
+          "name": "17 · Current poll",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rooms/{{roomId}}/polls/current",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rooms",
+                "{{roomId}}",
+                "polls",
+                "current"
+              ]
+            },
+            "description": "The poll on screen — open, or ended in the last 30 seconds so the result is still visible — with THIS viewer's own vote, plus the lengths a host may pick. `{ poll: PollView | null, config: { durationsSeconds, defaultSeconds } }`.\n\nPolls are FREE to ask and free to answer (migration 037). A paid vote or a prize would make a poll a wager on an outcome — hard rule #1 — so the service has no price, no prize and no import from economy. Tallies are counted from the votes on every read, never stored.\n\nAlso on the gateway: `joined` carries `poll` (with your vote) and every change is pushed as `{ t: 'poll', poll }` without anyone's own vote."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "18 · Ask a poll (host or admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rooms/{{roomId}}/polls",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rooms",
+                "{{roomId}}",
+                "polls"
+              ]
+            },
+            "description": "201 with the new poll. 2–4 options of up to 40 characters, a question of up to 120, `durationSeconds` one of the offered lengths (default 120). Options must differ. A poll already open is closed by the new one — the host has moved on.\n\n`NOT_ROOM_HOST` 403 for anyone else · `ROOM_ENDED` 410 · `VALIDATION_FAILED` 422 (a length not offered, duplicate options).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"question\": \"Next song?\",\n  \"options\": [\n    \"Kesariya\",\n    \"Tum Hi Ho\",\n    \"Chaiyya Chaiyya\"\n  ],\n  \"durationSeconds\": 120\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([201]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "19 · Vote",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rooms/{{roomId}}/polls/{{pollId}}/votes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rooms",
+                "{{roomId}}",
+                "polls",
+                "{{pollId}}",
+                "votes"
+              ]
+            },
+            "description": "One vote each; a second tap is a change of mind, not a second vote. Returns the poll with `myVote`. Registered users only.\n\n`POLL_CLOSED` 409 once the host ended it or the clock ran out · `POLL_NOT_FOUND` 404 · `ROOM_BANNED` 403 · `VALIDATION_FAILED` 422 for an option that does not exist.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"optionIndex\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "20 · End a poll (host or admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rooms/{{roomId}}/polls/{{pollId}}/close",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rooms",
+                "{{roomId}}",
+                "polls",
+                "{{pollId}}",
+                "close"
+              ]
+            },
+            "description": "Closes it now; the final tallies are pushed to the room. Idempotent on an already-closed poll."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -2468,6 +2663,47 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Fan level with a host",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/gifts/fan-level/{{hostUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "gifts",
+                "fan-level",
+                "{{hostUserId}}"
+              ]
+            },
+            "description": "`{ fan: { level, coins, nextAt } }` — your standing with ONE host: a SUM of coins you have gifted them, all time, read against `app_config.fan_levels.thresholds` (7 steps). Display only; nothing is paid on a level, and the number moves only when a gift does (the cache is invalidated on send).\n\nThe gateway puts the same number on every chat line as `line.fan` (0 for the host and for anyone who has never gifted them)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
                 ]
               }
             }
@@ -2663,6 +2899,201 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5 — Super message terms",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/cosmetics/super",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "cosmetics",
+                "super"
+              ]
+            },
+            "description": "`{ super: { gemPrice, pinSeconds, maxLength } }` — what one costs and how long it pins. The price is the `super_message` catalog row (switched on in 037); the rest is `app_config.super_message`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6 — Send a super message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/cosmetics/super",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "cosmetics",
+                "super"
+              ]
+            },
+            "description": "A paid, highlighted line pinned over one room's chat for `pinSeconds`. GEMS, so it pays the host nothing (invariant #8) and rides the `cosmetic_purchase` type and legs; its row (`super_messages`) is written inside the ledger's transaction, like gift_sends, and the room is told after the commit as `{ t: 'super', message }`. A late arrival gets it on `joined.pinned`.\n\nThe text runs through the chat filter BEFORE anything is charged: `MESSAGE_BLOCKED` 422 costs nothing; a masked line is delivered masked and stored as typed. `COSMETIC_PRICE_CHANGED` 409 · `INSUFFICIENT_BALANCE` 402 · `ROOM_BANNED` 403 · `ROOM_ENDED` 410 · `FEATURE_DISABLED` 403 (the cosmetics switch). Replay with the same key returns `replayed: true` and charges nothing.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomId\": \"{{roomId}}\",\n  \"body\": \"Host ji aap best ho!\",\n  \"expectedGemPrice\": 10400\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7 — VIP tiers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/cosmetics/vip",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "cosmetics",
+                "vip"
+              ]
+            },
+            "description": "`{ tiers: [{ id, name, badge, gemPrice, durationDays, includes, perks }] }` — four monthly bundles. `badge` is silver | gold | platinum | diamond and is what the look carries (`look.vip`); `includes` are the cosmetic ids bundled for the same 30 days; `perks` is what the app lists (`stealth`, `global_badge` and `priority_mic` are listed and enforced in later work).\n\nPrices are the `vip_*` catalog rows (doubled in 018); the bundles are `app_config.vip_tiers`. Tiers are NOT in `GET /catalog/cosmetics`, which lists wearables only."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8 — Buy a VIP tier",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/cosmetics/vip/purchase",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "cosmetics",
+                "vip",
+                "purchase"
+              ]
+            },
+            "description": "`{ tierId, badge, gemsSpent, expiresAt, replayed }`. Gems only — coins never pay for it — under the `vip_purchase` type with the cosmetic legs: zero points, no host leg (ledger-decisions § C12). Owning a tier is a `user_cosmetics` row of kind `vip`, so the look reader and the expiry rule are unchanged; one tier is worn at a time and buying another swaps the badge. Renewal is simply another purchase, which ADDS 30 days.\n\nThe bundle is granted for the same period with `source = 'vip'`: time stacks onto an item already rented, a level-earned item (NULL expiry) is left alone, and an included item is equipped only when nothing of its kind is on.\n\n`COSMETIC_NOT_FOUND` 404 · `COSMETIC_PRICE_CHANGED` 409 · `INSUFFICIENT_BALANCE` 402 · `FEATURE_DISABLED` 403 (the cosmetics switch covers `vip_purchase` too).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tierId\": \"vip_gold\",\n  \"expectedGemPrice\": 65000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
                 ]
               }
             }
@@ -4273,6 +4704,128 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200 or 409', () => pm.expect(pm.response.code).to.be.oneOf([200, 409]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7 — Daily tasks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rewards/tasks",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rewards",
+                "tasks"
+              ]
+            },
+            "description": "`{ tasks: { day, tasks: [{ id, kind, target, coins, progress, claimed }] } }` for the current IST day.\n\n`kind` is `watch_minutes` | `chat` | `gifts` | `follows` | `share`. Progress is DERIVED from what already happened today — watch intervals paid, lines chatted (blocked ones excluded), gifts sent, follows made — never counted into a column the app increments. `share` is the exception: the app reports it (item 8).\n\nThe list is `app_config.daily_tasks`; a task with `coins: 0` is hidden."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8 — Record a share",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rewards/tasks/share",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rewards",
+                "tasks",
+                "share"
+              ]
+            },
+            "description": "The phone's share sheet closed with a share. Recorded once a day (`task_events`), pays nothing by itself — the claim does, once the share task's target is met. Returns the task list."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9 — Claim a task",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rewards/tasks/{{taskId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rewards",
+                "tasks",
+                "{{taskId}}"
+              ]
+            },
+            "description": "`{ coins, alreadyClaimed }`. Ordinary free coins, once per task per IST day: the ledger key is `task:{user}:{date}:{task id}`, derived from the claim, never from a header (§ C5b).\n\n`REWARD_NOT_EARNED` 409 with `details.progress` / `details.target` when the task is not finished · `REWARD_UNAVAILABLE` 409 for a task not in config · `FEATURE_DISABLED` 403 when rewards are switched off."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('ok', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
                 ]
               }
             }

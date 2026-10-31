@@ -26,7 +26,7 @@ async function thresholds(): Promise<number[]> {
 }
 
 /** Pure: the level a coin total earns against a sorted ladder. */
-export function levelFor(coins: number, ladder: number[]): FanLevel {
+export function fanLevelFor(coins: number, ladder: number[]): FanLevel {
   let level = 0;
   for (const step of ladder) if (coins >= step) level += 1;
   return { level, coins, nextAt: ladder[level] ?? null };
@@ -61,7 +61,7 @@ export async function fanLevel(senderId: string, hostId: string): Promise<FanLev
       [senderId, hostId],
     ),
   ]);
-  const value = levelFor(Number(rows[0]?.coins ?? 0), ladder);
+  const value = fanLevelFor(Number(rows[0]?.coins ?? 0), ladder);
   if (cache.size > MAX_ENTRIES) cache.clear();
   cache.set(key, { value, expiresAt: now + TTL_MS });
   return value;

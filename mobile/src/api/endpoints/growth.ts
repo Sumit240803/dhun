@@ -2,6 +2,7 @@
 
 import { api } from '@/api/client';
 import type {
+  DailyTasks,
   FeedRoom,
   NewUserRewards,
   NewUserTaskId,
@@ -22,6 +23,13 @@ export const rewardsApi = {
     api.post<{ coins: number; alreadyClaimed: boolean }>(`rewards/new-user/${task}`, {}),
   enterCode: (code: string) =>
     api.post<{ referrerName: string | null }>('rewards/referral', { code }),
+
+  // Daily tasks. Progress is the server's; a claim pays once per task per day.
+  tasks: () => api.get<{ tasks: DailyTasks }>('rewards/tasks'),
+  claimTask: (taskId: string) =>
+    api.post<{ coins: number; alreadyClaimed: boolean }>(`rewards/tasks/${taskId}`, {}),
+  /** The share sheet closed. Recorded once a day; the claim is separate. */
+  recordShare: () => api.post<{ tasks: DailyTasks }>('rewards/tasks/share', {}),
 };
 
 export const discoverApi = {

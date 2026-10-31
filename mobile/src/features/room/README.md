@@ -9,7 +9,9 @@ screenshots and 4 videos in `app-reference-images/live-rooms-app-references/`
 ├─ ActivityRail ── rank · rules · room code                    │ chrome, fixed
 ├─ RoomMarquee ─── "X sent Y ×3 to Z"                          ┘
 ├─ <Stage> ─────── seats │ video │ pk │ solo   ← the only part that varies
-├─ RoomChatPanel ─ filter rail · lines · events · new-msgs pill
+├─ PollCard ────── question · bars · clock         (only while a poll is up)
+├─ SuperPin ────── a paid line, pinned 30s          (only while one is pinned)
+├─ RoomChatPanel ─ filter rail · lines (fan · VIP badges) · events · new-msgs pill
 └─ RoomComposer ── say something · mic · camera · ⌘ · gift
 ```
 
@@ -22,22 +24,25 @@ avatars on it, and no amount of styling fixes that.
 
 ## Files
 
-| Path                                   | What it is                                                                          |
-| -------------------------------------- | ----------------------------------------------------------------------------------- |
-| `RoomScreen.tsx`                       | Composition. Owns the three connections and the layers.                             |
-| `model.ts`                             | **The keystone.** Turns room + seats + pk into a tagged `StageModel`. Pure, tested. |
-| `roomAssets.ts`                        | Every piece of room art not yet drawn, with its spec. The outstanding brief.        |
-| `media.tsx`                            | Who has a camera on, as a context.                                                  |
-| `stage/Stage.tsx`                      | The exhaustive switch on `StageModel.kind`.                                         |
-| `stage/SeatGridStage.tsx`              | Party rooms, 2–20 seats.                                                            |
-| `stage/VideoStage.tsx`                 | One or two tiles plus the right-edge mic rail.                                      |
-| `stage/MicRail.tsx`                    | Everyone on mic who is not on a tile.                                               |
-| `stage/SeatTile.tsx`                   | One seat: empty, taken, speaking, muted.                                            |
-| `stage/RemoteVideo.tsx`                | A camera track, or the avatar fallback.                                             |
-| `pk/types.ts`                          | PK state **and the two rules that must not be broken**.                             |
-| `pk/PkStage.tsx` · `pk/PkScoreBar.tsx` | The battle.                                                                         |
-| `pk/devPk.ts`                          | `__DEV__` simulator — there is no PK backend yet.                                   |
-| `chrome/*`                             | Header, rail, marquee, chat, composer, sheets, dialogs.                             |
+| Path                                        | What it is                                                                          |
+| ------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `RoomScreen.tsx`                            | Composition. Owns the three connections and the layers.                             |
+| `model.ts`                                  | **The keystone.** Turns room + seats + pk into a tagged `StageModel`. Pure, tested. |
+| `roomAssets.ts`                             | Every piece of room art not yet drawn, with its spec. The outstanding brief.        |
+| `media.tsx`                                 | Who has a camera on, as a context.                                                  |
+| `stage/Stage.tsx`                           | The exhaustive switch on `StageModel.kind`.                                         |
+| `stage/SeatGridStage.tsx`                   | Party rooms, 2–20 seats.                                                            |
+| `stage/VideoStage.tsx`                      | One or two tiles plus the right-edge mic rail.                                      |
+| `stage/MicRail.tsx`                         | Everyone on mic who is not on a tile.                                               |
+| `stage/SeatTile.tsx`                        | One seat: empty, taken, speaking, muted.                                            |
+| `stage/RemoteVideo.tsx`                     | A camera track, or the avatar fallback.                                             |
+| `pk/types.ts`                               | PK state **and the two rules that must not be broken**.                             |
+| `pk/PkStage.tsx` · `pk/PkScoreBar.tsx`      | The battle.                                                                         |
+| `pk/devPk.ts`                               | `__DEV__` simulator — there is no PK backend yet.                                   |
+| `polls.ts`                                  | Shares, clock, leader — what a poll looks like, from what the server said. Tested.  |
+| `chrome/PollCard.tsx` · `CreatePollSheet`   | The poll on screen, and the host's sheet to ask one. Free; never touches money.     |
+| `chrome/SuperPin.tsx` · `SuperMessageSheet` | A gems-for-a-sentence line pinned over the chat, and the sheet that buys one.       |
+| `chrome/*`                                  | Header, rail, marquee, chat, composer, sheets, dialogs.                             |
 
 ---
 
@@ -71,6 +76,14 @@ gift and a re-render of the room each time.
 **6. The seat NUMBER and the gift COUNTER are not decoration.** In a twenty-seat
 room the counter is how a gifter finds who is being gifted, and the number is
 how somebody asks for "seat 7" in chat.
+
+**7. A poll is a question, not a game.** Free to ask, free to answer, nothing
+won. The card has no price and no prize; the server's poll service has no
+import from economy. A paid vote would be a wager on an outcome (hard rule #1).
+
+**8. Super messages and VIP spend gems and pay no host.** The sheets say so in
+one line, because people assume otherwise. Fan levels are a reading of gifts
+already paid; nothing is paid on reaching one.
 
 ---
 

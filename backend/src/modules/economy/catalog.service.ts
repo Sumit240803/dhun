@@ -218,7 +218,11 @@ export async function listCosmetics(): Promise<Cosmetic[]> {
   return cached('cosmetics', async () => {
     const { rows } = await pool.query<CosmeticRow>(
       'SELECT id, name, kind, gem_price, duration_days, free_at_user_level, asset, style' +
-        ' FROM cosmetics WHERE' + VISIBLE + ' ORDER BY sort_order',
+        // Wearables only. VIP tiers are listed by GET /cosmetics/vip with their
+        // bundles, and the super message is priced where it is sent.
+        " FROM cosmetics WHERE kind NOT IN ('vip', 'super_message') AND" +
+        VISIBLE +
+        ' ORDER BY sort_order',
     );
     return rows.map(toCosmetic).filter((c): c is Cosmetic => c !== null);
   });

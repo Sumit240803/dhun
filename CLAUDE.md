@@ -535,7 +535,7 @@ walk away from a vendor and an SDK spread across four modules cannot walk anywhe
 One repo, pushed to `git@github.com:Sumit240803/dhun.git` (`main`).
 Verify everything with **`npm run check`** from the root.
 
-### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5–M7, M10, M12–M19 built, unverified on devices. 585 tests.
+### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5–M7, M10, M12–M20 built, unverified on devices. __BACKEND_TESTS__ tests.
 
 Seventeen migrations, 68 routes, and all three processes built: API, workers, and the
 realtime gateway. **M10 was built before M8 and M9, by agreement** — both are blocked on
@@ -598,10 +598,10 @@ external accounts (CA + RazorpayX, Hive) and neither is skipped.
     and the app disagree about whether gifting is on — which is the outage a kill switch
     exists to end, not cause.
 
-### `mobile/` — 33 routes, 29 of them built (the four legal pages wait for a lawyer's text).
+### `mobile/` — 35 routes, 31 of them built (the four legal pages wait for a lawyer's text).
 
 Expo SDK 57 · React Native 0.86 · React 19.2 · expo-router. EAS project
-`@sumitsumit/dhun` (`c7c547aa-86e2-4d02-befa-b5e643fde400`). 114 tests.
+`@sumitsumit/dhun` (`c7c547aa-86e2-4d02-befa-b5e643fde400`). __MOBILE_TESTS__ tests.
 
 Read **`mobile/ARCHITECTURE.md`** before adding a file. The essentials:
 
@@ -624,11 +624,13 @@ Read **`mobile/ARCHITECTURE.md`** before adding a file. The essentials:
 
 **Built:** the five tabs (home feed, party, discover, messages, me), auth (phone, OTP,
 email sign-in/up, forgot and reset password), profile setup, email confirmation, account
-and security (password, phone number, signed-in devices, delete), wallet and its
-transactions statement, store, rewards and the new-user rewards sheet, host verification,
-appeal, go-live (with seat count), the live room (reactions, room admins, share, minimise
-with a floating player), host earnings, agency screens, thread, public profile, visitors,
-the shared-link route `/r/[code]`. Every kill switch has a designed paused state on the
+and security (password, phone number, signed-in devices, delete, spending limits), wallet
+and its transactions statement, store (with the VIP shelf), rewards (check-in, daily tasks,
+watch, invite) and the new-user rewards sheet, host verification, appeal, go-live (with
+seat count), the live room (reactions, room admins, share, minimise with a floating
+player, polls, super messages, fan and VIP badges), host earnings, agency screens, thread
+(with a DM composer), friends, public profile, visitors, the shared-link route
+`/r/[code]`. Every kill switch has a designed paused state on the
 screen it affects.
 
 **Minimising a room parks the LiveKit connection** (`features/room/liveSession.ts`):
@@ -667,6 +669,29 @@ Both are written at the code that could break them (`pk.config.ts`, migration 02
 header, `backend/docs/ledger-decisions.md` § PK battles) and asserted in
 `tests/pk.test.ts` § the money boundary. Scores are **derived** (`SUM` over the
 window, never a counter) and frozen only at settlement.
+
+**Phase 1 (migrations 036, 037) added five things that touch money or look like they do;
+the rules that keep them straight:**
+
+1. **Polls never touch the ledger.** Free to ask, free to answer, no prize. `polls.service`
+   has no import from `economy`, and the test asserts zero ledger rows after a full poll.
+   A paid vote or a prize is a wager on an outcome — hard rule #1.
+2. **Super messages and VIP spend GEMS and pay nobody** (invariant #8 again). Both ride
+   the cosmetic legs; a super message is `cosmetic_purchase` with its own row written
+   inside the transaction, VIP is `vip_purchase` with the tier as a `user_cosmetics` row
+   of kind `vip`. The sheets say "gems do not go to the host", because people assume
+   otherwise. VIP renewal is another purchase, never a scheduled debit.
+3. **Fan levels and daily tasks are derived**, like every other number here. A fan level
+   is a SUM over `gift_sends` per (sender, host); task progress is counted from the
+   day's rows. The only stored task event is a share, which the server cannot see.
+4. **Spend controls are the user's brakes and the server enforces them**, inside
+   `sendGift` via `assertMaySpend`. A cap lowers at once and raises after 24 hours; a
+   pause cannot be shortened or lifted while it runs; omitting `exclusion` on the update
+   means "leave the pause as it is", so caps can be edited under one.
+5. **A DM thread is one row per pair** (`message_threads.direct_key`, the sorted ids), so
+   find-or-create is a single `INSERT … ON CONFLICT`. Blocked in either direction reads
+   as "no such account". There is no payment, no transfer, no agency directory in a DM —
+   it is a conversation and hard rule #7 is untouched.
 
 **Room art that does not exist yet is registered, not TODO'd.**
 `features/room/roomAssets.ts` names each file with its spec and `available: false`;
@@ -741,11 +766,14 @@ roles re-read from the database on every request, and a CSRF token in every form
 
 ### Not built yet
 
-**Phase 0 of the blueprint is complete except beauty filters** (video-dependent; after the
-device pass). Still to build: OAuth (Google / Facebook / Instagram) · withdrawal and the
-rest of host payouts (M8) · Hive moderation and the rest of trust & safety (M9; reports
-queue and appeals are done) · platform rankings and the region picker (both waiting on a
-decision) · Phase 1: VIP, super messages, DMs, daily tasks, spend limits, polls · stand-in
+**Phase 0 and Phase 1 of the blueprint are complete except where a decision is open**
+(build-plan M19, M20). Still to build: OAuth (Google / Facebook / Instagram) · withdrawal
+and the rest of host payouts (M8) · Hive moderation and the rest of trust & safety (M9;
+reports queue and appeals are done) · platform rankings and the region picker (both
+waiting on a decision) · the decision-bound Phase 1 items (1-on-1 calls, fan club, lucky
+wheel, nearby, quiz, karaoke, voice effects, weekly events — build-plan M20 lists what
+each waits on) · VIP's stealth, global badge and priority-mic perks (listed as "soon";
+need gateway and seat-table enforcement) · beauty filters · stand-in
 art files · Firebase credentials for Android push · the legal screens' actual text and the
 Grievance Officer's name · analytics pipeline · OTA (`expo-updates`) · Terraform and
 environments.

@@ -369,7 +369,9 @@ describe('kill switch', () => {
     const user = await createUser();
     await expect(
       postTransaction({
-        txnType: 'vip_purchase',
+        // vip_purchase went live in 037; vip_renewal still ships inactive (a
+        // renewal IS a purchase, ledger-decisions § C12).
+        txnType: 'vip_renewal',
         idempotencyKey: uuidv7(),
         identity: { tier: 'gold', months: 1 },
         rates: RATES,

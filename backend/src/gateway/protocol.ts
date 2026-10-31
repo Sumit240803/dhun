@@ -17,6 +17,8 @@
 // state — only intent.
 
 import { z } from 'zod';
+import type { SuperView } from '../modules/cosmetics/index.js';
+import type { PollView } from '../modules/rooms/index.js';
 import type { UserLook } from '../shared/cosmeticStyle.js';
 
 /** Room ids are uuids everywhere. A malformed one never reaches a query. */
@@ -78,6 +80,8 @@ export interface ChatLine {
   at: string;
   /** The sender's bubble and name colour, as they are NOW — not when they wrote it. */
   look: UserLook;
+  /** Fan level with the room's host, 0 for none and for the host. Display only. */
+  fan: number;
 }
 
 export interface MicRequest {
@@ -158,8 +162,16 @@ export type ServerMessage =
       history: ChatLine[];
       /** Present only for the host. Nobody else is shown the queue. */
       micQueue?: MicRequest[];
+      /** The poll on screen, if one is open or just ended. */
+      poll?: PollView | null;
+      /** A super message still pinned. */
+      pinned?: SuperView | null;
     }
   | { t: 'chat'; roomId: string; line: ChatLine }
+  /** A poll opened, took a vote or closed. Everyone's tallies; nobody's own vote. */
+  | { t: 'poll'; roomId: string; poll: PollView | null }
+  /** A paid, pinned line. The gems have already moved. */
+  | { t: 'super'; roomId: string; message: SuperView }
   /** The seat map changed. Replaces the polling the room screen does today. */
   | { t: 'seats'; roomId: string; seats: SeatView[] }
   | { t: 'presence'; roomId: string; viewers: number }

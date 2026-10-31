@@ -7,6 +7,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { messagesApi, usersApi } from '@/api/endpoints/feed';
+import { giftsApi } from '@/api/endpoints/gifts';
 import { queryKeys } from '@/api/queries/keys';
 import type { SpendExclusion, ThreadMessage, Visitor } from '@/api/types';
 import { track } from '@/lib/analytics';
@@ -173,6 +174,16 @@ export function useOpenDirectThread() {
       // A brand-new thread has to show up in the list.
       void queryClient.invalidateQueries({ queryKey: queryKeys.messages.all });
     },
+  });
+}
+
+/** Your fan level with one host. Disabled for guests and for the host themselves. */
+export function useFanLevel(hostId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.profile.fan(hostId ?? ''),
+    queryFn: async () => (await giftsApi.fanLevel(hostId!)).fan,
+    enabled: enabled && hostId !== undefined && hostId !== '',
+    staleTime: 30_000,
   });
 }
 

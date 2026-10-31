@@ -94,6 +94,8 @@ const codeMessages: Partial<Record<string, MessageKey>> = {
   [ApiErrorCode.CANNOT_MESSAGE_SELF]: 'dmErrors.self',
   [ApiErrorCode.THREAD_READ_ONLY]: 'thread.officialNotice',
   [ApiErrorCode.MESSAGE_BLOCKED]: 'dmErrors.blocked',
+  [ApiErrorCode.POLL_CLOSED]: 'room.pollEnded',
+  [ApiErrorCode.POLL_NOT_FOUND]: 'room.pollGone',
   [ApiErrorCode.RECIPIENT_NOT_IN_ROOM]: 'gifting.recipientGone',
 
   [ApiErrorCode.ALREADY_IN_AGENCY]: 'agencyErrors.alreadyInAgency',

@@ -3,6 +3,9 @@ import { forwardRef } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { usePublicProfile } from '@/api/queries/useSocial';
+import type { FanLevel } from '@/api/types';
+import { FanBadge } from '@/visuals/FanBadge';
+import { VipBadge } from '@/visuals/VipBadge';
 import { useTranslation } from '@/i18n';
 import { errorMessage } from '@/lib/errors';
 import { formatCompact } from '@/lib/money';
@@ -34,6 +37,8 @@ export interface ProfileTarget {
   muted?: boolean;
   /** This person is a room admin. */
   isAdmin?: boolean;
+  /** This person hosts the room. */
+  isHost?: boolean;
   /** The viewer is the host and may appoint or remove this person as admin. */
   canAppoint?: boolean;
   /** The viewer moderates as an ADMIN, not the host — the section is titled for it. */
@@ -51,6 +56,8 @@ interface Props {
   onRemoveFromSeat: (userId: string) => void;
   onAppointAdmin: (userId: string) => void;
   onRemoveAdmin: (userId: string) => void;
+  /** The viewer's own fan level with the host, shown on the host's card. */
+  fanWithHost?: FanLevel | null;
 }
 
 /**
@@ -81,6 +88,7 @@ export const ProfileCardSheet = forwardRef<SheetHandle, Props>(function ProfileC
     onRemoveFromSeat,
     onAppointAdmin,
     onRemoveAdmin,
+    fanWithHost = null,
   },
   ref,
 ) {
@@ -102,6 +110,7 @@ export const ProfileCardSheet = forwardRef<SheetHandle, Props>(function ProfileC
                 <Text variant="heading" numberOfLines={1} style={styles.name}>
                   {profile.data?.displayName ?? target.displayName ?? '—'}
                 </Text>
+                {profile.data?.look.vip ? <VipBadge tier={profile.data.look.vip} /> : null}
                 {target.isAdmin === true && <Badge label={t('room.adminBadge')} tone="success" />}
               </Row>
 
@@ -121,6 +130,24 @@ export const ProfileCardSheet = forwardRef<SheetHandle, Props>(function ProfileC
           </Row>
 
           {profile.isError && <Banner message={errorMessage(profile.error)} />}
+
+          {/* Your standing with this host — the number a fan badge in chat is
+              about. Only on the host's card, and never for the host. */}
+          {target.isHost && !isSelf && fanWithHost !== null && (
+            <View style={styles.stat} testID="fan-standing">
+              <FanBadge level={fanWithHost.level} />
+              <Text variant="caption" tone="secondary" style={styles.fanText}>
+                {fanWithHost.level === 0
+                  ? t('room.fanNone')
+                  : fanWithHost.nextAt === null
+                    ? t('room.fanTop', { level: fanWithHost.level })
+                    : t('room.fanLine', {
+                        level: fanWithHost.level,
+                        coins: formatCompact(fanWithHost.nextAt - fanWithHost.coins),
+                      })}
+              </Text>
+            </View>
+          )}
 
           {/* What they have been given HERE. The number that makes somebody
               decide to out-gift them, which is why it is on the card at all. */}
@@ -207,6 +234,7 @@ export const ProfileCardSheet = forwardRef<SheetHandle, Props>(function ProfileC
 });
 
 const styles = StyleSheet.create({
+  fanText: { flex: 1 },
   name: { flexShrink: 1 },
   stat: {
     flexDirection: 'row',

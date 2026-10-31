@@ -9,7 +9,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/api/queries/keys';
 import { useRoomLeaderboard } from '@/api/queries/useGifts';
 import { useJoinRoom, useRoomActions, useRoomRank } from '@/api/queries/useRoom';
-import { useToggleFollow } from '@/api/queries/useSocial';
+import { useFanLevel, useToggleFollow } from '@/api/queries/useSocial';
 import { useGiftCatalog } from '@/api/queries/useWallet';
 import type { GiftView, JoinedRoom } from '@/api/types';
 import { useFlag } from '@/config/flags';
@@ -36,7 +36,11 @@ import { ActivityRail } from './chrome/ActivityRail';
 import { FeaturesSheet, type RoomFeature } from './chrome/FeaturesSheet';
 import { MicLinkDialog, type MicLinkState } from './chrome/MicLinkDialog';
 import { ProfileCardSheet, type ProfileTarget } from './chrome/ProfileCardSheet';
+import { CreatePollSheet } from './chrome/CreatePollSheet';
+import { PollCard } from './chrome/PollCard';
 import { RoomChatPanel, type RoomEventLine } from './chrome/RoomChatPanel';
+import { SuperMessageSheet } from './chrome/SuperMessageSheet';
+import { SuperPin } from './chrome/SuperPin';
 import { RoomComposer, type MicMode } from './chrome/RoomComposer';
 import { RoomHeader } from './chrome/RoomHeader';
 import { MarqueeQueue } from './chrome/marqueeQueue';
@@ -99,6 +103,10 @@ export function RoomScreen({ roomId }: { roomId: string }) {
   const profileSheet = useRef<SheetHandle>(null);
   const [boardOpen, setBoardOpen] = useState(false);
   const [profileTarget, setProfileTarget] = useState<ProfileTarget | null>(null);
+  const createPollSheet = useRef<SheetHandle>(null);
+  const superSheet = useRef<SheetHandle>(null);
+  /** The id of a finished poll the viewer put away. A new poll replaces it. */
+  const [pollDismissed, setPollDismissed] = useState<string | null>(null);
   /**
    * `null` means "whatever the request state implies", which is the common
    * case. A value here is a dialog the person opened or dismissed themselves.
@@ -219,6 +227,7 @@ export function RoomScreen({ roomId }: { roomId: string }) {
       });
     },
     onReaction: (emoji) => reactions.push(emoji),
+    onSuper: () => haptic.success(),
     onReward: (reward) => {
       haptic.success();
       setWatchReward(reward);
@@ -291,6 +300,12 @@ export function RoomScreen({ roomId }: { roomId: string }) {
     ? giftRecipients({ hostId: room.hostId, hostName: room.hostName, seats, meId: user?.id })
     : [];
   const canGift = giftingEnabled && recipients.length > 0;
+  const cosmeticsEnabled = useFlag('cosmeticsEnabled');
+  const isRegistered = user?.status === 'active';
+  // Your standing with the host, for their card. Not for the host, not for a guest.
+  const fan = useFanLevel(room?.hostId, joined !== null && isRegistered && !isHost);
+  const canManagePoll = isHost || isAdmin;
+  const poll = socket.poll && socket.poll.id !== pollDismissed ? socket.poll : null;
 
   const live = useLiveRoom({
     url: joined?.rtc.url ?? null,
@@ -341,6 +356,7 @@ export function RoomScreen({ roomId }: { roomId: string }) {
         occupant.userId !== user?.id && (isHost || (isAdmin && !targetIsHost && !targetIsAdmin)),
       canAppoint: isHost && occupant.userId !== user?.id && !targetIsHost,
       isAdmin: targetIsAdmin,
+      isHost: targetIsHost,
       viewerIsAdmin: isAdmin,
       seatIndex: occupant.seatIndex >= 0 ? occupant.seatIndex : undefined,
       muted: occupant.muted,
@@ -425,6 +441,13 @@ export function RoomScreen({ roomId }: { roomId: string }) {
         break;
       case 'cosmetics':
         router.push('/store');
+        break;
+      case 'poll':
+        if (canManagePoll) createPollSheet.current?.present();
+        break;
+      case 'super':
+        if (!isRegistered) router.push('/(auth)');
+        else superSheet.current?.present();
         break;
       case 'report':
         // Reporting lives on the person, not the room — the profile screen
@@ -529,6 +552,32 @@ export function RoomScreen({ roomId }: { roomId: string }) {
           <ReactionLayer queue={reactions} />
         </View>
 
+        {/* The poll, between the stage and the chat. One tap votes. */}
+        {poll && (
+          <PollCard
+            poll={poll}
+            canManage={canManagePoll}
+            canVote={isRegistered}
+            pending={actions.votePoll.isPending}
+            onVote={(optionIndex) =>
+              actions.votePoll.mutate(
+                { pollId: poll.id, optionIndex },
+                {
+                  onSuccess: ({ poll: next }) => socket.applyPoll(next),
+                  onError: () => haptic.error(),
+                },
+              )
+            }
+            onClose={() =>
+              actions.closePoll.mutate(poll.id, {
+                onSuccess: ({ poll: next }) => socket.applyPoll(next),
+                onError: () => haptic.error(),
+              })
+            }
+            onDismiss={() => setPollDismissed(poll.id)}
+          />
+        )}
+
         {/* Transient notices, between the stage and the chat — where the eye
             already is after a gift lands. */}
         {watchReward && (
@@ -552,6 +601,7 @@ export function RoomScreen({ roomId }: { roomId: string }) {
 
         {/* ── Chat and composer ───────────────────────────────────────── */}
         <KeyboardAvoidingView behavior="padding" style={styles.lower}>
+          {socket.pinned && <SuperPin message={socket.pinned} onExpire={socket.clearPinned} />}
           <RoomChatPanel
             chat={socket.chat}
             events={events}
@@ -599,11 +649,44 @@ export function RoomScreen({ roomId }: { roomId: string }) {
         <GiftSheet ref={giftSheet} roomId={room.id} recipients={recipients} onSent={receive} />
       )}
 
-      <FeaturesSheet ref={featuresSheet} onSelect={onFeature} />
+      <FeaturesSheet
+        ref={featuresSheet}
+        onSelect={onFeature}
+        hidden={[
+          ...(canManagePoll ? [] : (['poll'] as const)),
+          ...(cosmeticsEnabled ? [] : (['super'] as const)),
+        ]}
+      />
+
+      <CreatePollSheet
+        ref={createPollSheet}
+        durations={[60, 120, 300]}
+        defaultSeconds={120}
+        pending={actions.createPoll.isPending}
+        error={actions.createPoll.error}
+        onCreate={(input) =>
+          actions.createPoll.mutate(input, {
+            onSuccess: ({ poll: next }) => {
+              haptic.success();
+              setPollDismissed(null);
+              socket.applyPoll(next);
+              createPollSheet.current?.dismiss();
+            },
+            onError: () => haptic.error(),
+          })
+        }
+      />
+
+      <SuperMessageSheet
+        ref={superSheet}
+        roomId={roomId}
+        onTopUp={() => router.push('/(app)/store')}
+      />
 
       <ProfileCardSheet
         ref={profileSheet}
         target={profileTarget}
+        fanWithHost={fan.data ?? null}
         isSelf={profileTarget?.userId === user?.id}
         canGift={canGift}
         onGift={() => {

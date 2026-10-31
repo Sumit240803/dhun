@@ -15,7 +15,7 @@ import { uuidv7 } from 'uuidv7';
 import { pool, withTransaction } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
 import { isBlockedBetween } from '../moderation/index.js';
-import { filterText } from '../moderation/textFilter.js';
+import { filterText } from '../moderation/index.js';
 import type { ThreadMessage } from './threads.service.js';
 
 export interface DirectThread {

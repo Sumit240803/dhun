@@ -13,6 +13,8 @@
 export { buildRoomsRouter } from './rooms.routes.js';
 export { buildShareRouter } from './share.routes.js';
 export { appointAdmin, isAdmin, listAdmins, MAX_ROOM_ADMINS, removeAdmin } from './admins.service.js';
+export { closePoll, createPoll, currentPoll, pollsConfig, vote as votePoll } from './polls.service.js';
+export type { PollView } from './polls.service.js';
 
 export { fullestRoom, listFeed } from './rooms.service.js';
 export type { FeedRoom, FeedCategory } from './rooms.service.js';

@@ -61,6 +61,52 @@ export function usePurchaseCosmetic() {
   });
 }
 
+export function useVipTiers() {
+  return useQuery({
+    queryKey: queryKeys.catalog.vip(),
+    queryFn: async () => (await cosmeticsApi.vipTiers()).tiers,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function usePurchaseVip() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: cosmeticsApi.purchaseVip,
+    onSuccess: (result) => {
+      // The balance moved and the bundle landed in the collection.
+      void queryClient.invalidateQueries({ queryKey: queryKeys.wallet.all });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.cosmetics.mine() });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile.summary() });
+      track('vip_purchased', {
+        tier_id: result.tierId,
+        gems: result.gemsSpent,
+        replayed: result.replayed,
+      });
+    },
+  });
+}
+
+export function useSuperMessageTerms(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.catalog.superTerms(),
+    queryFn: async () => (await cosmeticsApi.superTerms()).super,
+    enabled,
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useSendSuperMessage() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: cosmeticsApi.sendSuper,
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.wallet.all });
+      track('super_message_sent', { room_id: result.message.roomId, gems: result.message.gems });
+    },
+  });
+}
+
 export function useEquipCosmetic() {
   const queryClient = useQueryClient();
   return useMutation({

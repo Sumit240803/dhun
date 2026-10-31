@@ -5,6 +5,8 @@
 // who has earned what and makes sure nobody earns it twice.
 
 export { buildRewardsRouter } from './rewards.routes.js';
+export { claimTask, dailyTasks, recordShare } from './tasks.service.js';
+export type { DailyTask, DailyTasks, TaskKind } from './tasks.service.js';
 
 export {
   attachReferral,

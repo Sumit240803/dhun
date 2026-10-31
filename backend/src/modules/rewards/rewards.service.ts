@@ -62,9 +62,9 @@ function previousDay(day: string): string {
 
 // ── The one way coins are granted ───────────────────────────────────────────
 
-type ClaimKind = 'signup' | 'checkin' | 'watch' | 'referral' | 'new_user';
+type ClaimKind = 'signup' | 'checkin' | 'watch' | 'referral' | 'new_user' | 'task';
 
-interface Grant {
+export interface Grant {
   userId: string;
   kind: ClaimKind;
   claimKey: string;
@@ -75,7 +75,7 @@ interface Grant {
   alsoInTransaction?: (client: PoolClient) => Promise<void>;
 }
 
-async function grant(input: Grant): Promise<{ coins: number; replayed: boolean }> {
+export async function grant(input: Grant): Promise<{ coins: number; replayed: boolean }> {
   const result = await postTransaction({
     txnType: 'free_coin_grant',
     idempotencyKey: input.claimKey,

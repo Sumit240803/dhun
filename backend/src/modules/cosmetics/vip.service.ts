@@ -21,7 +21,6 @@ import {
   cosmeticPurchaseLegs,
   getConfigValue,
   getCosmeticForSale,
-  listCosmetics,
   postTransaction,
 } from '../economy/index.js';
 import { invalidateLook } from './looks.js';
@@ -77,13 +76,23 @@ async function tierSpecs(): Promise<TierSpec[]> {
 
 /** Tiers on sale: in config AND active in the catalog, in catalog order. */
 export async function listVipTiers(): Promise<VipTier[]> {
-  const [specs, catalog] = await Promise.all([tierSpecs(), listCosmetics()]);
+  const [specs, { rows }] = await Promise.all([
+    tierSpecs(),
+    pool.query<{ id: string; name: string; gem_price: string; duration_days: number | null }>(
+      `SELECT id, name, gem_price, duration_days
+         FROM cosmetics
+        WHERE kind = 'vip' AND is_active
+          AND (visible_from IS NULL OR visible_from <= now())
+          AND (visible_to IS NULL OR visible_to > now())
+        ORDER BY sort_order`,
+    ),
+  ]);
   const tiers: VipTier[] = [];
-  for (const item of catalog) {
-    if (item.kind !== 'vip' || item.durationDays === null) continue;
-    const spec = specs.find((s) => s.id === item.id);
+  for (const row of rows) {
+    if (row.duration_days === null) continue;
+    const spec = specs.find((s) => s.id === row.id);
     if (!spec) continue;
-    tiers.push({ ...spec, name: item.name, gemPrice: item.gemPrice, durationDays: item.durationDays });
+    tiers.push({ ...spec, name: row.name, gemPrice: Number(row.gem_price), durationDays: row.duration_days });
   }
   return tiers;
 }

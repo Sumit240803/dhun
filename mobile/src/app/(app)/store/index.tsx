@@ -18,6 +18,7 @@ import { ConvertSheet } from '@/features/cosmetics/ConvertSheet';
 import { ItemSwatch } from '@/features/cosmetics/ItemSwatch';
 import { itemStatus, previewLook, type ItemStatus } from '@/features/cosmetics/ownership';
 import { PurchaseSheet } from '@/features/cosmetics/PurchaseSheet';
+import { VipShelf } from '@/features/cosmetics/VipShelf';
 import { useTranslation, type MessageKey } from '@/i18n';
 import { errorMessage } from '@/lib/errors';
 import { haptic } from '@/lib/haptics';
@@ -39,7 +40,10 @@ import {
 import { themed } from '@/visuals/look';
 import { LookAvatar } from '@/visuals/LookAvatar';
 
-const SHELVES: { kind: CosmeticKind; label: MessageKey }[] = [
+type Shelf = CosmeticKind | 'vip';
+
+const SHELVES: { kind: Shelf; label: MessageKey }[] = [
+  { kind: 'vip', label: 'store.vip' },
   { kind: 'frame', label: 'store.frames' },
   { kind: 'chat_bubble', label: 'store.bubbles' },
   { kind: 'nickname_color', label: 'store.nameColours' },
@@ -72,7 +76,7 @@ export default function StoreScreen() {
   const equip = useEquipCosmetic();
   const unequip = useUnequipCosmetic();
 
-  const [shelf, setShelf] = useState<CosmeticKind>('frame');
+  const [shelf, setShelf] = useState<Shelf>('frame');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const buySheet = useRef<SheetHandle>(null);
   const convertSheet = useRef<SheetHandle>(null);
@@ -206,6 +210,18 @@ export default function StoreScreen() {
                 <Skeleton width={80} height={12} />
               </View>
             ))}
+          </View>
+        ) : shelf === 'vip' ? (
+          <View style={styles.gutter}>
+            <VipShelf
+              owned={mine.data ?? []}
+              gemBalance={gemBalance}
+              canBuy={isRegistered && cosmeticsEnabled}
+              onTopUp={() => {
+                if (conversionEnabled) convertSheet.current?.present();
+                else router.push('/(app)/wallet');
+              }}
+            />
           </View>
         ) : items.length === 0 ? (
           <EmptyState icon="sparkles-outline" title={t('store.shelfEmpty')} body="" />

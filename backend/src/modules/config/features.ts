@@ -58,7 +58,7 @@ export const FEATURES = {
     label: 'Cosmetics store',
     description: 'Buying frames, bubbles and effects is refused. Items already owned keep working.',
     clientFlag: 'cosmeticsEnabled',
-    txnTypes: ['cosmetic_purchase'],
+    txnTypes: ['cosmetic_purchase', 'vip_purchase'],
   },
   goLive: {
     label: 'Going live',

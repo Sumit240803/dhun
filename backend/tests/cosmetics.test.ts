@@ -449,6 +449,7 @@ describe('looks — how people appear to everyone else', () => {
       bubble: null,
       nameColor: null,
       entry: null,
+      vip: null,
     });
   });
 

@@ -25,6 +25,7 @@ import { pool } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
 import { logger } from '../../infra/logger.js';
 import { publishGlobal, publishToRoom } from '../../infra/roomBus.js';
+import { invalidateFan } from './fans.service.js';
 import { cachedLeaderboard } from './board.cache.js';
 import { lookFor, type UserLook } from '../cosmetics/index.js';
 import { assertMaySpend } from '../moderation/index.js';
@@ -276,6 +277,8 @@ export async function sendGift(input: {
   // original already had its moment on screen, and clients dedupe regardless.
   if (!result.replayed) {
     const view = (result.response as { gift: GiftView }).gift;
+    // The sender's fan level with this recipient may just have stepped up.
+    invalidateFan(input.senderId, input.recipientId);
     publishToRoom(input.roomId, { t: 'gift', roomId: input.roomId, gift: view });
 
     // Tier 5 — Rocket and Galaxy — is sold as an ALL-ROOMS announcement, and
