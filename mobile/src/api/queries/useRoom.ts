@@ -98,5 +98,15 @@ export function useRoomActions(roomId: string) {
     retry: false,
   });
 
-  return { takeSeat, releaseSeat, muteSeat, kick, endRoom };
+  const appointAdmin = useMutation({
+    mutationFn: (userId: string) => liveRoomsApi.appointAdmin(roomId, userId),
+    retry: false,
+  });
+
+  const removeAdmin = useMutation({
+    mutationFn: (userId: string) => liveRoomsApi.removeAdmin(roomId, userId),
+    retry: false,
+  });
+
+  return { takeSeat, releaseSeat, muteSeat, kick, endRoom, appointAdmin, removeAdmin };
 }

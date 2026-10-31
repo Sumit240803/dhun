@@ -237,6 +237,9 @@ function handleConnection(socket: WebSocket): void {
   socket.on('error', (err) => logger.warn('gateway socket error', { err }));
 }
 
+/** Reactions a single socket may send per second before the rest are dropped. */
+const REACTIONS_PER_SECOND = 8;
+
 async function handle(client: Client, message: ClientMessage): Promise<void> {
   switch (message.t) {
     case 'ping':
@@ -335,6 +338,31 @@ async function handle(client: Client, message: ClientMessage): Promise<void> {
         t: 'chat',
         roomId: message.roomId,
         line: { ...line, body: result.body },
+      });
+      return;
+    }
+
+    case 'reaction': {
+      if (client.roomId !== message.roomId) {
+        throw new AppError('NOT_IN_ROOM', 'Join the room first', 409);
+      }
+      if (client.status !== 'active') {
+        throw new AppError('REGISTRATION_REQUIRED', 'Create an account to react', 403);
+      }
+      // Not recorded, not filtered — a reaction is a glyph from a fixed set
+      // and nothing a report could be about. Rate-limited per socket instead:
+      // a thumb tapping as fast as it can is about eight a second; a script
+      // is more, and gets its extras dropped without a word.
+      const now = Date.now();
+      client.reactionTimes = (client.reactionTimes ?? []).filter((at) => now - at < 1_000);
+      if (client.reactionTimes.length >= REACTIONS_PER_SECOND) return;
+      client.reactionTimes.push(now);
+
+      broadcast(message.roomId, {
+        t: 'reaction',
+        roomId: message.roomId,
+        userId: client.userId,
+        emoji: message.emoji,
       });
       return;
     }

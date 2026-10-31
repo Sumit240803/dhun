@@ -1750,7 +1750,7 @@
                 "{{roomId}}"
               ]
             },
-            "description": "The room and its seat map, without joining. What a feed card expands into.\n\n**`room.backgroundPath`** — the backdrop the room wears, as an asset PATH (`rooms/backgrounds/coast-road.v1.webp`), never a URL. The client resolves it against the asset base exactly as it resolves gift art, so the CDN host is never baked into a room row.\n\nOne is picked at random from `app_config.room_backgrounds` when the room is created and STORED on the room. It is deliberately not hashed from the room id on the client: two viewers on different config versions would draw different scenes for one room, and adding a fourth backdrop would reshuffle every room already live.\n\n`null` means no backdrop — either the room never got one, or config no longer offers the one it has. The app draws its plain gradient either way, so retiring art is an edit to one config row and never a broken image.\n\n**`room.publicId`** — the short six-digit number people quote, in chat, in a report, in WhatsApp. It is NOT `room.id`: that uuid is what every table references and what appears in every log line, and a value people paste around should never be the string that identifies the row (migration 006 states the rule; 029 applies it to rooms). Look a room up with `GET /rooms/code/{publicId}`."
+            "description": "The room and its seat map, without joining. What a feed card expands into.\n\n**`room.backgroundPath`** — the backdrop the room wears, as an asset PATH (`rooms/backgrounds/coast-road.v1.webp`), never a URL. The client resolves it against the asset base exactly as it resolves gift art, so the CDN host is never baked into a room row.\n\nOne is picked at random from `app_config.room_backgrounds` when the room is created and STORED on the room. It is deliberately not hashed from the room id on the client: two viewers on different config versions would draw different scenes for one room, and adding a fourth backdrop would reshuffle every room already live.\n\n`null` means no backdrop — either the room never got one, or config no longer offers the one it has. The app draws its plain gradient either way, so retiring art is an edit to one config row and never a broken image.\n\n**`room.publicId`** — the short six-digit number people quote, in chat, in a report, in WhatsApp. It is NOT `room.id`: that uuid is what every table references and what appears in every log line, and a value people paste around should never be the string that identifies the row (migration 006 states the rule; 029 applies it to rooms). Look a room up with `GET /rooms/code/{publicId}`.\n\n**`admins`** — the room admins’ user ids, so the client knows who holds moderation powers (035)."
           },
           "response": [],
           "event": [
@@ -1792,7 +1792,7 @@
                 "join"
               ]
             },
-            "description": "Returns a media token whose PUBLISH grant comes from the seat table and nowhere else — there is deliberately no way to ask for publish rights in the request.\n\nIMPORTANT: a listener token sets `canPublish: false` EXPLICITLY. LiveKit treats an omitted flag as permission to publish, so a token that merely forgot the field would let any listener talk in any room.\n\nSomeone who already holds a seat gets speaking rights back, which is what makes a dropped signal a hiccup rather than losing your place on stage.\n\n403 ROOM_BANNED if the host kicked them; 410 ROOM_ENDED once the room is over.\n\n**`room.backgroundPath`** — the backdrop the room wears, as an asset PATH (`rooms/backgrounds/coast-road.v1.webp`), never a URL. The client resolves it against the asset base exactly as it resolves gift art, so the CDN host is never baked into a room row.\n\nOne is picked at random from `app_config.room_backgrounds` when the room is created and STORED on the room. It is deliberately not hashed from the room id on the client: two viewers on different config versions would draw different scenes for one room, and adding a fourth backdrop would reshuffle every room already live.\n\n`null` means no backdrop — either the room never got one, or config no longer offers the one it has. The app draws its plain gradient either way, so retiring art is an edit to one config row and never a broken image.\n\n**`room.publicId`** — the short six-digit number people quote, in chat, in a report, in WhatsApp. It is NOT `room.id`: that uuid is what every table references and what appears in every log line, and a value people paste around should never be the string that identifies the row (migration 006 states the rule; 029 applies it to rooms). Look a room up with `GET /rooms/code/{publicId}`.",
+            "description": "Returns a media token whose PUBLISH grant comes from the seat table and nowhere else — there is deliberately no way to ask for publish rights in the request.\n\nIMPORTANT: a listener token sets `canPublish: false` EXPLICITLY. LiveKit treats an omitted flag as permission to publish, so a token that merely forgot the field would let any listener talk in any room.\n\nSomeone who already holds a seat gets speaking rights back, which is what makes a dropped signal a hiccup rather than losing your place on stage.\n\n403 ROOM_BANNED if the host kicked them; 410 ROOM_ENDED once the room is over.\n\n**`room.backgroundPath`** — the backdrop the room wears, as an asset PATH (`rooms/backgrounds/coast-road.v1.webp`), never a URL. The client resolves it against the asset base exactly as it resolves gift art, so the CDN host is never baked into a room row.\n\nOne is picked at random from `app_config.room_backgrounds` when the room is created and STORED on the room. It is deliberately not hashed from the room id on the client: two viewers on different config versions would draw different scenes for one room, and adding a fourth backdrop would reshuffle every room already live.\n\n`null` means no backdrop — either the room never got one, or config no longer offers the one it has. The app draws its plain gradient either way, so retiring art is an edit to one config row and never a broken image.\n\n**`room.publicId`** — the short six-digit number people quote, in chat, in a report, in WhatsApp. It is NOT `room.id`: that uuid is what every table references and what appears in every log line, and a value people paste around should never be the string that identifies the row (migration 006 states the rule; 029 applies it to rooms). Look a room up with `GET /rooms/code/{publicId}`.\n\n**`admins`** — the room admins’ user ids, so the client knows who holds moderation powers (035).",
             "body": {
               "mode": "raw",
               "raw": "{}",
@@ -1934,7 +1934,7 @@
                 "mute"
               ]
             },
-            "description": "Persisted, because it has to survive the muted person force-quitting the app to escape it — which is exactly what somebody being muted for a reason will do.\n\nNOT best effort, unlike releasing a seat: a mute that never reached the media server has changed nothing anyone can hear, so the row is rolled back and the host is told.",
+            "description": "Persisted, because it has to survive the muted person force-quitting the app to escape it — which is exactly what somebody being muted for a reason will do.\n\nNOT best effort, unlike releasing a seat: a mute that never reached the media server has changed nothing anyone can hear, so the row is rolled back and the host is told.\n\n**Admins (035):** a room admin appointed by the host may do this too, except to the host or to another admin (`NOT_ROOM_HOST` 403 / `CANNOT_MODERATE_HOST` 409).",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"muted\": true\n}",
@@ -1985,7 +1985,7 @@
                 "{{targetUserId}}"
               ]
             },
-            "description": "The BAN ROW is what does the work. Disconnecting someone from the media server is cosmetic on its own — their SDK reconnects within seconds — so the row is written first and the disconnect is best effort afterwards.\n\nRoom-scoped, and deliberately NOT a platform ban. A host clearing their own room is not a judgement about the account, and letting it become one would hand every host the power to suspend a user.",
+            "description": "The BAN ROW is what does the work. Disconnecting someone from the media server is cosmetic on its own — their SDK reconnects within seconds — so the row is written first and the disconnect is best effort afterwards.\n\nRoom-scoped, and deliberately NOT a platform ban. A host clearing their own room is not a judgement about the account, and letting it become one would hand every host the power to suspend a user.\n\n**Admins (035):** a room admin appointed by the host may do this too, except to the host or to another admin (`NOT_ROOM_HOST` 403 / `CANNOT_MODERATE_HOST` 409).",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"reason\": \"abuse\"\n}",
@@ -2166,7 +2166,7 @@
                 "{{roomCode}}"
               ]
             },
-            "description": "The short number a host reads out. `rooms.public_id`, six digits from a sequence — NOT `rooms.id`, which is the uuid every table references and every log line carries.\n\n**Live rooms only.** A code is quoted to send somebody to a broadcast that is happening; returning an ended room would land them on an empty screen with no explanation.\n\nThe code is range-checked to the sequence’s shape. An unbounded integer here is a free scan of the id space for anybody who wants to enumerate.\n\n**Errors:** `ROOM_NOT_FOUND` 404 · `VALIDATION_FAILED` 422"
+            "description": "The short number a host reads out. `rooms.public_id`, six digits from a sequence — NOT `rooms.id`, which is the uuid every table references and every log line carries.\n\n**Live rooms only.** A code is quoted to send somebody to a broadcast that is happening; returning an ended room would land them on an empty screen with no explanation.\n\nThe code is range-checked to the sequence’s shape. An unbounded integer here is a free scan of the id space for anybody who wants to enumerate.\n\n**Errors:** `ROOM_NOT_FOUND` 404 · `VALIDATION_FAILED` 422\n\n**`admins`** — the room admins’ user ids, so the client knows who holds moderation powers (035)."
           },
           "response": [],
           "event": [
@@ -2213,6 +2213,120 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "14 · Appoint a room admin (host)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rooms/{{roomId}}/admins",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rooms",
+                "{{roomId}}",
+                "admins"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{otherUserId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Host only. An admin may mute and kick in THIS room — not the host, not another admin — until the room ends; the list dies with it (035). At most 5.\n\nReturns `{ admins: string[] }`; everyone in the room receives an `admins` gateway message with the new list.\n\n**Errors:** `NOT_ROOM_HOST` 403 · `CANNOT_ADMIN_HOST` 409 · `ADMIN_MUST_BE_REGISTERED` 409 · `ROOM_ADMINS_FULL` 409 · `ROOM_ENDED` 410"
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "15 · Remove a room admin (host)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/rooms/{{roomId}}/admins/{{otherUserId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "rooms",
+                "{{roomId}}",
+                "admins",
+                "{{otherUserId}}"
+              ]
+            },
+            "description": "Host only. Returns the remaining `{ admins }`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "16 · Share landing page (HTML)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/r/{{roomCode}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "r",
+                "{{roomCode}}"
+              ]
+            },
+            "description": "Not an API route: the page a shared link opens, served by the API at `/r/{code}` and fronted by `app_config.share_base_url` (`https://dhun.live` by default — that host must proxy here). Anonymous, no JavaScript, its own CSP. Shows the title, host and a LIVE badge with an \"Open in Dhun\" button on `dhun://r/{code}` and a store link; an ended or unknown room gets a 404 page saying so.\n\nThe app reads `shareBaseUrl` from `GET /config/app` to build the link it shares."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('html', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('text/html'));"
                 ]
               }
             }
@@ -2318,6 +2432,42 @@
                   "  const board = pm.response.json().leaderboard;",
                   "  for (let i = 1; i < board.length; i++) pm.expect(board[i - 1].coins).to.be.at.least(board[i].coins);",
                   "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Host earnings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/gifts/earnings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "gifts",
+                "earnings"
+              ]
+            },
+            "description": "The host’s own dashboard: `{ earnings: { pointsBalance, window: { days, points, coins, gifts, hoursLive, rooms }, daily: [{ day, points, coins, gifts }] (30 IST days, zeros included), topGifters: [{ userId, displayName, avatarUrl, coins, gifts }] } }`.\n\nRead from `gift_sends` (which carries the points of every gift at the moment it was sent) and `room_sessions`; the balance is the ledger’s. No withdraw here — that is M8’s payout pipeline."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
                 ]
               }
             }

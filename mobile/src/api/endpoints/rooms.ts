@@ -71,4 +71,10 @@ export const liveRoomsApi = {
 
   kick: (roomId: string, userId: string, reason?: string) =>
     api.post<{ kicked: true }>(`rooms/${roomId}/kick/${userId}`, reason ? { reason } : {}),
+
+  /** Host only. An admin may mute and kick in this room, except the host and other admins. */
+  appointAdmin: (roomId: string, userId: string) =>
+    api.post<{ admins: string[] }>(`rooms/${roomId}/admins`, { userId }),
+  removeAdmin: (roomId: string, userId: string) =>
+    api.delete<{ admins: string[] }>(`rooms/${roomId}/admins/${userId}`),
 };

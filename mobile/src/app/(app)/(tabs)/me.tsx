@@ -431,6 +431,11 @@ export default function MeTab() {
               tint={colors.currency.point}
               soft={colors.currency.pointSoft}
               icon="cash"
+              actionLabel={t('earnings.view')}
+              onAction={() => {
+                haptic.tap();
+                router.push('/(app)/host/earnings');
+              }}
               testID="points-card"
             />
           </Row>
@@ -564,7 +569,7 @@ function BalanceCard({
   soft: string;
   icon: IconName;
   /** Omitted where the action does not exist yet — a card with no button beats
-   *  a button that does nothing. Withdraw arrives with payouts in M8. */
+   *  a button that does nothing. */
   actionLabel?: string;
   onAction?: () => void;
   testID?: string;

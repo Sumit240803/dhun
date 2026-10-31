@@ -23,6 +23,8 @@ export interface ClientConfig {
   /** Below this, the app offers an update the user can decline. */
   latestVersion: string;
   storeUrl: string;
+  /** Base of a shared room link: {shareBaseUrl}/r/{room code}. */
+  shareBaseUrl: string;
   /** growth-plan-v1's cold-start rules, as the app needs them. */
   coldStart: ColdStartConfig;
 }
@@ -115,7 +117,7 @@ export async function getClientConfig(): Promise<ClientConfig> {
   const { rows } = await pool.query<{ key: string; value: unknown }>(
     `SELECT key, value FROM app_config
       WHERE key IN ('client_flags','min_supported_app_version','latest_app_version',
-                    'store_url_android','otp_widget_enabled','otp_widget_id',
+                    'store_url_android','share_base_url','otp_widget_enabled','otp_widget_id',
                     'otp_widget_token_auth')`,
   );
 
@@ -154,6 +156,7 @@ export async function getClientConfig(): Promise<ClientConfig> {
     minSupportedVersion: asString(byKey.min_supported_app_version, '1.0.0'),
     latestVersion: asString(byKey.latest_app_version, '1.0.0'),
     storeUrl: asString(byKey.store_url_android, ''),
+    shareBaseUrl: asString(byKey.share_base_url, 'https://dhun.live').replace(/\/+$/, ''),
     coldStart: await coldStartConfig(),
   };
 }

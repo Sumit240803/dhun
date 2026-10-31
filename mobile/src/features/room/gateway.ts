@@ -12,7 +12,7 @@
 // of a two-person project costs more than it saves. The gateway tests are what
 // hold the two in step.
 
-import type { EntryView, GiftView, PkBattle, UserLook } from '@/api/types';
+import type { EntryView, GiftView, PkBattle, Reaction, UserLook } from '@/api/types';
 import { env } from '@/config/env';
 import { reportError } from '@/lib/reporting';
 
@@ -57,6 +57,8 @@ export type ServerMessage =
   | { t: 'presence'; roomId: string; viewers: number }
   | { t: 'mic:queue'; roomId: string; requests: MicRequest[] }
   | { t: 'mic:resolved'; roomId: string; approved: boolean }
+  | { t: 'reaction'; roomId: string; userId: string; emoji: Reaction }
+  | { t: 'admins'; roomId: string; admins: string[] }
   /** Somebody sent a gift. Drives the strips and animations; the ledger has already settled. */
   | { t: 'gift'; roomId: string; gift: GiftView }
   /**
@@ -93,6 +95,7 @@ export type ClientMessage =
   | { t: 'mic:request'; roomId: string }
   | { t: 'mic:cancel'; roomId: string }
   | { t: 'mic:resolve'; roomId: string; userId: string; approve: boolean; seatIndex?: number }
+  | { t: 'reaction'; roomId: string; emoji: Reaction }
   | { t: 'ping' };
 
 export type SocketStatus = 'connecting' | 'live' | 'offline';

@@ -3,10 +3,12 @@ import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
+import { REACTIONS, type Reaction } from '@/api/types';
 import { useTranslation } from '@/i18n';
 import { haptic } from '@/lib/haptics';
 import { colors, radius, spacing } from '@/theme';
 import { Row, Text } from '@/ui';
+import { REACTION_GLYPHS } from './ReactionLayer';
 
 /** What the mic button is offering right now. */
 export type MicMode =
@@ -33,6 +35,8 @@ interface Props {
   onCameraPress: () => void;
   onFeaturesPress: () => void;
   onGiftPress: () => void;
+  /** Absent for guests — reacting is for accounts, like chat. */
+  onReact?: (emoji: Reaction) => void;
 }
 
 /**
@@ -83,10 +87,18 @@ export function RoomComposer({
   onCameraPress,
   onFeaturesPress,
   onGiftPress,
+  onReact,
 }: Props) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState('');
   const [focused, setFocused] = useState(false);
+  const [picker, setPicker] = useState(false);
+
+  function react(emoji: Reaction) {
+    haptic.selection();
+    onReact?.(emoji);
+    setPicker(false);
+  }
 
   function send(body: string) {
     const trimmed = body.trim();
@@ -120,6 +132,23 @@ export function RoomComposer({
               </Pressable>
             ))}
           </ScrollView>
+        </Animated.View>
+      )}
+
+      {picker && onReact && (
+        <Animated.View entering={FadeInDown.duration(140)} style={styles.picker}>
+          {REACTIONS.map((emoji) => (
+            <Pressable
+              key={emoji}
+              onPress={() => react(emoji)}
+              accessibilityRole="button"
+              accessibilityLabel={emoji}
+              style={({ pressed }) => [styles.pickerItem, pressed && styles.pickerPressed]}
+              testID={`react-${emoji}`}
+            >
+              <Text style={styles.pickerGlyph}>{REACTION_GLYPHS[emoji]}</Text>
+            </Pressable>
+          ))}
         </Animated.View>
       )}
 
@@ -179,6 +208,24 @@ export function RoomComposer({
           testID="room-features"
         />
 
+        {/* Tap: a heart. Hold: the six. The commonest reaction is one tap away
+            and the rest are one gesture further, never a menu. */}
+        {onReact && (
+          <Pressable
+            onPress={() => react('heart')}
+            onLongPress={() => {
+              haptic.selection();
+              setPicker((open) => !open);
+            }}
+            accessibilityRole="button"
+            accessibilityLabel={t('room.react')}
+            style={({ pressed }) => [styles.react, pressed && styles.reactPressed]}
+            testID="room-react"
+          >
+            <Ionicons name="heart" size={20} color={colors.text.onMedia} />
+          </Pressable>
+        )}
+
         {canGift && (
           <Pressable
             onPress={() => {
@@ -230,6 +277,33 @@ function BarButton({
 }
 
 const styles = StyleSheet.create({
+  react: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.glass.fillStrong,
+  },
+  reactPressed: { opacity: 0.7 },
+  picker: {
+    flexDirection: 'row',
+    alignSelf: 'flex-end',
+    gap: spacing.xs,
+    padding: spacing.xs,
+    marginBottom: spacing.xs,
+    borderRadius: radius.pill,
+    backgroundColor: colors.glass.scrim,
+  },
+  pickerItem: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pickerPressed: { backgroundColor: colors.glass.fillStrong },
+  pickerGlyph: { fontSize: 22, lineHeight: 26 },
   root: { gap: spacing.xs },
   quick: { gap: spacing.xs, paddingHorizontal: spacing.sm },
   quickChip: {

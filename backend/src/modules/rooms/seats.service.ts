@@ -60,6 +60,38 @@ function assertHost(room: RoomState, userId: string): void {
 }
 
 /**
+ * The host, or an admin the host appointed for this room (035).
+ *
+ * An admin's reach stops at the host and at the other admins: those are the
+ * host's own decisions, and an admin who could remove another admin would be
+ * the host in all but name.
+ */
+async function assertHostOrAdmin(
+  room: RoomState,
+  roomId: string,
+  actorId: string,
+  targetId: string,
+): Promise<void> {
+  if (room.host_user_id === actorId) return;
+  const { rowCount } = await pool.query(
+    'SELECT 1 FROM room_admins WHERE room_id = $1 AND user_id = $2',
+    [roomId, actorId],
+  );
+  if (!rowCount) throw new AppError('NOT_ROOM_HOST', 'Only the host or an admin can do that', 403);
+
+  if (targetId === room.host_user_id) {
+    throw new AppError('CANNOT_MODERATE_HOST', 'The host cannot be moderated', 409);
+  }
+  const { rowCount: targetIsAdmin } = await pool.query(
+    'SELECT 1 FROM room_admins WHERE room_id = $1 AND user_id = $2',
+    [roomId, targetId],
+  );
+  if (targetIsAdmin) {
+    throw new AppError('NOT_ROOM_HOST', 'Only the host can act on another admin', 403);
+  }
+}
+
+/**
  * Takes a mic seat.
  *
  * The primary key on (room_id, seat_index) is what decides a contested seat —
@@ -233,11 +265,12 @@ async function releaseSeatRow(roomId: string, userId: string): Promise<boolean> 
 export async function setSeatMuted(input: {
   roomId: string;
   userId: string;
-  hostId: string;
+  /** The host, or a room admin. */
+  actorId: string;
   muted: boolean;
 }): Promise<void> {
   const room = await loadLiveRoom(input.roomId);
-  assertHost(room, input.hostId);
+  await assertHostOrAdmin(room, input.roomId, input.actorId, input.userId);
 
   const { rowCount } = await pool.query(
     'UPDATE room_seats SET muted = $3 WHERE room_id = $1 AND user_id = $2',
@@ -284,21 +317,21 @@ export async function setSeatMuted(input: {
 export async function kickFromRoom(input: {
   roomId: string;
   userId: string;
-  hostId: string;
+  /** The host, or a room admin. */
+  actorId: string;
   reason?: string;
 }): Promise<void> {
   const room = await loadLiveRoom(input.roomId);
-  assertHost(room, input.hostId);
-
   if (input.userId === room.host_user_id) {
     throw new AppError('CANNOT_KICK_HOST', 'The host cannot be removed', 409);
   }
+  await assertHostOrAdmin(room, input.roomId, input.actorId, input.userId);
 
   await withTransaction(async (client) => {
     await client.query(
       `INSERT INTO room_bans (room_id, user_id, banned_by, reason) VALUES ($1, $2, $3, $4)
        ON CONFLICT (room_id, user_id) DO NOTHING`,
-      [input.roomId, input.userId, input.hostId, input.reason ?? null],
+      [input.roomId, input.userId, input.actorId, input.reason ?? null],
     );
 
     const { rowCount } = await client.query(
@@ -316,7 +349,7 @@ export async function kickFromRoom(input: {
   logger.warn('user kicked from room', {
     room_id: input.roomId,
     user_id: input.userId,
-    actor_id: input.hostId,
+    actor_id: input.actorId,
   });
 
   // Best effort. They are already barred from rejoining, which is the part that

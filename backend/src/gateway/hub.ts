@@ -44,6 +44,8 @@ export interface Client {
    * and for the room's own host — hosting is not watching.
    */
   watch: WatchClock | null;
+  /** Timestamps of the last second's reactions, for the per-socket ceiling. */
+  reactionTimes?: number[];
 }
 
 export interface WatchClock {

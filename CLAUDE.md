@@ -535,7 +535,7 @@ walk away from a vendor and an SDK spread across four modules cannot walk anywhe
 One repo, pushed to `git@github.com:Sumit240803/dhun.git` (`main`).
 Verify everything with **`npm run check`** from the root.
 
-### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5–M7, M10, M12–M18 built, unverified on devices. 573 tests.
+### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5–M7, M10, M12–M19 built, unverified on devices. 585 tests.
 
 Seventeen migrations, 68 routes, and all three processes built: API, workers, and the
 realtime gateway. **M10 was built before M8 and M9, by agreement** — both are blocked on
@@ -547,8 +547,8 @@ external accounts (CA + RazorpayX, Hive) and neither is skipped.
 | **Auth** | Complete except OAuth. Phone OTP behind a provider interface (`console` in dev, `msg91` blocked on DLT) plus the MSG91 **widget** path, email + password, deferred email confirmation, password reset and change, session list and per-device revocation, phone-number change, account deletion. JWT + rotating refresh with replay detection that revokes the device chain, scoped `role_assignments`. |
 | **Wallet / purchases** | Server-driven catalogs, IAP behind a verifier interface (stub in dev), Razorpay signature verification fully implemented, coins→gems conversion. |
 | **Social / chat / moderation** | Follows, profile visits, public profiles, profile summary, message threads, reports and blocks. Bans are enforced on every request, not only at sign-in, and guests are bannable. |
-| **Rooms / RTC** | Go live, join, mic seats, host mute and kick, end. A **backdrop** is picked at random from `app_config.room_backgrounds` and STORED on the room, so everyone in it sees one place and new art never reshuffles a live room. Publish rights come from the SEAT TABLE and nowhere else — there is no way to request them. LiveKit webhooks feed viewer counts and `room_sessions` (host hours). Seats, bans and sessions are in Postgres; presence is not mirrored, because it would drift from the media server within seconds. |
-| **Gifting** | `POST /v1/gifts/send`: one ledger transaction per tap whatever the combo, registered 18+ only, `Idempotency-Key` required. Recipient is the host or anyone seated; self-gifts, off-stage recipients, blocks, bans, ended rooms and a price the user never saw are refused. Published to the room on commit. Each send writes a `gift_sends` row inside the ledger's own transaction, which the room leaderboard reads. **The leaderboard is cached in memory for 5s per room** — since the room rebuild it is read by every viewer every 5s (the header rail and every seat counter come from it), making it the only query whose cost scales with VIEWERS rather than with actions. Every viewer gets an identical board, so one computation serves all of them. **Deliberately NOT invalidated on a gift**: a room taking two gifts a second would invalidate faster than the TTL and never hit, in exactly the rooms this exists for. **Tier 5 also goes platform-wide** on a single `global` Redis channel every gateway holds for life — one publish per gift, never one per room. Clients get `gift:global`, a DIFFERENT message from `gift`: one means "in your room" and plays full-screen, the other means "somewhere else" and draws a banner. The `effect` column decides, not the tier number. |
+| **Rooms / RTC** | Go live (4–20 seats, host's choice), join, mic seats, host mute and kick, **room admins** (035: per room, up to five, may mute and kick anyone but the host and each other, list dies with the room), **reactions** (six glyphs relayed over the gateway, never stored, eight a second per socket), the **share page** at `/r/{code}` served by the API, end. A **backdrop** is picked at random from `app_config.room_backgrounds` and STORED on the room, so everyone in it sees one place and new art never reshuffles a live room. Publish rights come from the SEAT TABLE and nowhere else — there is no way to request them. LiveKit webhooks feed viewer counts and `room_sessions` (host hours). Seats, bans and sessions are in Postgres; presence is not mirrored, because it would drift from the media server within seconds. |
+| **Gifting** | `POST /v1/gifts/send`: one ledger transaction per tap whatever the combo, registered 18+ only, `Idempotency-Key` required. Recipient is the host or anyone seated; self-gifts, off-stage recipients, blocks, bans, ended rooms and a price the user never saw are refused. Published to the room on commit. Each send writes a `gift_sends` row inside the ledger's own transaction, which the room leaderboard reads — and the **host earnings** endpoint (`GET /gifts/earnings`: thirty IST days, top gifters, hours from `room_sessions`; the balance is the ledger's three host-point accounts, nothing is a counter). **The leaderboard is cached in memory for 5s per room** — since the room rebuild it is read by every viewer every 5s (the header rail and every seat counter come from it), making it the only query whose cost scales with VIEWERS rather than with actions. Every viewer gets an identical board, so one computation serves all of them. **Deliberately NOT invalidated on a gift**: a room taking two gifts a second would invalidate faster than the TTL and never hit, in exactly the rooms this exists for. **Tier 5 also goes platform-wide** on a single `global` Redis channel every gateway holds for life — one publish per gift, never one per room. Clients get `gift:global`, a DIFFERENT message from `gift`: one means "in your room" and plays full-screen, the other means "somewhere else" and draws a banner. The `effect` column decides, not the tier number. |
 | **Cosmetics** | Frames, chat bubbles, nickname colours and entry effects, bought with GEMS only — or **earned by level**: `free_at_user_level` was dead data from migration 003 until 030, and is now granted on purchase (when levels move) with a backfill for everyone already qualified. A level unlock has a **NULL expiry** — a level does not lapse, so neither does its reward — which is why every read is `(expires_at IS NULL OR expires_at > now())`. Buying something you already own permanently is REFUSED, not charged. Time stacks onto an active item; buying equips; one worn per kind; expiry evaluated on read. Ownership and a purchase record are written inside the ledger's transaction. A `look` rides on seats, chat lines, gift senders and profiles; entry effects are announced over the gateway. Styles are validated light/dark data. |
 | **Discovery & daily hooks** | Welcome bonus, 7-day check-in ladder, watch reward measured by the gateway, referrals paid on a friend's first ₹99+ purchase — all ordinary coins, all once-only by a claim-derived ledger key, all in `app_config.free_coins`. Search by name prefix or public ID. Followed-host-is-live push via Expo, driven by a `room_started` outbox event, capped and cooled down. Cold-start dials in `app_config.cold_start`. |
 | **Workers** | `npm run worker`. Outbox shipper (LISTEN/NOTIFY + 2s poll floor) that also runs consumers (referral payouts, live notifications), nightly reconciliation at 03:00 IST with 12 checks and zero tolerance, the daily `spend_mix` measure at 03:30, the agency membership sweep every 15 minutes, the commission period close at 05:00 IST, five retention purges. Advisory-lock job locking. |
@@ -626,8 +626,15 @@ Read **`mobile/ARCHITECTURE.md`** before adding a file. The essentials:
 email sign-in/up, forgot and reset password), profile setup, email confirmation, account
 and security (password, phone number, signed-in devices, delete), wallet and its
 transactions statement, store, rewards and the new-user rewards sheet, host verification,
-appeal, go-live, the live room, agency screens, thread, public profile, visitors. Every
-kill switch has a designed paused state on the screen it affects.
+appeal, go-live (with seat count), the live room (reactions, room admins, share, minimise
+with a floating player), host earnings, agency screens, thread, public profile, visitors,
+the shared-link route `/r/[code]`. Every kill switch has a designed paused state on the
+screen it affects.
+
+**Minimising a room parks the LiveKit connection** (`features/room/liveSession.ts`):
+`useLiveRoom`'s cleanup keeps the Room alive when the screen asked it to, the
+`MiniRoomPlayer` in the app layout is the way back in or out, and opening ANY room
+disconnects what was parked. Never hold a second connection; a phone plays one room.
 
 **Adding a route needs the typed-route file regenerated** — it comes from
 `expo start`, not from `tsc` or `expo export`, and until it runs a new
@@ -734,17 +741,21 @@ roles re-read from the database on every request, and a CSRF token in every form
 
 ### Not built yet
 
-OAuth (Google / Facebook / Instagram) · host tools and payouts (M8) · Hive moderation and
-the rest of trust & safety (M9; reports queue and appeals are done) · platform rankings
-and the region picker (both waiting on a decision) · super messages and VIP · stand-in art
-files · Firebase credentials for Android push · the legal screens' actual text and the
-Grievance Officer's name · analytics pipeline · Terraform and environments.
+**Phase 0 of the blueprint is complete except beauty filters** (video-dependent; after the
+device pass). Still to build: OAuth (Google / Facebook / Instagram) · withdrawal and the
+rest of host payouts (M8) · Hive moderation and the rest of trust & safety (M9; reports
+queue and appeals are done) · platform rankings and the region picker (both waiting on a
+decision) · Phase 1: VIP, super messages, DMs, daily tasks, spend limits, polls · stand-in
+art files · Firebase credentials for Android push · the legal screens' actual text and the
+Grievance Officer's name · analytics pipeline · OTA (`expo-updates`) · Terraform and
+environments.
 
 Built but **unverified on devices**: everything from M5 on — M5 (two phones, live audio,
 chat under 200ms, an API redeploy with a room live), M6 (a real gift between two accounts,
 animation under 500ms), M7 (a real purchase, its frame visible to someone else in a room),
 M10 (a check-in, five minutes watched paying out, a follow's live notification arriving),
-and M13–M18 (the room, PK, the rewards sheet, verification, appeal, the paused states).
+and M13–M19 (the room, PK, the rewards sheet, verification, appeal, the paused states,
+reactions, admins, share, minimise).
 This is the largest risk in the codebase and needs no decision: a dev build and two phones.
 
 Honest read: the foundation is stronger than the budget suggests, the product does

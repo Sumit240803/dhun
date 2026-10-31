@@ -358,9 +358,40 @@ export interface RoomSeat {
   look: UserLook;
 }
 
+/** The six reactions a room can float. The server relays nothing else. */
+export type Reaction = 'heart' | 'clap' | 'fire' | 'laugh' | 'wow' | 'party';
+export const REACTIONS: readonly Reaction[] = ['heart', 'clap', 'fire', 'laugh', 'wow', 'party'];
+
+/**
+ * The host's earnings dashboard. Every figure is read from gifts already sent
+ * and from the ledger — never a counter. No withdraw: that is M8.
+ */
+export interface HostEarnings {
+  pointsBalance: number;
+  points: { held: number; withdrawable: number; pendingPayout: number };
+  window: {
+    days: number;
+    points: number;
+    coins: number;
+    gifts: number;
+    hoursLive: number;
+    rooms: number;
+  };
+  daily: { day: string; points: number; coins: number; gifts: number }[];
+  topGifters: {
+    userId: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    coins: number;
+    gifts: number;
+  }[];
+}
+
 export interface JoinedRoom {
   room: LiveRoom;
   seats: RoomSeat[];
+  /** Room admins' user ids — who may mute and remove besides the host (035). */
+  admins: string[];
   rtc: RtcJoinToken;
   /**
    * Whether this user may speak.
@@ -484,6 +515,8 @@ export interface ClientConfig {
   /** Below this the app offers an update the user may decline. */
   latestVersion: string;
   storeUrl: string;
+  /** Base of a shared room link: {shareBaseUrl}/r/{room code}. */
+  shareBaseUrl: string;
   coldStart: ColdStartConfig;
 }
 

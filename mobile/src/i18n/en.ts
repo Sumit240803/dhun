@@ -667,6 +667,39 @@ export const en = {
     featureReport: 'Report',
     featureRules: 'Rules',
     featureMinimise: 'Minimise',
+
+    // ── Phase 0: seats, reactions, admins, share, minimise ─────────────
+    seatsLabel: 'Seats on the mic',
+    react: 'React',
+    adminBadge: 'Admin',
+    adminControls: 'Admin controls',
+    makeAdmin: 'Make room admin',
+    removeAdmin: 'Remove as admin',
+    shareMessage: '{host} is live on Dhun — {title}. Join: {url}',
+    miniReturn: 'Back to the room',
+    miniLeave: 'Leave the room',
+    codeResolving: 'Opening the room',
+    codeEndedTitle: 'This room has ended',
+    codeEndedBody: 'The link you opened was for a room that is no longer live.',
+  },
+
+  // The host's earnings dashboard. No withdraw here — that arrives with payouts.
+  earnings: {
+    title: 'Earnings',
+    view: 'Earnings',
+    balance: 'Points',
+    balanceHint: 'From gifts. Points are released for withdrawal after the hold period.',
+    held: 'Held',
+    ready: 'Ready to withdraw',
+    last30: 'Last 30 days',
+    pointsCount: '{points} points',
+    gifts: 'Gifts',
+    coins: 'Coins',
+    hours: 'Hours live',
+    rooms: 'Rooms',
+    topGifters: 'Top gifters',
+    giftCount: '{count} gifts',
+    noGifters: 'Nobody has sent a gift in the last 30 days. Go live and say hello.',
   },
 
   store: {

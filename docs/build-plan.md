@@ -884,6 +884,52 @@ with no form on it, so the sign-out form now carries the token on every page.
 the Grievance Officer's name; platform rankings and the region picker, both waiting on a
 decision (daily or weekly boards; what a region is).
 
+### M19 · Phase 0, finished — ✅ COMPLETE, unverified on devices
+
+Built 2026-10-31. The last items on the blueprint's Phase 0 list that needed no decision,
+each as a vertical slice.
+
+**Party size.** The backend took 2–20 seats; go-live hardcoded 8. A host now picks
+4 · 6 · 9 · 12 · 20 — each fills its seat grid exactly (2, 3, 3, 4 and 5 columns), so no
+layout is left with a hole. Nine is the default, the size the reference rooms use most.
+
+**Reactions.** Six fixed glyphs over the gateway (`reaction` in, `reaction` out), never
+stored, never filtered — a glyph from a fixed set is nothing a report could be about —
+and capped at eight a second per socket, the rest dropped without a word. Tap the heart
+for a heart; hold it for the six. They rise over the stage's lower right and are gone in
+a second and a half; nothing loops.
+
+**Room admins** (migration 035). Per room, never per person: the host appoints up to
+five, the list dies with the room, and an admin may mute and kick anyone who is neither
+the host nor another admin — the server draws the same line the card does. Everyone in
+the room receives the new list over the gateway and re-derives who may do what.
+
+**Host earnings.** `GET /gifts/earnings`: the points balance across all three host
+accounts (held, withdrawable, pending payout), thirty IST days from `gift_sends`,
+hours from `room_sessions`, rooms from `rooms`, the top ten gifters. Nothing is a
+counter. No withdraw button — that is M8 — and the screen says where the points stand
+instead of pretending.
+
+**Share.** A room link is `{share_base_url}/r/{room code}` — the code, not the uuid, so
+a link outlives the room and says so. The API serves the landing page itself (title,
+host, LIVE, "Open in Dhun" on `dhun://r/{code}`, store link; no JavaScript, its own
+CSP, every string escaped); `dhun.live` must proxy `/r/*` to it. The app resolves the
+code and opens the room, or says the room has ended.
+
+**Minimise.** Leave the screen, keep the audio. `useLiveRoom` parks the LiveKit
+connection instead of closing it when the screen asked it to (`liveSession.ts`); a
+floating player above the tab bar is the way back in and the way out; opening any room
+disconnects whatever was parked — a phone plays one room. Watch rewards pause while
+minimised: the gateway socket does not survive the screen, by design.
+
+**Not done, deliberately: beauty filters.** They need frame processing on the camera
+track (a native module — LiveKit track processors or vision-camera), video rooms are
+switched off until verified on devices, and nothing about them can be judged on a
+simulator. First thing after the device pass if video ships at launch.
+
+**Exit criteria met:** 585 backend tests · 156 mobile ·
+`npm run check` clean · CI green.
+
 ---
 
 ## Admin panel — threaded, not a milestone

@@ -5,7 +5,7 @@
 // when a key is reused and when a fresh one is minted.
 
 import { api } from '@/api/client';
-import type { GiftQuantity, LeaderboardEntry, SendGiftResult } from '@/api/types';
+import type { GiftQuantity, HostEarnings, LeaderboardEntry, SendGiftResult } from '@/api/types';
 
 export const giftsApi = {
   send: (input: {
@@ -31,4 +31,6 @@ export const giftsApi = {
 
   leaderboard: (roomId: string) =>
     api.get<{ leaderboard: LeaderboardEntry[] }>(`gifts/leaderboard/${roomId}`),
+  /** The caller's own earnings, as a host. */
+  earnings: () => api.get<{ earnings: HostEarnings }>('gifts/earnings'),
 };

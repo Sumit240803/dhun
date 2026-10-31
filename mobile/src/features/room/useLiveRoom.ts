@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
 import { reportError } from '@/lib/reporting';
+import { liveSession, sessionKey } from './liveSession';
 import {
   ensureLiveKitReady,
   isLiveKitAvailable,
@@ -182,6 +183,10 @@ export function useLiveRoom({ url, token, publish, publishVideo = false }: Optio
     return () => {
       cancelled = true;
       roomRef.current = null;
+      // Minimised: the screen goes and the audio stays. Whoever opens a room
+      // next, or the mini player's close, disconnects it (liveSession.ts).
+      const key = sessionKey(url, token);
+      if (key !== null && liveSession.tryPark(key, room)) return;
       // Disconnect BEFORE releasing the audio session, or the OS keeps voice
       // routing while a track is still open and the next sound in the app
       // comes out of the earpiece.

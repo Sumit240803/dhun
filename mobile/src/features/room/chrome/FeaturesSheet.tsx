@@ -37,10 +37,10 @@ const FEATURES: Entry[] = [
   { id: 'rewards', icon: 'gift-outline', label: 'room.featureRewards', ready: true },
   { id: 'store', icon: 'card', label: 'room.featureStore', ready: true },
   { id: 'cosmetics', icon: 'color-palette', label: 'room.featureCosmetics', ready: true },
-  { id: 'share', icon: 'share-social', label: 'room.featureShare', ready: false },
+  { id: 'share', icon: 'share-social', label: 'room.featureShare', ready: true },
   { id: 'report', icon: 'flag', label: 'room.featureReport', ready: true },
   { id: 'rules', icon: 'document-text', label: 'room.featureRules', ready: true },
-  { id: 'minimise', icon: 'contract', label: 'room.featureMinimise', ready: false },
+  { id: 'minimise', icon: 'contract', label: 'room.featureMinimise', ready: true },
 ];
 
 interface Props {

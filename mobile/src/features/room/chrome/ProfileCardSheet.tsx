@@ -7,7 +7,18 @@ import { useTranslation } from '@/i18n';
 import { errorMessage } from '@/lib/errors';
 import { formatCompact } from '@/lib/money';
 import { colors, radius, spacing } from '@/theme';
-import { Avatar, Banner, Button, Column, Row, Sheet, Skeleton, Text, type SheetHandle } from '@/ui';
+import {
+  Avatar,
+  Badge,
+  Banner,
+  Button,
+  Column,
+  Row,
+  Sheet,
+  Skeleton,
+  Text,
+  type SheetHandle,
+} from '@/ui';
 import { LevelBadge } from '@/visuals/LevelBadge';
 
 /** Who the card is about, known before the profile has loaded. */
@@ -21,6 +32,12 @@ export interface ProfileTarget {
   /** They hold this seat; absent for a viewer tapped from chat. */
   seatIndex?: number;
   muted?: boolean;
+  /** This person is a room admin. */
+  isAdmin?: boolean;
+  /** The viewer is the host and may appoint or remove this person as admin. */
+  canAppoint?: boolean;
+  /** The viewer moderates as an ADMIN, not the host — the section is titled for it. */
+  viewerIsAdmin?: boolean;
 }
 
 interface Props {
@@ -32,6 +49,8 @@ interface Props {
   onMute: (userId: string, muted: boolean) => void;
   onKick: (userId: string) => void;
   onRemoveFromSeat: (userId: string) => void;
+  onAppointAdmin: (userId: string) => void;
+  onRemoveAdmin: (userId: string) => void;
 }
 
 /**
@@ -51,7 +70,18 @@ interface Props {
  * fold where a mis-tap cannot kick somebody.
  */
 export const ProfileCardSheet = forwardRef<SheetHandle, Props>(function ProfileCardSheet(
-  { target, isSelf, canGift, onGift, onOpenProfile, onMute, onKick, onRemoveFromSeat },
+  {
+    target,
+    isSelf,
+    canGift,
+    onGift,
+    onOpenProfile,
+    onMute,
+    onKick,
+    onRemoveFromSeat,
+    onAppointAdmin,
+    onRemoveAdmin,
+  },
   ref,
 ) {
   const { t } = useTranslation();
@@ -68,9 +98,12 @@ export const ProfileCardSheet = forwardRef<SheetHandle, Props>(function ProfileC
               size="lg"
             />
             <Column gap="xs" flex={1}>
-              <Text variant="heading" numberOfLines={1}>
-                {profile.data?.displayName ?? target.displayName ?? '—'}
-              </Text>
+              <Row gap="xs" align="center">
+                <Text variant="heading" numberOfLines={1} style={styles.name}>
+                  {profile.data?.displayName ?? target.displayName ?? '—'}
+                </Text>
+                {target.isAdmin === true && <Badge label={t('room.adminBadge')} tone="success" />}
+              </Row>
 
               {profile.isLoading ? (
                 <Skeleton width={120} height={14} />
@@ -120,12 +153,25 @@ export const ProfileCardSheet = forwardRef<SheetHandle, Props>(function ProfileC
 
           {/* Host controls, last. Silencing or removing somebody is not a thing
               to put under a thumb reaching for "send a gift". */}
-          {target.manageable === true && (
+          {(target.manageable === true || target.canAppoint === true) && (
             <Column gap="sm">
               <Text variant="micro" tone="faint">
-                {t('room.hostControls')}
+                {target.viewerIsAdmin === true ? t('room.adminControls') : t('room.hostControls')}
               </Text>
-              {target.seatIndex !== undefined && (
+              {target.canAppoint === true && (
+                <Button
+                  label={target.isAdmin === true ? t('room.removeAdmin') : t('room.makeAdmin')}
+                  onPress={() =>
+                    target.isAdmin === true
+                      ? onRemoveAdmin(target.userId)
+                      : onAppointAdmin(target.userId)
+                  }
+                  variant="secondary"
+                  fullWidth
+                  testID="profile-card-admin"
+                />
+              )}
+              {target.manageable === true && target.seatIndex !== undefined && (
                 <>
                   <Button
                     label={target.muted === true ? t('room.unmute') : t('room.mute')}
@@ -143,13 +189,15 @@ export const ProfileCardSheet = forwardRef<SheetHandle, Props>(function ProfileC
                   />
                 </>
               )}
-              <Button
-                label={t('room.kick')}
-                onPress={() => onKick(target.userId)}
-                variant="danger"
-                fullWidth
-                testID="profile-card-kick"
-              />
+              {target.manageable === true && (
+                <Button
+                  label={t('room.kick')}
+                  onPress={() => onKick(target.userId)}
+                  variant="danger"
+                  fullWidth
+                  testID="profile-card-kick"
+                />
+              )}
             </Column>
           )}
         </Column>
@@ -159,6 +207,7 @@ export const ProfileCardSheet = forwardRef<SheetHandle, Props>(function ProfileC
 });
 
 const styles = StyleSheet.create({
+  name: { flexShrink: 1 },
   stat: {
     flexDirection: 'row',
     alignItems: 'center',

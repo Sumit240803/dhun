@@ -5,6 +5,7 @@ import { rateLimit } from '../../middleware/rateLimit.js';
 import { validate } from '../../middleware/validate.js';
 import { assertFeature, requireFeature } from '../config/index.js';
 import { rankFor, topRooms } from './board.service.js';
+import { appointAdmin, listAdmins, removeAdmin } from './admins.service.js';
 import { endRoom, getRoom, goLive, joinRoom, roomIdForCode } from './live.service.js';
 import { fullestRoom, listFeed } from './rooms.service.js';
 import { kickFromRoom, releaseSeat, setSeatMuted, takeSeat } from './seats.service.js';
@@ -162,7 +163,7 @@ export function buildRoomsRouter(): Router {
           });
           return;
         }
-        res.json(await getRoom(roomId));
+        res.json({ ...(await getRoom(roomId)), admins: await listAdmins(roomId) });
       } catch (err) {
         next(err);
       }
@@ -199,7 +200,7 @@ export function buildRoomsRouter(): Router {
     async (req, res, next) => {
       try {
         const { id } = req.validatedParams as { id: string };
-        res.json(await getRoom(id));
+        res.json({ ...(await getRoom(id)), admins: await listAdmins(id) });
       } catch (err) {
         next(err);
       }
@@ -222,7 +223,10 @@ export function buildRoomsRouter(): Router {
     async (req, res, next) => {
       try {
         const { id } = req.validatedParams as { id: string };
-        res.json(await joinRoom({ roomId: id, userId: req.userId! }));
+        res.json({
+          ...(await joinRoom({ roomId: id, userId: req.userId! })),
+          admins: await listAdmins(id),
+        });
       } catch (err) {
         next(err);
       }
@@ -300,7 +304,7 @@ export function buildRoomsRouter(): Router {
         await setSeatMuted({
           roomId: id,
           userId,
-          hostId: req.userId!,
+          actorId: req.userId!,
           muted: req.body.muted,
         });
         res.json({ muted: req.body.muted });
@@ -312,6 +316,44 @@ export function buildRoomsRouter(): Router {
 
   // Bars them from rejoining, then disconnects. The ban row is what lasts —
   // see the note in seats.service.ts.
+  // ---------------------------------------------------------------------
+  // Room admins (035). Host only; an admin's own powers are in the seat
+  // routes above, where mute and kick accept the host OR an admin.
+  // ---------------------------------------------------------------------
+  router.post(
+    '/:id/admins',
+    authGuard(),
+    requireRegistered(),
+    rateLimit({ scope: 'room:admins', limit: 30, windowMs: 300_000, by: 'user' }),
+    validate({ params: roomIdParam, body: z.object({ userId: z.string().uuid() }).strict() }),
+    async (req, res, next) => {
+      try {
+        const { id } = req.validatedParams as { id: string };
+        res.json({
+          admins: await appointAdmin({ roomId: id, hostId: req.userId!, userId: req.body.userId }),
+        });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
+  router.delete(
+    '/:id/admins/:userId',
+    authGuard(),
+    validate({
+      params: z.object({ id: z.string().uuid(), userId: z.string().uuid() }).strict(),
+    }),
+    async (req, res, next) => {
+      try {
+        const { id, userId } = req.validatedParams as { id: string; userId: string };
+        res.json({ admins: await removeAdmin({ roomId: id, hostId: req.userId!, userId }) });
+      } catch (err) {
+        next(err);
+      }
+    },
+  );
+
   router.post(
     '/:id/kick/:userId',
     authGuard(),
@@ -325,7 +367,7 @@ export function buildRoomsRouter(): Router {
         await kickFromRoom({
           roomId: id,
           userId,
-          hostId: req.userId!,
+          actorId: req.userId!,
           reason: req.body.reason,
         });
         res.json({ kicked: true });

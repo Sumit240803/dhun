@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import type { GiftView, PkBattle } from '@/api/types';
+import type { GiftView, PkBattle, Reaction } from '@/api/types';
 import { tokenStorage } from '@/features/auth/storage';
 import {
   RoomSocket,
@@ -42,6 +42,8 @@ export interface RoomSocketState {
   ended: boolean;
   /** The last rejected action, for a one-line message under the composer. */
   lastError: { code: string; message: string } | null;
+  /** Room admins, once the server has said who they are; null until then. */
+  admins: string[] | null;
 }
 
 interface Options {
@@ -74,6 +76,7 @@ interface Options {
    * must not re-render the room when it does.
    */
   onGlobalGift?: (gift: GiftView, roomId: string) => void;
+  onReaction?: (emoji: Reaction, userId: string) => void;
 }
 
 export function useRoomSocket(roomId: string | undefined, options: Options = {}) {
@@ -86,7 +89,9 @@ export function useRoomSocket(roomId: string | undefined, options: Options = {})
   const onRewardRef = useRef(options.onReward);
   const onPkRef = useRef(options.onPk);
   const onGlobalGiftRef = useRef(options.onGlobalGift);
+  const onReactionRef = useRef(options.onReaction);
   useEffect(() => {
+    onReactionRef.current = options.onReaction;
     onGiftRef.current = options.onGift;
     onEntryRef.current = options.onEntry;
     onRewardRef.current = options.onReward;
@@ -103,6 +108,7 @@ export function useRoomSocket(roomId: string | undefined, options: Options = {})
     micAnswer: null,
     ended: false,
     lastError: null,
+    admins: null,
   });
 
   useEffect(() => {
@@ -127,6 +133,10 @@ export function useRoomSocket(roomId: string | undefined, options: Options = {})
         }
         if (message.t === 'gift:global') {
           onGlobalGiftRef.current?.(message.gift, message.roomId);
+          return;
+        }
+        if (message.t === 'reaction') {
+          onReactionRef.current?.(message.emoji, message.userId);
           return;
         }
         if (message.t === 'pk:started' || message.t === 'pk:score' || message.t === 'pk:ended') {
@@ -155,6 +165,9 @@ export function useRoomSocket(roomId: string | undefined, options: Options = {})
 
             case 'presence':
               return { ...s, viewers: message.viewers };
+
+            case 'admins':
+              return { ...s, admins: message.admins };
 
             case 'mic:queue':
               return { ...s, micQueue: message.requests };
@@ -208,6 +221,14 @@ export function useRoomSocket(roomId: string | undefined, options: Options = {})
     }
   }, [roomId]);
 
+  const react = useCallback(
+    (emoji: Reaction) => {
+      if (!roomId) return;
+      socketRef.current?.send({ t: 'reaction', roomId, emoji });
+    },
+    [roomId],
+  );
+
   const cancelMic = useCallback(() => {
     if (!roomId) return;
     socketRef.current?.send({ t: 'mic:cancel', roomId });
@@ -228,6 +249,7 @@ export function useRoomSocket(roomId: string | undefined, options: Options = {})
 
   return {
     ...state,
+    react,
     sendChat,
     requestMic,
     cancelMic,

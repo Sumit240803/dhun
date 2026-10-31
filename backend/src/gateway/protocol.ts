@@ -22,6 +22,10 @@ import type { UserLook } from '../shared/cosmeticStyle.js';
 /** Room ids are uuids everywhere. A malformed one never reaches a query. */
 const roomId = z.string().uuid();
 
+/** The six reactions. Order is the order the picker shows them. */
+export const REACTIONS = ['heart', 'clap', 'fire', 'laugh', 'wow', 'party'] as const;
+export type Reaction = (typeof REACTIONS)[number];
+
 /**
  * What a client may send.
  *
@@ -55,6 +59,10 @@ export const clientMessage = z.discriminatedUnion('t', [
       seatIndex: z.number().int().min(1).max(19).optional(),
     })
     .strict(),
+  // A floating emoji over the stage. A fixed set, so the server never
+  // relays arbitrary text as a "reaction" and the client never has to render
+  // a glyph it has no art for.
+  z.object({ t: z.literal('reaction'), roomId, emoji: z.enum(REACTIONS) }).strict(),
   // Heartbeat. The server also pings at the protocol level; this is the
   // client's way of proving the *application* is alive, not just the socket.
   z.object({ t: z.literal('ping') }).strict(),
@@ -180,6 +188,8 @@ export type ServerMessage =
   | { t: 'entry'; roomId: string; user: EntryView }
   /** Requester only — the answer to their own raised hand. */
   | { t: 'mic:resolved'; roomId: string; approved: boolean }
+  | { t: 'reaction'; roomId: string; userId: string; emoji: Reaction }
+  | { t: 'admins'; roomId: string; admins: string[] }
   /**
    * A PK battle started, scored, or finished.
    *

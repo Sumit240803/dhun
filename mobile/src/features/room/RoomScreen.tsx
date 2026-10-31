@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Share, StyleSheet, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -40,7 +40,11 @@ import { RoomChatPanel, type RoomEventLine } from './chrome/RoomChatPanel';
 import { RoomComposer, type MicMode } from './chrome/RoomComposer';
 import { RoomHeader } from './chrome/RoomHeader';
 import { MarqueeQueue } from './chrome/marqueeQueue';
+import { ReactionLayer } from './chrome/ReactionLayer';
+import { ReactionQueue } from './chrome/reactionQueue';
 import { RoomMarquee } from './chrome/RoomMarquee';
+import { liveSession, sessionKey } from './liveSession';
+import { minimisedRoom } from './minimisedRoom';
 import { buildStage, type SeatTotals, type StageOccupant } from './model';
 import { RoomMediaProvider } from './media';
 import { usePk } from './pk/usePk';
@@ -109,6 +113,13 @@ export function RoomScreen({ roomId }: { roomId: string }) {
   // refetch on focus would hand the screen a token already superseded.
   useEffect(() => {
     if (!roomId) return;
+    // Opening ANY room ends a room playing in the background — a phone plays
+    // one — including this same room re-opened from the mini player, which
+    // then reconnects through the ordinary join below.
+    if (minimisedRoom.get() !== null) {
+      minimisedRoom.clear();
+      void liveSession.disconnectParked();
+    }
     join.mutate(roomId, { onSuccess: setJoined });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
@@ -119,6 +130,8 @@ export function RoomScreen({ roomId }: { roomId: string }) {
   const [animations] = useState(() => new GiftQueue());
   const [entries] = useState(() => new EntryEffects());
   const [marquee] = useState(() => new MarqueeQueue());
+  const [reactions] = useState(() => new ReactionQueue());
+  useEffect(() => () => reactions.clear(), [reactions]);
   useEffect(() => () => strips.clear(), [strips]);
   // Its timer outlives the screen otherwise, and fires into an unmounted tree.
   useEffect(() => () => marquee.clear(), [marquee]);
@@ -205,6 +218,7 @@ export function RoomScreen({ roomId }: { roomId: string }) {
         text: t('room.entryLine', { name: entrant.name ?? '—' }),
       });
     },
+    onReaction: (emoji) => reactions.push(emoji),
     onReward: (reward) => {
       haptic.success();
       setWatchReward(reward);
@@ -243,12 +257,15 @@ export function RoomScreen({ roomId }: { roomId: string }) {
     [socket.seats, joined?.seats],
   );
   const isHost = room?.hostId === user?.id;
+  // The live list once the gateway has sent one; the join response until then.
+  const admins = socket.admins ?? joined?.admins ?? [];
+  const isAdmin = !isHost && user !== null && admins.includes(user.id);
   const mySeat = seats.find((seat) => seat.userId === user?.id);
   const canSpeak = isHost || mySeat !== undefined;
 
   const videoEnabled = useFlag('videoRoomsEnabled');
   const giftingEnabled = useFlag('giftingEnabled');
-  const { coldStart } = useAppConfig();
+  const { coldStart, shareBaseUrl } = useAppConfig();
 
   const stage = useMemo(
     () => buildStage({ room, seats, pk, videoEnabled }),
@@ -311,11 +328,20 @@ export function RoomScreen({ roomId }: { roomId: string }) {
 
   function openProfile(occupant: StageOccupant) {
     haptic.selection();
+    const targetIsHost = occupant.userId === room?.hostId;
+    const targetIsAdmin = admins.includes(occupant.userId);
     setProfileTarget({
       userId: occupant.userId,
       displayName: occupant.displayName,
       roomCoins: totals.get(occupant.userId),
-      manageable: isHost && occupant.userId !== user?.id,
+      // The host moderates anyone but themselves; an admin moderates anyone
+      // who is neither the host nor another admin (the server enforces the
+      // same line, this only decides what to draw).
+      manageable:
+        occupant.userId !== user?.id && (isHost || (isAdmin && !targetIsHost && !targetIsAdmin)),
+      canAppoint: isHost && occupant.userId !== user?.id && !targetIsHost,
+      isAdmin: targetIsAdmin,
+      viewerIsAdmin: isAdmin,
       seatIndex: occupant.seatIndex >= 0 ? occupant.seatIndex : undefined,
       muted: occupant.muted,
     });
@@ -347,9 +373,46 @@ export function RoomScreen({ roomId }: { roomId: string }) {
     if (!socket.micPending) socket.requestMic();
   }
 
+  // Leaves the screen and keeps the audio: the connection is parked for the
+  // mini player in the app layout to own until someone opens a room again.
+  function minimise() {
+    if (!room) {
+      router.back();
+      return;
+    }
+    haptic.selection();
+    liveSession.requestPark(sessionKey(joined?.rtc.url ?? null, joined?.rtc.token ?? null));
+    minimisedRoom.set({
+      roomId: room.id,
+      title: room.title,
+      hostName: room.hostName,
+      coverUrl: room.coverUrl,
+    });
+    router.back();
+  }
+
+  async function share() {
+    if (!room) return;
+    const url = `${shareBaseUrl || ''}/r/${room.publicId}`;
+    try {
+      await Share.share({
+        message: t('room.shareMessage', { host: room.hostName ?? '—', title: room.title, url }),
+        url,
+      });
+    } catch {
+      // The user closed the sheet. Nothing to report.
+    }
+  }
+
   function onFeature(feature: RoomFeature) {
     featuresSheet.current?.dismiss();
     switch (feature) {
+      case 'share':
+        void share();
+        break;
+      case 'minimise':
+        minimise();
+        break;
       case 'leaderboard':
         setBoardOpen(true);
         boardSheet.current?.present();
@@ -371,7 +434,6 @@ export function RoomScreen({ roomId }: { roomId: string }) {
       case 'rules':
         router.push('/legal/guidelines');
         break;
-      // 'share' and 'minimise' are disabled in the sheet and cannot arrive.
       default:
         break;
     }
@@ -429,6 +491,7 @@ export function RoomScreen({ roomId }: { roomId: string }) {
               boardSheet.current?.present();
             }}
             onClose={() => leaveSheet.current?.present()}
+            onMinimise={minimise}
           />
 
           <ActivityRail
@@ -463,6 +526,7 @@ export function RoomScreen({ roomId }: { roomId: string }) {
             onOccupantPress={openProfile}
             onVacancyPress={takeOrAsk}
           />
+          <ReactionLayer queue={reactions} />
         </View>
 
         {/* Transient notices, between the stage and the chat — where the eye
@@ -519,6 +583,7 @@ export function RoomScreen({ roomId }: { roomId: string }) {
               onCameraPress={() => void live.setCameraOn(!live.videoTracks.has(user?.id ?? ''))}
               onFeaturesPress={() => featuresSheet.current?.present()}
               onGiftPress={() => giftSheet.current?.present()}
+              onReact={user?.status === 'active' ? socket.react : undefined}
             />
           </View>
         </KeyboardAvoidingView>
@@ -556,6 +621,19 @@ export function RoomScreen({ roomId }: { roomId: string }) {
         }}
         onRemoveFromSeat={(userId) => {
           actions.releaseSeat.mutate(userId);
+          profileSheet.current?.dismiss();
+        }}
+        onAppointAdmin={(userId) => {
+          haptic.tap();
+          actions.appointAdmin.mutate(userId, {
+            onSuccess: () => haptic.success(),
+            onError: () => haptic.error(),
+          });
+          profileSheet.current?.dismiss();
+        }}
+        onRemoveAdmin={(userId) => {
+          haptic.tap();
+          actions.removeAdmin.mutate(userId, { onError: () => haptic.error() });
           profileSheet.current?.dismiss();
         }}
       />

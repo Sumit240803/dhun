@@ -24,7 +24,7 @@ import { buildWebhooksRouter } from './modules/realtime/index.js';
 import { buildPkRouter } from './modules/games/index.js';
 import { buildAppealsRouter, buildVerificationRouter } from './modules/verification/index.js';
 import { buildRewardsRouter } from './modules/rewards/index.js';
-import { buildRoomsRouter } from './modules/rooms/index.js';
+import { buildRoomsRouter, buildShareRouter } from './modules/rooms/index.js';
 import { buildUsersRouter } from './modules/users/index.js';
 
 export function buildApp() {
@@ -114,6 +114,10 @@ export function buildApp() {
 
   // Day-1 non-negotiable #4: /v1/ from the first endpoint. Old app versions stay
   // alive forever, so the version prefix can never be retrofitted.
+  // The page a shared room link opens — anonymous HTML, before /v1 because it
+  // is not an API route and takes no JSON.
+  app.use('/r', buildShareRouter());
+
   app.use('/v1/auth', buildAuthRouter());
   app.use('/v1/catalog', buildCatalogRouter());
   app.use('/v1/wallet', buildWalletRouter());

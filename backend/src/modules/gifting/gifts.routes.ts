@@ -10,6 +10,7 @@ import { requireIdempotencyKey } from '../../middleware/idempotency.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { validate } from '../../middleware/validate.js';
 import { requireFeature } from '../config/index.js';
+import { hostEarnings } from './earnings.service.js';
 import { GIFT_QUANTITIES, roomLeaderboard, sendGift, type GiftQuantity } from './gifts.service.js';
 
 export function buildGiftsRouter(): Router {
@@ -77,6 +78,18 @@ export function buildGiftsRouter(): Router {
   // Readable without a session, like the room itself: who is backing a host
   // is part of what a room IS to someone deciding whether to join it.
   // ---------------------------------------------------------------------
+  /**
+   * The host's own earnings — balance, thirty days by day, top gifters,
+   * hours live. Read from gift_sends and room_sessions, never a counter.
+   */
+  router.get('/earnings', authGuard(), requireRegistered(), async (req, res, next) => {
+    try {
+      res.json({ earnings: await hostEarnings(req.userId!) });
+    } catch (err) {
+      next(err);
+    }
+  });
+
   router.get(
     '/leaderboard/:roomId',
     optionalAuth(),

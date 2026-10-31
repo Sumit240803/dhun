@@ -29,8 +29,13 @@ const TAGS: { value: RoomTag; label: MessageKey }[] = [
   { value: 'esports', label: 'room.tagEsports' },
 ];
 
-/** The default party size. Eight is what fits a phone screen without shrinking faces. */
-const PARTY_SEATS = 8;
+/**
+ * Party sizes a host can pick. Each fills its seat grid exactly — 2, 3, 3, 4
+ * and 5 columns (features/room/model.ts) — so no layout is left with a hole.
+ * Nine is the default: the size the reference rooms use most.
+ */
+const SEAT_OPTIONS = [4, 6, 9, 12, 20] as const;
+const PARTY_SEATS = 9;
 
 /**
  * Starting a broadcast.
@@ -56,6 +61,7 @@ export default function GoLiveScreen() {
   const [title, setTitle] = useState('');
   const [tag, setTag] = useState<RoomTag>('chatting');
   const [party, setParty] = useState(true);
+  const [seats, setSeats] = useState<number>(PARTY_SEATS);
   const [touched, setTouched] = useState(false);
 
   const trimmed = title.trim();
@@ -79,7 +85,7 @@ export default function GoLiveScreen() {
       {
         title: trimmed,
         tag,
-        ...(party ? { seatCapacity: PARTY_SEATS } : {}),
+        ...(party ? { seatCapacity: seats } : {}),
         ...(coverKey !== null ? { coverKey } : {}),
         ...(faceKey !== null ? { faceKey } : {}),
         ...(deviceId !== null ? { deviceId } : {}),
@@ -254,7 +260,7 @@ export default function GoLiveScreen() {
                 <TypeCard
                   icon="people-outline"
                   title={t('room.typeParty')}
-                  hint={t('room.typePartyHint', { count: PARTY_SEATS })}
+                  hint={t('room.typePartyHint', { count: seats })}
                   selected={party}
                   onPress={() => {
                     haptic.selection();
@@ -264,6 +270,28 @@ export default function GoLiveScreen() {
                 />
               </Row>
             </Column>
+
+            {party && (
+              <Column gap="sm">
+                <Text variant="caption" tone="secondary">
+                  {t('room.seatsLabel')}
+                </Text>
+                <Row gap="xs" wrap>
+                  {SEAT_OPTIONS.map((count) => (
+                    <Chip
+                      key={count}
+                      label={String(count)}
+                      selected={seats === count}
+                      onPress={() => {
+                        haptic.selection();
+                        setSeats(count);
+                      }}
+                      testID={`seats-${count}`}
+                    />
+                  ))}
+                </Row>
+              </Column>
+            )}
           </Column>
         </Animated.View>
 

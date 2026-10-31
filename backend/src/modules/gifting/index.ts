@@ -5,6 +5,8 @@
 // records what was sent, and never writes a balance.
 
 export { buildGiftsRouter } from './gifts.routes.js';
+export { hostEarnings } from './earnings.service.js';
+export type { EarningsDay, HostEarnings, TopGifter } from './earnings.service.js';
 
 export { GIFT_QUANTITIES, roomLeaderboard, sendGift } from './gifts.service.js';
 export type { GiftQuantity, GiftView, LeaderboardEntry, SendGiftResult } from './gifts.service.js';

@@ -26,6 +26,8 @@ export type UpdateState = 'none' | 'available' | 'required';
 export function useAppConfig(): {
   update: UpdateState;
   storeUrl: string;
+  /** Base of a shared room link. Empty until config arrives. */
+  shareBaseUrl: string;
   otpWidget?: OtpWidgetConfig;
   /** Undefined until config arrives — callers treat that as "rules off". */
   coldStart?: ColdStartConfig;
@@ -45,7 +47,7 @@ export function useAppConfig(): {
     if (config) applyRemoteFlags(config.flags as Partial<Flags>);
   }, [config]);
 
-  if (!config) return { update: 'none', storeUrl: '' };
+  if (!config) return { update: 'none', storeUrl: '', shareBaseUrl: '' };
 
   const version = Application.nativeApplicationVersion ?? '0.0.0';
 
@@ -57,6 +59,7 @@ export function useAppConfig(): {
         ? 'available'
         : 'none',
     storeUrl: config.storeUrl,
+    shareBaseUrl: config.shareBaseUrl,
     coldStart: config.coldStart,
   };
 }

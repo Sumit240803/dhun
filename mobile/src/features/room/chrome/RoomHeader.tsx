@@ -24,6 +24,8 @@ interface Props {
   onHostPress: () => void;
   onContributorsPress: () => void;
   onClose: () => void;
+  /** Leave the screen, keep the audio. */
+  onMinimise: () => void;
 }
 
 /** Faces in the contributor rail. Three fits beside a viewer count on a small phone. */
@@ -57,6 +59,7 @@ export function RoomHeader({
   onHostPress,
   onContributorsPress,
   onClose,
+  onMinimise,
 }: Props) {
   const { t } = useTranslation();
   const name = hostName ?? '—';
@@ -135,6 +138,16 @@ export function RoomHeader({
           {formatCompact(viewers)}
         </Text>
       )}
+
+      <Pressable
+        onPress={onMinimise}
+        accessibilityRole="button"
+        accessibilityLabel={t('room.featureMinimise')}
+        hitSlop={spacing.md}
+        testID="room-minimise"
+      >
+        <Ionicons name="chevron-down" size={22} color={colors.text.onMedia} />
+      </Pressable>
 
       <Pressable
         onPress={onClose}
