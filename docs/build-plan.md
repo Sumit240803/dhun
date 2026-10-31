@@ -1020,14 +1020,6 @@ currency transfer · a lucky wheel that costs coins to spin.
 tasks and super messages — Phase 1, after Phase 0 was finished. The rest of the list
 above still stands.)*
 
-*(M20 later brought in polls, VIP, fan levels, DMs, the friend list, trending, daily
-tasks and super messages — Phase 1, after Phase 0 was finished. The rest of the list
-above still stands.)*
-
-*(M20 later brought in polls, VIP, fan levels, DMs, the friend list, trending, daily
-tasks and super messages — Phase 1, after Phase 0 was finished. The rest of the list
-above still stands.)*
-
 ---
 
 ## Rules of engagement
