@@ -15,6 +15,7 @@ import { uuidv7 } from 'uuidv7';
 import { config } from '../../config/index.js';
 import { withTransaction } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
+import { recordEvent } from '../../infra/eventLog.js';
 import { logger } from '../../infra/logger.js';
 
 const secret = new TextEncoder().encode(config.auth.jwtSecret);
@@ -152,6 +153,15 @@ export async function rotateRefreshToken(presented: string): Promise<TokenPair> 
       logger.warn('refresh token replay detected — revoking chain', {
         user_id: token.user_id,
         device_id: token.device_id,
+      });
+      recordEvent({
+        level: 'warn',
+        kind: 'security',
+        event: 'auth.refresh_replayed',
+        code: 'REFRESH_TOKEN_REUSED',
+        message: 'Refresh token presented twice; device chain revoked',
+        userId: token.user_id,
+        meta: { device_id: token.device_id },
       });
       await client.query(
         'UPDATE refresh_tokens SET revoked_at = now()' +

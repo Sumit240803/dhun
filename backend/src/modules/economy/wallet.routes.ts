@@ -4,10 +4,29 @@ import { authGuard, requireAdult, requireRegistered } from '../../middleware/aut
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { requireIdempotencyKey } from '../../middleware/idempotency.js';
 import { validate } from '../../middleware/validate.js';
+import { recordEvent } from '../../infra/eventLog.js';
 import { requireFeature } from '../config/index.js';
 import { purchaseViaIap, purchaseViaWeb, listPurchases } from '../payments/index.js';
 import { listCoinPacks } from './catalog.service.js';
 import { convertCoinsToGems, getWallet, listTransactions } from './wallet.service.js';
+
+/**
+ * A purchase credited is money arriving (migration 038, kind money). The
+ * receipt token and signature are deliberately NOT in the row — `purchases`
+ * holds them for a chargeback; the screen only needs who, which pack, how.
+ */
+function recordPurchase(userId: string, provider: string, packId: string, result: unknown): void {
+  const r = (result ?? {}) as { replayed?: boolean; coins?: number; gems?: number };
+  if (r.replayed) return;
+  recordEvent({
+    level: 'info',
+    kind: 'money',
+    event: 'purchase.credited',
+    message: `${packId} bought via ${provider}`,
+    userId,
+    meta: { provider, pack_id: packId, coins: r.coins ?? null, gems: r.gems ?? null },
+  });
+}
 
 export function buildWalletRouter(): Router {
   const router = Router();
@@ -77,14 +96,14 @@ export function buildWalletRouter(): Router {
     ),
     async (req, res, next) => {
       try {
-        res.json(
-          await purchaseViaIap({
-            userId: req.userId!,
-            packId: req.body.packId,
-            purchaseToken: req.body.purchaseToken,
-            idempotencyKey: req.idempotencyKey!,
-          }),
-        );
+        const result = await purchaseViaIap({
+          userId: req.userId!,
+          packId: req.body.packId,
+          purchaseToken: req.body.purchaseToken,
+          idempotencyKey: req.idempotencyKey!,
+        });
+        recordPurchase(req.userId!, 'google_play', req.body.packId, result);
+        res.json(result);
       } catch (err) {
         next(err);
       }
@@ -109,16 +128,16 @@ export function buildWalletRouter(): Router {
     ),
     async (req, res, next) => {
       try {
-        res.json(
-          await purchaseViaWeb({
-            userId: req.userId!,
-            packId: req.body.packId,
-            orderId: req.body.orderId,
-            paymentId: req.body.paymentId,
-            signature: req.body.signature,
-            idempotencyKey: req.idempotencyKey!,
-          }),
-        );
+        const result = await purchaseViaWeb({
+          userId: req.userId!,
+          packId: req.body.packId,
+          orderId: req.body.orderId,
+          paymentId: req.body.paymentId,
+          signature: req.body.signature,
+          idempotencyKey: req.idempotencyKey!,
+        });
+        recordPurchase(req.userId!, 'razorpay', req.body.packId, result);
+        res.json(result);
       } catch (err) {
         next(err);
       }

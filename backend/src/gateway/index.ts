@@ -14,11 +14,13 @@
 import { config } from '../config/index.js';
 import { logger } from '../infra/logger.js';
 import { pool } from '../infra/db.js';
+import { flushEvents, setEventLogProcess } from '../infra/eventLog.js';
 import { buildGateway, shutdownGateway } from './server.js';
 
 const PORT = Number(process.env.GATEWAY_PORT ?? 3001);
 
 async function main(): Promise<void> {
+  setEventLogProcess('gateway');
   const { server, wss } = buildGateway();
 
   server.listen(PORT, () => {
@@ -30,6 +32,7 @@ async function main(): Promise<void> {
       logger.info('gateway shutting down', { signal });
       await shutdownGateway(wss);
       server.close();
+      await flushEvents();
       await pool.end();
       process.exit(0);
     })();

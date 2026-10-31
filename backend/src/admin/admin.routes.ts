@@ -42,6 +42,8 @@ import {
 } from '../modules/verification/index.js';
 import { buildAgencyPages } from './agencies.routes.js';
 import { buildCatalogPages } from './catalog.routes.js';
+import { eventCounts, listEvents, topFingerprints } from '../modules/telemetry/index.js';
+import { eventsPage } from './pages.events.js';
 import { html } from './html.js';
 import { asText, CAN_SUSPEND, CAN_SWITCH, nav } from './nav.js';
 import { ADMIN_CSS, flash, loginPage, page } from './layout.js';
@@ -548,6 +550,50 @@ export function buildAdminRouter(): Router {
   });
 
   // ── Switches ────────────────────────────────────────────────────────────
+
+  // ── Events ──────────────────────────────────────────────────────────────
+  //
+  // Ops only (the same roles as the switches): rows carry user ids, request
+  // paths and error detail, which a content moderator has no need to see.
+  router.get('/events', requireRoles(...CAN_SWITCH), async (req, res, next) => {
+    try {
+      const pick = (key: string, allowed?: readonly string[]) => {
+        const value = asText(req.query[key]).trim().slice(0, 64);
+        return allowed && !allowed.includes(value) ? '' : value;
+      };
+      const filter = {
+        level: pick('level', ['', 'error', 'warn', 'info']),
+        kind: pick('kind'),
+        process: pick('process', ['', 'api', 'gateway', 'workers', 'app']),
+        q: pick('q'),
+        userId: pick('userId'),
+        traceId: pick('traceId'),
+        fingerprint: pick('fingerprint'),
+      };
+      const filtered = Object.values(filter).some(Boolean);
+
+      const [counts, groups, events] = await Promise.all([
+        eventCounts(24),
+        filtered ? Promise.resolve([]) : topFingerprints(24, 25),
+        listEvents({
+          level: (filter.level || undefined) as 'error' | 'warn' | 'info' | undefined,
+          kind: filter.kind || undefined,
+          process: (filter.process || undefined) as 'api' | 'gateway' | 'workers' | 'app' | undefined,
+          q: filter.q || undefined,
+          userId: filter.userId || undefined,
+          traceId: filter.traceId || undefined,
+          fingerprint: filter.fingerprint || undefined,
+          limit: 200,
+        }),
+      ]);
+
+      res.send(
+        page(await nav(req, 'events'), 'Events', eventsPage({ counts, groups, events, filter, filtered })),
+      );
+    } catch (err) {
+      next(err);
+    }
+  });
 
   router.get('/switches', requireRoles(...CAN_SWITCH), async (req, res, next) => {
     try {

@@ -15,6 +15,7 @@
 import { uuidv7 } from 'uuidv7';
 import { pool, withTransaction } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
+import { recordEvent } from '../../infra/eventLog.js';
 import { logger } from '../../infra/logger.js';
 import { enqueueEvent } from '../../infra/outbox.js';
 import { roomBackgroundPath, roomBackgrounds } from '../config/index.js';
@@ -498,6 +499,18 @@ async function closeBroadcast(input: {
     await client.query('DELETE FROM room_seats WHERE room_id = $1', [input.roomId]);
     return true;
   });
+
+  if (ended && input.reason === 'moderation') {
+    // A host's own end is ordinary and lives on the rooms row; a moderator's
+    // is an action someone may ask about.
+    recordEvent({
+      level: 'warn',
+      kind: 'room',
+      event: 'room.ended_by_moderator',
+      message: 'Room ended by a moderator',
+      meta: { room_id: input.roomId },
+    });
+  }
 
   if (!ended) return;
 

@@ -25,6 +25,7 @@ import { buildPkRouter } from './modules/games/index.js';
 import { buildAppealsRouter, buildVerificationRouter } from './modules/verification/index.js';
 import { buildRewardsRouter } from './modules/rewards/index.js';
 import { buildRoomsRouter, buildShareRouter } from './modules/rooms/index.js';
+import { buildTelemetryRouter } from './modules/telemetry/index.js';
 import { buildUsersRouter } from './modules/users/index.js';
 
 export function buildApp() {
@@ -137,6 +138,7 @@ export function buildApp() {
   app.use('/v1/pk', buildPkRouter());
   app.use('/v1/verification', buildVerificationRouter());
   app.use('/v1/appeals', buildAppealsRouter());
+  app.use('/v1/client', buildTelemetryRouter());
 
   app.use(notFoundHandler());
   app.use(errorHandler());

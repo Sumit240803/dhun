@@ -6,6 +6,7 @@
 import { buildApp } from './app.js';
 import { config } from './config/index.js';
 import { pool } from './infra/db.js';
+import { flushEvents } from './infra/eventLog.js';
 import { logger } from './infra/logger.js';
 import { registerLeaderboardSubscribers } from './modules/leaderboard/index.js';
 
@@ -68,6 +69,8 @@ async function main() {
     // money transaction.
     server.close(async () => {
       try {
+        // The last error before a crash is the one worth reading tomorrow.
+        await flushEvents();
         await pool.end();
       } catch (err) {
         logger.error('error closing pool', err);

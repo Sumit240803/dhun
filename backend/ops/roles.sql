@@ -72,6 +72,9 @@ REVOKE DELETE ON coin_packs, gift_catalog, cosmetics, app_config FROM :"app_role
 REVOKE DELETE ON purchases, payment_webhooks FROM :"app_role";
 REVOKE DELETE ON role_assignments FROM :"app_role";
 REVOKE UPDATE, DELETE ON outbox FROM :"app_role";
+-- The event log (038) is appended and aged out, never edited. DELETE stays
+-- for the retention job, which deletes by age alone.
+REVOKE UPDATE ON system_events FROM :"app_role";
 GRANT UPDATE (published_at, attempts, last_error) ON outbox TO :"app_role";
 
 -- Migrations run as a different, higher-privileged role.

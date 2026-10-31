@@ -13,7 +13,16 @@ import { html, type Renderable, type SafeHtml } from './html.js';
 
 export interface Nav {
   /** Which tab is current. */
-  active: 'queue' | 'reports' | 'rooms' | 'users' | 'agencies' | 'catalog' | 'log' | 'switches';
+  active:
+    | 'queue'
+    | 'reports'
+    | 'rooms'
+    | 'users'
+    | 'agencies'
+    | 'catalog'
+    | 'log'
+    | 'events'
+    | 'switches';
   /** Pending counts, shown as badges. A queue you cannot see is a queue nobody works. */
   counts?: { verifications: number; faceChecks: number; reports: number; appeals: number };
   /** Who is signed in. */
@@ -101,6 +110,20 @@ export const ADMIN_CSS = `
   .flash { padding: 10px 14px; border-radius: 8px; margin-bottom: 14px; font-weight: 600; }
   .flash.ok { background: rgba(49,196,141,.15); color: var(--ok); }
   .flash.err { background: rgba(255,59,48,.15); color: var(--danger); }
+  .tag.level-error { background: var(--danger); color: #fff; border-color: var(--danger); }
+  .tag.level-warn { background: var(--warn); color: #11131a; border-color: var(--warn); }
+  .tag.level-info { color: var(--muted); }
+  .events-filter input { width: 170px; }
+  .counts { gap: 16px; margin-bottom: 8px; }
+  .counts .kv { display: inline-block; color: var(--text); text-decoration: none; }
+  .counts .kv strong { font-size: 20px; margin-right: 4px; font-variant-numeric: tabular-nums; }
+  table.events td { vertical-align: top; }
+  pre.meta-json {
+    margin: 6px 0 0; padding: 8px 10px; max-width: 520px; max-height: 320px; overflow: auto;
+    font-size: 12px; background: #0f1118; border: 1px solid var(--line); border-radius: 6px;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  details summary { cursor: pointer; }
   .tag.on { background: var(--ok); color: #11131a; border-color: var(--ok); }
   .tag.off { background: var(--danger); color: #fff; border-color: var(--danger); }
   td.desc { color: var(--muted); font-size: 13px; max-width: 420px; }
@@ -144,6 +167,7 @@ const TABS: { key: Nav['active']; href: string; label: string }[] = [
   { key: 'agencies', href: '/admin/agencies', label: 'Agencies' },
   { key: 'catalog', href: '/admin/catalog', label: 'Catalog' },
   { key: 'log', href: '/admin/log', label: 'Enforcement log' },
+  { key: 'events', href: '/admin/events', label: 'Events' },
   { key: 'switches', href: '/admin/switches', label: 'Switches' },
 ];
 

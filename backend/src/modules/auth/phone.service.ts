@@ -23,6 +23,7 @@
 import { uuidv7 } from 'uuidv7';
 import { pool, withTransaction } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
+import { recordEvent } from '../../infra/eventLog.js';
 import { logger } from '../../infra/logger.js';
 import type { OtpChannel } from './otp.provider.js';
 import { assertValidPhone, requestOtp, verifyOtp } from './otp.service.js';
@@ -170,6 +171,16 @@ export async function confirmPhoneChange(input: {
     // identifier in a log that is shipped off the box.
     old_phone: before.phone_e164,
     device_id: input.keepDeviceId,
+  });
+  // No number at all in the stored row — it is read in a browser. The stdout
+  // line above carries the old one for the investigation that needs it.
+  recordEvent({
+    level: 'warn',
+    kind: 'account',
+    event: 'account.phone_changed',
+    message: 'Phone number changed; other devices signed out',
+    userId: input.userId,
+    meta: { kept_device_id: input.keepDeviceId ?? null },
   });
 
   return { phone: input.phoneE164 };

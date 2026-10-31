@@ -7,6 +7,7 @@
 // The transport is deliberately pluggable and unimplemented: wiring PagerDuty or
 // Opsgenie is a Track 0 account task, and the code should not wait on it.
 
+import { recordEvent } from './eventLog.js';
 import { logger } from './logger.js';
 
 export type AlertSeverity = 'page' | 'warn';
@@ -31,7 +32,8 @@ export interface AlertTransport {
  */
 class LogTransport implements AlertTransport {
   async send(a: Alert): Promise<void> {
-    const payload = { alert: true, severity: a.severity, alert_key: a.key, ...a.detail };
+    // `skipEventLog`: alert() below records the row itself, as kind 'alert'.
+    const payload = { alert: true, severity: a.severity, alert_key: a.key, skipEventLog: true, ...a.detail };
     if (a.severity === 'page') logger.error(`ALERT ${a.title}`, undefined, payload);
     else logger.warn(`ALERT ${a.title}`, payload);
   }
@@ -50,6 +52,16 @@ export function setAlertTransport(next: AlertTransport): void {
  * problem — that turns one incident into two.
  */
 export async function alert(a: Alert): Promise<void> {
+  // Recorded whatever the transport does with it: the screen should show when
+  // the alarm went off even if the pager was not yet wired.
+  recordEvent({
+    level: a.severity === 'page' ? 'error' : 'warn',
+    kind: 'alert',
+    event: `alert.${a.severity}`,
+    message: a.title,
+    code: a.key.slice(0, 64),
+    meta: { alert_key: a.key, ...a.detail },
+  });
   try {
     await transport.send(a);
   } catch (err) {

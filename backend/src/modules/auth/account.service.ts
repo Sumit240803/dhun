@@ -1,5 +1,6 @@
 import { pool, withTransaction } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
+import { recordEvent } from '../../infra/eventLog.js';
 import { logger } from '../../infra/logger.js';
 import { verifyPassword } from './password.js';
 import { revokeRefreshTokens } from './tokens.js';
@@ -68,7 +69,18 @@ export async function listSessions(
 
 /** Ends one device's session. Idempotent — revoking an already-dead one is fine. */
 export async function revokeSession(userId: string, deviceId: string): Promise<number> {
-  return revokeRefreshTokens(userId, deviceId);
+  const revoked = await revokeRefreshTokens(userId, deviceId);
+  if (revoked > 0) {
+    recordEvent({
+      level: 'info',
+      kind: 'account',
+      event: 'account.session_revoked',
+      message: 'A device was signed out from Account',
+      userId,
+      meta: { device_id: deviceId, tokens: revoked },
+    });
+  }
+  return revoked;
 }
 
 /**
@@ -153,4 +165,11 @@ export async function deleteAccount(input: {
   // Deliberately loud and permanent in the log. A deletion dispute is resolved
   // by knowing exactly when it happened, and the row itself no longer says.
   logger.warn('account deleted', { user_id: input.userId });
+  recordEvent({
+    level: 'warn',
+    kind: 'account',
+    event: 'account.deleted',
+    message: 'Account deleted and anonymised; ledger history kept',
+    userId: input.userId,
+  });
 }

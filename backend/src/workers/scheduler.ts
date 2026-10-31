@@ -16,6 +16,7 @@ import { createHash } from 'crypto';
 import { pool } from '../infra/db.js';
 import { logger } from '../infra/logger.js';
 import { alert } from '../infra/alerts.js';
+import { recordEvent } from '../infra/eventLog.js';
 
 export type JobResult = Record<string, unknown> | void;
 
@@ -109,7 +110,16 @@ export async function runJobOnce(job: Job): Promise<void> {
 
     await recordFinish(runId!, 'success', startedAt, outcome ?? undefined);
   } catch (err) {
-    logger.error(`job "${job.name}" failed`, err);
+    logger.error(`job "${job.name}" failed`, err, { skipEventLog: true });
+    recordEvent({
+      level: 'error',
+      kind: 'job',
+      event: 'job.failed',
+      code: job.name.slice(0, 64),
+      message: `${job.name}: ${err instanceof Error ? err.message : String(err)}`,
+      err,
+      meta: { job: job.name, run_id: runId ?? null, duration_ms: Date.now() - startedAt },
+    });
     if (runId) await recordFinish(runId, 'failed', startedAt, undefined, err).catch(() => undefined);
 
     await alert({

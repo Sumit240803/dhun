@@ -5,6 +5,7 @@ import { PoolClient } from 'pg';
 import { uuidv7 } from 'uuidv7';
 import { withTransaction } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
+import { recordEvent } from '../../infra/eventLog.js';
 import { logger } from '../../infra/logger.js';
 import { getRoles, RoleGrant } from './permissions.js';
 import { verifyOtp } from './otp.service.js';
@@ -78,7 +79,29 @@ export async function verifyPhoneAndSignIn(input: {
   guestUserId?: string;
 }): Promise<{ user: SessionUser; isNewUser: boolean } & TokenPair> {
   await verifyOtp(input.phoneE164, input.code);
-  return signInWithVerifiedPhone(input);
+  const result = await signInWithVerifiedPhone(input);
+  recordSignIn(result, 'otp', input.device);
+  return result;
+}
+
+/**
+ * The audit row for a sign-in (migration 038). Phone and email are NOT
+ * included — the row is "this user, this device, this method", which is what
+ * a takeover investigation needs and all a browser session should see.
+ */
+function recordSignIn(
+  result: { user: SessionUser; isNewUser: boolean },
+  method: 'otp' | 'widget',
+  device: DeviceInfo,
+): void {
+  recordEvent({
+    level: 'info',
+    kind: 'auth',
+    event: result.isNewUser ? 'auth.signed_up' : 'auth.signed_in',
+    message: `${result.isNewUser ? 'Signed up' : 'Signed in'} by ${method}`,
+    userId: result.user.id,
+    meta: { method, device_id: device.deviceId, platform: device.platform },
+  });
 }
 
 /**
@@ -179,11 +202,13 @@ export async function signInWithWidgetToken(input: {
     throw new AppError('WIDGET_IDENTIFIER_UNSUPPORTED', 'That sign-in method is not supported', 422);
   }
 
-  return signInWithVerifiedPhone({
+  const result = await signInWithVerifiedPhone({
     phoneE164: identifier,
     device: input.device,
     guestUserId: input.guestUserId,
   });
+  recordSignIn(result, 'widget', input.device);
+  return result;
 }
 
 async function loadSessionUser(client: PoolClient, userId: string): Promise<SessionUser> {

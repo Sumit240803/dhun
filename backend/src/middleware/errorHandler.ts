@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { ZodError } from 'zod';
 import { traceId } from '../infra/context.js';
+import { recordEvent } from '../infra/eventLog.js';
 import {
   AppError,
   BadJsonError,
@@ -51,6 +52,15 @@ function normalise(err: unknown): AppError {
   return new AppError('INTERNAL_ERROR', message, 500);
 }
 
+/** 4xx codes worth keeping (rate limits are recorded by the limiter itself). */
+const SECURITY_CODES = new Set([
+  'REFRESH_TOKEN_REUSED',
+  'UNSAFE_PAYLOAD',
+  'ACCOUNT_BANNED',
+  'ACCOUNT_SUSPENDED',
+  'IDEMPOTENCY_KEY_REUSED',
+]);
+
 /**
  * The single error envelope:
  *
@@ -67,13 +77,27 @@ export function errorHandler() {
 
     // 5xx is our fault and gets the original error with its stack. 4xx is the
     // caller being told something actionable, so it logs at warn without noise.
+    // (logger.error also stores the row — migration 038 — with the code.)
     if (appError.status >= 500) {
-      logger.error(appError.code, err, appError.internal);
+      logger.error(appError.code, err, { status: appError.status, code: appError.code, ...appError.internal });
     } else {
       logger.warn(appError.code, {
         status: appError.status,
         ...(appError.internal ?? {}),
       });
+      // A handful of 4xx are signals rather than mistakes: a replayed refresh
+      // token is a stolen session, a disallowed property name is someone
+      // probing. Kept, so a pattern across users is visible on one screen.
+      if (SECURITY_CODES.has(appError.code)) {
+        recordEvent({
+          level: 'warn',
+          kind: 'security',
+          event: `security.${appError.code.toLowerCase()}`,
+          code: appError.code,
+          message: appError.message,
+          meta: { status: appError.status, ...(appError.internal ?? {}) },
+        });
+      }
     }
 
     if (appError.status === 499) return res.end();

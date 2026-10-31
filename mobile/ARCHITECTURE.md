@@ -526,6 +526,15 @@ screenshots (a room is other people's faces), and tags every report with the
 `trace_id` from the API envelope — which is what turns "the app broke" into one
 server log line.
 
+Every report ALSO goes to our own API, with or without a DSN: `lib/clientEvents.ts`
+batches it (an error within a second, anything else rides along within ten; at
+most 20 a batch, the oldest dropped past 100) and `api/endpoints/telemetry.ts`
+posts it to `POST /v1/client/events`, where it lands beside the server's errors on
+`/admin/events`. A batch that fails to send is dropped, never retried and never
+reported — a reporter that retries into an outage makes it worse, and a report
+about the reporter would loop. The root layout flushes the queue when the app
+backgrounds, because a crash's report is otherwise the first thing lost.
+
 ---
 
 ## Analytics

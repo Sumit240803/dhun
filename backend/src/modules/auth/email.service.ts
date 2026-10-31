@@ -4,6 +4,7 @@ import { uuidv7 } from 'uuidv7';
 import { config } from '../../config/index.js';
 import { pool, withTransaction } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
+import { recordEvent } from '../../infra/eventLog.js';
 import { logger } from '../../infra/logger.js';
 import { emailProvider, type EmailPurpose } from './email.provider.js';
 import { hashPassword, passwordProblem, verifyPassword } from './password.js';
@@ -149,6 +150,15 @@ export async function registerWithEmail(input: {
     return issueTokenPair(client, userId, 'active', input.device.deviceId);
   });
 
+  recordEvent({
+    level: 'info',
+    kind: 'auth',
+    event: 'auth.signed_up',
+    message: 'Signed up by email',
+    userId,
+    meta: { method: 'email', device_id: input.device.deviceId, platform: input.device.platform },
+  });
+
   return {
     user: {
       id: userId,
@@ -208,7 +218,22 @@ export async function loginWithEmail(input: {
   }
 
   const ok = await verifyPassword(input.password, row.password_hash);
-  if (!ok) throw invalidCredentials();
+  if (!ok) {
+    // A wrong password against a REAL account is kept (the unknown-address
+    // case above is not: there is no account to attach it to, and recording
+    // guesses at addresses would store the guesses). A run of these on one
+    // account is a brute-force attempt, visible on /admin/events.
+    recordEvent({
+      level: 'warn',
+      kind: 'security',
+      event: 'auth.password_failed',
+      code: 'INVALID_CREDENTIALS',
+      message: 'Wrong password',
+      userId: row.id,
+      meta: { device_id: input.device.deviceId },
+    });
+    throw invalidCredentials();
+  }
 
   if (row.status === 'banned') {
     throw new AppError('ACCOUNT_BANNED', 'This account has been banned', 403);
@@ -220,6 +245,15 @@ export async function loginWithEmail(input: {
   const tokens = await withTransaction(async (client) => {
     await upsertDevice(client, row.id, input.device);
     return issueTokenPair(client, row.id, row.status, input.device.deviceId);
+  });
+
+  recordEvent({
+    level: 'info',
+    kind: 'auth',
+    event: 'auth.signed_in',
+    message: 'Signed in by email',
+    userId: row.id,
+    meta: { method: 'email', device_id: input.device.deviceId, platform: input.device.platform },
   });
 
   return {
@@ -455,6 +489,13 @@ export async function resetPassword(input: {
     case 'ok':
       await revokeRefreshTokens(outcome.userId);
       logger.info('password reset', { user_id: outcome.userId });
+      recordEvent({
+        level: 'info',
+        kind: 'account',
+        event: 'account.password_reset',
+        message: 'Password reset by email code; every session ended',
+        userId: outcome.userId,
+      });
       return;
     case 'none':
       throw new AppError('CODE_NOT_FOUND', 'No active code. Request a new one.', 400);
@@ -512,6 +553,14 @@ export async function changePassword(input: {
 
   await revokeOtherDevices(input.userId, input.keepDeviceId);
   logger.info('password changed', { user_id: input.userId });
+  recordEvent({
+    level: 'info',
+    kind: 'account',
+    event: 'account.password_changed',
+    message: 'Password changed; other devices signed out',
+    userId: input.userId,
+    meta: { kept_device_id: input.keepDeviceId ?? null },
+  });
 }
 
 async function revokeOtherDevices(userId: string, keepDeviceId?: string): Promise<void> {

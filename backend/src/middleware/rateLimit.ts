@@ -11,6 +11,7 @@
 
 import { NextFunction, Request, Response } from 'express';
 import { RateLimitedError } from '../infra/errors.js';
+import { recordEvent } from '../infra/eventLog.js';
 import { logger } from '../infra/logger.js';
 
 export interface RateLimitHit {
@@ -136,6 +137,18 @@ export function rateLimit(options: RateLimitOptions) {
       if (count > limit) {
         res.setHeader('Retry-After', String(retryAfter));
         logger.warn('rate limited', { scope, subject: by, count, limit });
+        // Only the first overrun in a window is kept: a client hammering an
+        // endpoint would otherwise fill the log with the limiter's own output.
+        if (count === limit + 1) {
+          recordEvent({
+            level: 'warn',
+            kind: 'security',
+            event: 'security.rate_limited',
+            code: 'RATE_LIMITED',
+            message: `${scope} limit of ${limit} exceeded`,
+            meta: { scope, subject: by, limit, window_ms: windowMs },
+          });
+        }
         throw new RateLimitedError(retryAfter, scope);
       }
 

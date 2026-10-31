@@ -26,6 +26,7 @@
 import { uuidv7 } from 'uuidv7';
 import { pool, withTransaction } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
+import { recordEvent } from '../../infra/eventLog.js';
 import { logger } from '../../infra/logger.js';
 
 export type EnforcementAction = 'flag' | 'end_room' | 'suspend' | 'unsuspend' | 'clear_flag';
@@ -125,6 +126,21 @@ export async function enforce(input: {
     subject_type: input.subjectType,
     subject_id: input.subjectId,
     source: input.source,
+  });
+  // The append-only enforcement_actions table is the record; this row puts the
+  // action on the same timeline as the errors and sign-ins around it.
+  recordEvent({
+    level: 'warn',
+    kind: 'moderation',
+    event: `moderation.${input.action}`,
+    message: `${input.action.replace(/_/g, ' ')} on ${input.subjectType} (${input.source})`,
+    userId: input.subjectType === 'user' ? input.subjectId : null,
+    meta: {
+      actor_id: input.actorId,
+      subject_type: input.subjectType,
+      subject_id: input.subjectId,
+      source: input.source,
+    },
   });
 }
 

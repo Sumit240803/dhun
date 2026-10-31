@@ -6855,6 +6855,65 @@
           ]
         }
       ]
+    },
+    {
+      "name": "Telemetry",
+      "description": "The event log (migration 038). Every error from the API, gateway and workers, security signals, the audit trail of who did what, failed jobs and alerts are kept in `system_events`, and the app adds its own reports through the one endpoint here. Browsed at `/admin/events` (ops roles only). Rows age out by level — 30 / 60 / 90 days for info / warn / error, in `app_config.event_log`.",
+      "item": [
+        {
+          "name": "Report app events",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-Trace-Id",
+                "value": "{{traceId}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/{{apiVersion}}/client/events",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "{{apiVersion}}",
+                "client",
+                "events"
+              ]
+            },
+            "description": "What the app reports about itself — the same reports Sentry gets, kept by us with the `traceId` from the API error envelope, so one screen shows the app's failure next to the server's for the same request.\n\nAuth is OPTIONAL: a crash before sign-in is the one most worth hearing about. 1–20 events per batch; `event` is a token (`[A-Za-z0-9_.:-]`, stored as `app.<event>`); `meta` is primitives only, at most 20 keys; `occurredAt` is honoured only if recent and not in the future. Everything is sanitised again on the way to the table (secrets by key name, strings clipped, 8 KB cap).\n\n202 `{ accepted: n }` — accepted, not stored: the write is batched. `VALIDATION_FAILED` 422 · `RATE_LIMITED` 429 (60 a minute per address).",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"app\": {\n    \"version\": \"1.0.0\",\n    \"build\": \"12\",\n    \"platform\": \"android\",\n    \"env\": \"development\"\n  },\n  \"events\": [\n    {\n      \"level\": \"error\",\n      \"event\": \"room_connect_failed\",\n      \"message\": \"LiveKit refused the token\",\n      \"code\": \"ROOM_CONNECT_FAILED\",\n      \"screen\": \"room\",\n      \"traceId\": \"{{traceId}}\",\n      \"stack\": \"Error: refused\\n  at connect (room.ts:88)\",\n      \"meta\": {\n        \"roomId\": \"100042\",\n        \"attempt\": 2\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('accepted', () => pm.expect(pm.response.code).to.eql(202));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ]
 }

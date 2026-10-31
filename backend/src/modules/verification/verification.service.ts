@@ -10,6 +10,7 @@ import { uuidv7 } from 'uuidv7';
 import { z } from 'zod';
 import { pool } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
+import { recordEvent } from '../../infra/eventLog.js';
 import { logger } from '../../infra/logger.js';
 import { getConfigValue } from '../economy/index.js';
 import { claimUpload } from '../media/index.js';
@@ -114,6 +115,13 @@ export async function submitVerification(userId: string, faceKey: string): Promi
   );
 
   logger.info('verification submitted', { user_id: userId });
+  recordEvent({
+    level: 'info',
+    kind: 'moderation',
+    event: 'verification.submitted',
+    message: 'Host verification photo submitted for review',
+    userId,
+  });
   return verificationFor(userId);
 }
 

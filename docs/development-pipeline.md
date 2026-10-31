@@ -142,7 +142,12 @@ Fixing first on a money path means the bug keeps happening while you work — an
 every occurrence is a ledger entry you will have to reverse.
 
 Support quotes a `trace_id`. Every error response carries one, every log line is
-tagged with it, and Sentry indexes on it.
+tagged with it, and Sentry indexes on it. Paste it into the trace filter on
+`/admin/events` and you get the server's failure and the app's report of the same
+request on one page — the event log (migration 038) keeps every error from all
+three processes, the audit trail and what the app reports about itself, for
+30/60/90 days by level. "Breaking now" at the top of that screen is the first
+thing to open in an incident, after the kill switch.
 
 ---
 

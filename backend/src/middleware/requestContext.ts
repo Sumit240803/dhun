@@ -22,7 +22,9 @@ export function requestContext() {
       res.on('finish', () => {
         const ms = Number(process.hrtime.bigint() - startedAt) / 1e6;
         const meta = { status: res.statusCode, duration_ms: Math.round(ms * 100) / 100 };
-        if (res.statusCode >= 500) logger.error('request failed', undefined, meta);
+        // The error handler already stored the failure with its code and stack;
+        // this line is the timing record and must not become a second row.
+        if (res.statusCode >= 500) logger.error('request failed', undefined, { ...meta, skipEventLog: true });
         else logger.info('request', meta);
       });
 

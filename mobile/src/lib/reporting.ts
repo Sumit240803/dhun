@@ -8,11 +8,66 @@
 // what turns "a user says the app broke" into a single server log line.
 
 import * as Sentry from '@sentry/react-native';
+import { Platform } from 'react-native';
 
+import { telemetryApi } from '@/api/endpoints/telemetry';
 import { env } from '@/config/env';
+
+import { createEventQueue, type ClientEventLevel } from './clientEvents';
 
 const dsn = env.sentryDsn;
 let initialised = false;
+
+/**
+ * Our own copy of every report, beside Sentry's.
+ *
+ * Posted in batches to `POST /v1/client/events`, where it lands in the same
+ * table as the API's errors — so the trace id on an ApiError joins "the gift
+ * failed in the app" to "the gift failed on the server" on one screen. Works
+ * with or without a Sentry DSN, signed in or not.
+ *
+ * A failed send is dropped by the queue and never reported, so the reporter
+ * cannot report itself in a loop.
+ */
+const ownEvents = createEventQueue({
+  send: async (events) => {
+    await telemetryApi.events({
+      app: {
+        version: env.appVersion,
+        build: String(env.buildNumber),
+        platform: Platform.OS === 'ios' ? 'ios' : Platform.OS === 'web' ? 'web' : 'android',
+        env: env.environment,
+      },
+      events,
+    });
+  },
+});
+
+function keep(level: ClientEventLevel, event: string, context: ErrorContext | undefined, error?: unknown) {
+  const { traceId, code, screen, ...rest } = context ?? {};
+  const meta: Record<string, string | number | boolean | null> = {};
+  for (const [key, value] of Object.entries(rest)) {
+    if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) {
+      meta[key] = value as string | number | boolean | null;
+    }
+  }
+  ownEvents.push({
+    level,
+    event,
+    message: error instanceof Error ? error.message : typeof error === 'string' ? error : undefined,
+    code,
+    screen,
+    traceId,
+    stack: error instanceof Error ? error.stack : undefined,
+    occurredAt: new Date().toISOString(),
+    meta,
+  });
+}
+
+/** Send whatever is queued now — on the way to the background, before the OS may kill the app. */
+export function flushReports(): Promise<void> {
+  return ownEvents.flush();
+}
 
 export function initReporting(): void {
   if (initialised || !dsn) return;
@@ -58,6 +113,7 @@ export interface ErrorContext {
 
 export function reportError(error: unknown, context?: ErrorContext): void {
   if (__DEV__) console.error('[report]', error, context ?? '');
+  keep('error', context?.code ?? (error instanceof Error ? error.name : 'error'), context, error);
   if (!initialised) return;
 
   Sentry.withScope((scope) => {
@@ -71,6 +127,7 @@ export function reportError(error: unknown, context?: ErrorContext): void {
 
 export function reportMessage(message: string, context?: ErrorContext): void {
   if (__DEV__) console.warn('[report]', message, context ?? '');
+  keep('warn', context?.code ?? 'message', context, message);
   if (!initialised) return;
   Sentry.captureMessage(message, { extra: context });
 }

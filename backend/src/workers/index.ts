@@ -31,6 +31,8 @@ import { agencyMembershipSweepJob } from './jobs/agency.js';
 import { purgeRoomHourScoresJob, roomHourRollupJob } from './jobs/board.js';
 import { pkMatchJob, pkSettleJob } from './jobs/pk.js';
 import { commissionCloseJob } from './jobs/commission.js';
+import { errorBurstCheckJob, purgeSystemEventsJob } from './jobs/events.js';
+import { flushEvents, setEventLogProcess } from '../infra/eventLog.js';
 import { withConsumers } from './consumers.js';
 import { getEventPublisher, setEventPublisher } from './publisher.js';
 import { Job, Scheduler, runJobOnce } from './scheduler.js';
@@ -52,6 +54,8 @@ export const JOBS: Job[] = [
   pkMatchJob,
   roomHourRollupJob,
   purgeRoomHourScoresJob,
+  purgeSystemEventsJob,
+  errorBurstCheckJob,
 ];
 
 /**
@@ -78,6 +82,7 @@ async function listenForOutbox(onWake: () => void): Promise<pg.Client> {
 }
 
 async function main() {
+  setEventLogProcess('workers');
   await pool.query('SELECT 1');
 
   // Shipping an event and acting on it are one step here: an event whose
@@ -118,6 +123,7 @@ async function main() {
       // One last drain, so a graceful stop never strands events that are already
       // committed and merely waiting.
       await shipOutboxBatch();
+      await flushEvents();
       await pool.end();
     } catch (err) {
       logger.error('error during worker shutdown', err);

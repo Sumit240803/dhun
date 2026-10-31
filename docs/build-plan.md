@@ -1001,6 +1001,16 @@ Your docs are explicit: *"Admin panel MVP ka hissa hai, baad mein nahi."* Each m
 ships its own admin screens — catalog editing in M4, room monitoring in M5, payout approval
 in M8, the moderator dashboard in M9. There is no separate admin phase.
 
+**Events (2026-10-31, migration 038).** A ninth screen, `/admin/events`, over a
+`system_events` table that keeps every error from the API, gateway and workers, the audit
+trail of who did what, security signals, failed jobs, alerts, and what the app reports
+about itself (`POST /v1/client/events`). Grouped by fingerprint so a repeating bug is one
+row with a count; an `error_burst_check` worker pages when one error repeats 20 times in
+five minutes or 60 errors of any kind do (`app_config.event_log`). Rows age out at 30/60/90
+days by level. Not a milestone: it is the observability every milestone from here on
+leans on, built before the device pass so the first real failures on a phone land
+somewhere a person can read them. CLAUDE.md § Event log has the rules.
+
 ---
 
 ## Explicitly OUT of Phase 0

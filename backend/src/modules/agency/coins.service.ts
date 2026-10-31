@@ -24,6 +24,7 @@ import { uuidv7 } from 'uuidv7';
 import { z } from 'zod';
 import { pool, withTransaction } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
+import { recordEvent } from '../../infra/eventLog.js';
 import { logger } from '../../infra/logger.js';
 import {
   ECONOMY,
@@ -318,6 +319,24 @@ export async function confirmPrepay(adminUserId: string, prepayId: string): Prom
     ],
   });
 
+  // Wholesale money arriving is the one place cash meets the coin float, and
+  // the maker-checker pair is what an auditor asks to see.
+  recordEvent({
+    level: 'info',
+    kind: 'money',
+    event: 'agency.prepay_confirmed',
+    message: `Prepay of ₹${(prepay.amountPaise / 100).toLocaleString('en-IN')} confirmed: ${prepay.coins.toLocaleString('en-IN')} coins`,
+    userId: adminUserId,
+    meta: {
+      prepay_id: prepay.id,
+      agency_id: prepay.agency.id,
+      coins: prepay.coins,
+      amount_paise: prepay.amountPaise,
+      coins_per_rupee: prepay.coinsPerRupee,
+      method: prepay.method,
+    },
+  });
+
   return getPrepay(prepayId);
 }
 
@@ -570,6 +589,20 @@ export async function transfer(
         },
       },
     ],
+  });
+
+  recordEvent({
+    level: 'info',
+    kind: 'money',
+    event: 'agency.coins_transferred',
+    message: `${input.coins.toLocaleString('en-IN')} coins from agency inventory to a user`,
+    userId,
+    meta: {
+      agency_id: seat.agency.id,
+      recipient_id: recipient.id,
+      coins: input.coins,
+      txn_id: result.txnId,
+    },
   });
 
   const { rows: saved } = await pool.query(`${TRANSFER_SELECT} WHERE t.id = $1`, [result.txnId]);

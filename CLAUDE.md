@@ -535,7 +535,7 @@ walk away from a vendor and an SDK spread across four modules cannot walk anywhe
 One repo, pushed to `git@github.com:Sumit240803/dhun.git` (`main`).
 Verify everything with **`npm run check`** from the root.
 
-### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5–M7, M10, M12–M20 built, unverified on devices. 605 tests.
+### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5–M7, M10, M12–M20 built, unverified on devices. 623 tests.
 
 Seventeen migrations, 68 routes, and all three processes built: API, workers, and the
 realtime gateway. **M10 was built before M8 and M9, by agreement** — both are blocked on
@@ -551,8 +551,9 @@ external accounts (CA + RazorpayX, Hive) and neither is skipped.
 | **Gifting** | `POST /v1/gifts/send`: one ledger transaction per tap whatever the combo, registered 18+ only, `Idempotency-Key` required. Recipient is the host or anyone seated; self-gifts, off-stage recipients, blocks, bans, ended rooms and a price the user never saw are refused. Published to the room on commit. Each send writes a `gift_sends` row inside the ledger's own transaction, which the room leaderboard reads — and the **host earnings** endpoint (`GET /gifts/earnings`: thirty IST days, top gifters, hours from `room_sessions`; the balance is the ledger's three host-point accounts, nothing is a counter). **The leaderboard is cached in memory for 5s per room** — since the room rebuild it is read by every viewer every 5s (the header rail and every seat counter come from it), making it the only query whose cost scales with VIEWERS rather than with actions. Every viewer gets an identical board, so one computation serves all of them. **Deliberately NOT invalidated on a gift**: a room taking two gifts a second would invalidate faster than the TTL and never hit, in exactly the rooms this exists for. **Tier 5 also goes platform-wide** on a single `global` Redis channel every gateway holds for life — one publish per gift, never one per room. Clients get `gift:global`, a DIFFERENT message from `gift`: one means "in your room" and plays full-screen, the other means "somewhere else" and draws a banner. The `effect` column decides, not the tier number. |
 | **Cosmetics** | Frames, chat bubbles, nickname colours and entry effects, bought with GEMS only — or **earned by level**: `free_at_user_level` was dead data from migration 003 until 030, and is now granted on purchase (when levels move) with a backfill for everyone already qualified. A level unlock has a **NULL expiry** — a level does not lapse, so neither does its reward — which is why every read is `(expires_at IS NULL OR expires_at > now())`. Buying something you already own permanently is REFUSED, not charged. Time stacks onto an active item; buying equips; one worn per kind; expiry evaluated on read. Ownership and a purchase record are written inside the ledger's transaction. A `look` rides on seats, chat lines, gift senders and profiles; entry effects are announced over the gateway. Styles are validated light/dark data. |
 | **Discovery & daily hooks** | Welcome bonus, 7-day check-in ladder, watch reward measured by the gateway, referrals paid on a friend's first ₹99+ purchase — all ordinary coins, all once-only by a claim-derived ledger key, all in `app_config.free_coins`. Search by name prefix or public ID. Followed-host-is-live push via Expo, driven by a `room_started` outbox event, capped and cooled down. Cold-start dials in `app_config.cold_start`. |
-| **Workers** | `npm run worker`. Outbox shipper (LISTEN/NOTIFY + 2s poll floor) that also runs consumers (referral payouts, live notifications), nightly reconciliation at 03:00 IST with 12 checks and zero tolerance, the daily `spend_mix` measure at 03:30, the agency membership sweep every 15 minutes, the commission period close at 05:00 IST, five retention purges. Advisory-lock job locking. |
+| **Workers** | `npm run worker`. Outbox shipper (LISTEN/NOTIFY + 2s poll floor) that also runs consumers (referral payouts, live notifications), nightly reconciliation at 03:00 IST with 12 checks and zero tolerance, the daily `spend_mix` measure at 03:30, the agency membership sweep every 15 minutes, the commission period close at 05:00 IST, six retention purges, and the **error burst check** every 5 minutes. Advisory-lock job locking. |
 | **Security** | Rate limiting by IP/device/user, security headers, CORS allowlist, 18+ gate on every money endpoint, strict validation of body/query/params, sanitised client errors. |
+| **Event log** | Migration 038, `infra/eventLog.ts`, browsed at `/admin/events`. Every `logger.error` from any of the three processes is kept automatically; the audit trail (sign-in and sign-up, wrong password on a real account, password and phone changes, session revoked, account deleted, kill switch, version floor, enforcement, verification submitted, purchase credited, prepay confirmed, agency transfer, moderator-ended room), security signals (refresh replay, rate limit tripped, banned-account attempts), failed jobs and raised alerts are explicit `recordEvent` calls. The app posts its own reports to `POST /v1/client/events` (guests too, 20 a batch, 60 a minute). Rows are grouped by a **fingerprint** of process + event + code + first stack frame, so one bug firing two hundred times is one row with a count. **Writing never touches the request**: synchronous, buffered, flushed by timer and at shutdown, dropped with one stderr line if Postgres is down. Meta is **sanitised by key name** (password, token, secret, authkey, otp, pan …) and capped at 8 KB. Append-only by trigger; rows leave only by the retention job (30/60/90 days for info/warn/error, in `app_config.event_log`). |
 
 **Invariants worth never breaking:**
 
@@ -597,11 +598,17 @@ external accounts (CA + RazorpayX, Hive) and neither is skipped.
     in the same transaction by `setFeature()`. Flip one by hand and the server, the ledger
     and the app disagree about whether gifting is on — which is the outage a kill switch
     exists to end, not cause.
+11. **The event log can never hurt the request that wrote to it, and never holds a secret.**
+    `recordEvent` is synchronous and buffered; it does not await Postgres and a failed
+    write costs one stderr line, never a 500. Meta is redacted by key name before it is
+    queued — a row is read in a browser session that can suspend accounts, so an access
+    token, an OTP, the MSG91 authkey or a PAN one `meta` away from it is a breach. Pass a
+    row's id, never its credential; the redaction is the floor, not the ceiling.
 
 ### `mobile/` — 35 routes, 31 of them built (the four legal pages wait for a lawyer's text).
 
 Expo SDK 57 · React Native 0.86 · React 19.2 · expo-router. EAS project
-`@sumitsumit/dhun` (`c7c547aa-86e2-4d02-befa-b5e643fde400`). 173 tests.
+`@sumitsumit/dhun` (`c7c547aa-86e2-4d02-befa-b5e643fde400`). 179 tests.
 
 Read **`mobile/ARCHITECTURE.md`** before adding a file. The essentials:
 
@@ -740,9 +747,10 @@ catch is early enough. The one hard stop is suspension. Three severities: `flag`
 append-only by trigger — a log that can be rewritten is not evidence.
 
 **The admin panel is server-rendered HTML on the API** (`src/admin/`), mounted BEFORE the
-JSON body parser because it takes form posts. Eight screens: **review queue**
+JSON body parser because it takes form posts. Nine screens: **review queue**
 (onboarding photos, go-live frames, appeals), **reports**, **live rooms**, **users**,
-**agencies**, **catalog**, **enforcement log**, and **switches** — the kill switch per
+**agencies**, **catalog**, **enforcement log**, **events** (the event log above, ops roles only),
+and **switches** — the kill switch per
 feature and the version floor (migration 033). One form post flips `app_config.features`, the feature's
 `ledger_txn_types.is_active` and the client flag the app reads, in one transaction, and
 records who and why in the append-only `config_changes`. `requireFeature(key)` guards

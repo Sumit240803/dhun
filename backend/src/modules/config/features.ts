@@ -21,6 +21,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { uuidv7 } from 'uuidv7';
 import { pool, withTransaction } from '../../infra/db.js';
 import { AppError } from '../../infra/errors.js';
+import { recordEvent } from '../../infra/eventLog.js';
 import { logger } from '../../infra/logger.js';
 import { getConfigValue, invalidateCatalogCache } from '../economy/index.js';
 
@@ -219,6 +220,15 @@ export async function setFeature(input: SwitchInput): Promise<void> {
     actor_id: input.actorId,
     reason,
   });
+  recordEvent({
+    level: 'warn',
+    kind: 'config',
+    event: 'config.feature_switched',
+    code: input.key,
+    message: `${input.key} switched ${input.enabled ? 'ON' : 'OFF'}: ${reason}`,
+    userId: input.actorId,
+    meta: { feature: input.key, enabled: input.enabled, reason },
+  });
 }
 
 // ── App versions ────────────────────────────────────────────────────────────
@@ -316,6 +326,14 @@ export async function setAppVersions(input: VersionsInput): Promise<void> {
 
   invalidateCatalogCache();
   logger.warn('app versions changed', { ...input, reason, actor_id: input.actorId });
+  recordEvent({
+    level: 'warn',
+    kind: 'config',
+    event: 'config.versions_changed',
+    message: `App version floor changed: ${reason}`,
+    userId: input.actorId,
+    meta: { ...input, reason },
+  });
 }
 
 // ── The record ──────────────────────────────────────────────────────────────

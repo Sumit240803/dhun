@@ -5,7 +5,7 @@ import { randomUUID } from 'expo-crypto';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { AppState, StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -16,7 +16,7 @@ import { restoreSession } from '@/features/auth/session';
 import { UpdateGate } from '@/features/config/UpdateGate';
 import { startAnalyticsSession, track } from '@/lib/analytics';
 import { initNetworkMonitor } from '@/lib/network';
-import { initReporting } from '@/lib/reporting';
+import { flushReports, initReporting } from '@/lib/reporting';
 import { MODE, colors } from '@/theme';
 import { ErrorBoundary } from '@/ui/ErrorBoundary';
 import { useIsAuthenticated, useIsRegistered, useSession } from '@/store/session';
@@ -68,7 +68,16 @@ export default function RootLayout() {
     // splash screen up forever with no way out.
     bootstrap().finally(() => setBootstrapped(true));
 
-    return stopNetworkMonitor;
+    // Queued error reports go out before the OS may kill a backgrounded app;
+    // a crash's report is otherwise the first thing lost.
+    const appState = AppState.addEventListener('change', (next) => {
+      if (next === 'background') void flushReports();
+    });
+
+    return () => {
+      appState.remove();
+      stopNetworkMonitor();
+    };
   }, []);
 
   const ready = bootstrapped && isReady;
