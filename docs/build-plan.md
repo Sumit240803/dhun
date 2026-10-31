@@ -990,7 +990,7 @@ less the items that wait on a decision (listed at the end).
 | Voice effects, auto-preview | Native media processing; after the device pass |
 | Weekly events, platform rankings | The daily/weekly ranking decision |
 
-**Exit criteria met:** __BACKEND_TESTS__ backend tests · __MOBILE_TESTS__ mobile ·
+**Exit criteria met:** 605 backend tests · 173 mobile ·
 `npm run check` clean · CI green.
 
 ---

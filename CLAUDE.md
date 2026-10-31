@@ -535,7 +535,7 @@ walk away from a vendor and an SDK spread across four modules cannot walk anywhe
 One repo, pushed to `git@github.com:Sumit240803/dhun.git` (`main`).
 Verify everything with **`npm run check`** from the root.
 
-### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5–M7, M10, M12–M20 built, unverified on devices. __BACKEND_TESTS__ tests.
+### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5–M7, M10, M12–M20 built, unverified on devices. 605 tests.
 
 Seventeen migrations, 68 routes, and all three processes built: API, workers, and the
 realtime gateway. **M10 was built before M8 and M9, by agreement** — both are blocked on
@@ -601,7 +601,7 @@ external accounts (CA + RazorpayX, Hive) and neither is skipped.
 ### `mobile/` — 35 routes, 31 of them built (the four legal pages wait for a lawyer's text).
 
 Expo SDK 57 · React Native 0.86 · React 19.2 · expo-router. EAS project
-`@sumitsumit/dhun` (`c7c547aa-86e2-4d02-befa-b5e643fde400`). __MOBILE_TESTS__ tests.
+`@sumitsumit/dhun` (`c7c547aa-86e2-4d02-befa-b5e643fde400`). 173 tests.
 
 Read **`mobile/ARCHITECTURE.md`** before adding a file. The essentials:
 
