@@ -43,7 +43,12 @@ const ownEvents = createEventQueue({
   },
 });
 
-function keep(level: ClientEventLevel, event: string, context: ErrorContext | undefined, error?: unknown) {
+function keep(
+  level: ClientEventLevel,
+  event: string,
+  context: ErrorContext | undefined,
+  error?: unknown,
+) {
   const { traceId, code, screen, ...rest } = context ?? {};
   const meta: Record<string, string | number | boolean | null> = {};
   for (const [key, value] of Object.entries(rest)) {

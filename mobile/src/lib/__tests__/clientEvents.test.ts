@@ -20,7 +20,13 @@ describe('conformEvent', () => {
     meta.long = 'y'.repeat(300);
     meta.nan = Number.NaN;
     const out = conformEvent(
-      ev({ message: 'm'.repeat(600), stack: 's'.repeat(3_000), code: 'bad code', traceId: 'ok-trace', meta }),
+      ev({
+        message: 'm'.repeat(600),
+        stack: 's'.repeat(3_000),
+        code: 'bad code',
+        traceId: 'ok-trace',
+        meta,
+      }),
     )!;
     expect(out.message).toHaveLength(500);
     expect(out.stack).toHaveLength(2_000);
