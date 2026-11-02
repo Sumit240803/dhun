@@ -1,0 +1,28 @@
+# What never enters the build context.
+#
+# .env first and loudest: an image is pushed to a registry, and a secret baked
+# into a layer is readable by anyone who can pull it, forever, even after the
+# file is deleted in a later layer.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+node_modules
+dist
+build
+coverage
+*.log
+
+# Tests, docs and tooling are not part of the running product.
+tests
+docs
+postman
+ops
+# …except the grants script, which every migration run applies.
+!ops/roles.sql
+vitest.config.ts
+docker-compose.yml
+README.md
+.git

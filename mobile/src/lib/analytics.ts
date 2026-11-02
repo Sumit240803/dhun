@@ -11,10 +11,14 @@
 // locale, user_level, is_paying) attach automatically. The doc is explicit about
 // why: attached by hand, roughly a fifth of events end up missing them.
 
+import * as Updates from 'expo-updates';
 import { Platform } from 'react-native';
+
+import { telemetryApi } from '@/api/endpoints/telemetry';
 
 import { env } from '@/config/env';
 import { getLocale } from '@/i18n';
+import { createHttpAnalyticsTransport } from './analyticsTransport';
 import { addBreadcrumb } from './reporting';
 
 /** `object_action`, past tense — the convention from the data plan. */
@@ -79,11 +83,9 @@ export interface AnalyticsTransport {
 }
 
 /**
- * Development transport: prints the event.
- *
- * The real one ships to the backend's outbox, then Kafka and ClickHouse. Swapping
- * this is one line, and nothing upstream changes — the same seam the backend uses
- * for its own event publisher.
+ * Development transport: prints the event. Replaced at launch by
+ * startHttpAnalytics(), which posts to POST /v1/client/analytics (and still
+ * prints in development).
  */
 class ConsoleTransport implements AnalyticsTransport {
   track(event: AnalyticsEvent, properties: Record<string, unknown>) {
@@ -136,4 +138,48 @@ export function track(event: AnalyticsEvent, properties: Record<string, unknown>
   // Doubles as a crash breadcrumb — knowing the last five actions before a crash
   // is usually more useful than the stack trace.
   addBreadcrumb(`analytics:${event}`, properties);
+}
+
+// ── Shipping (build-plan M21 slice 5) ─────────────────────────────────────────
+
+let http: ReturnType<typeof createHttpAnalyticsTransport> | null = null;
+
+/**
+ * Start posting events to the API. Called once, at module load of the root
+ * layout. Batches of up to fifty, every fifteen seconds; a failed batch is
+ * dropped, never retried (lib/batcher.ts).
+ */
+export function startHttpAnalytics(): void {
+  if (http) return;
+  const printer = new ConsoleTransport();
+  http = createHttpAnalyticsTransport({
+    deviceId: () => context.deviceId,
+    send: async (batch) => {
+      await telemetryApi.analytics({
+        ...batch,
+        app: {
+          version: env.appVersion,
+          platform: Platform.OS === 'ios' ? 'ios' : Platform.OS === 'web' ? 'web' : 'android',
+          ...runningBundle(),
+        },
+      });
+    },
+  });
+  const shipping = http;
+  setAnalyticsTransport({
+    track(event, properties) {
+      printer.track(event, properties);
+      shipping.track(event, properties);
+    },
+  });
+}
+
+/** Send what is queued now — on the way to the background. */
+export function flushAnalytics(): Promise<void> {
+  return http?.flush() ?? Promise.resolve();
+}
+
+function runningBundle(): { update?: string } {
+  if (!Updates.isEnabled) return { update: 'development' };
+  return { update: Updates.isEmbeddedLaunch ? 'embedded' : (Updates.updateId ?? undefined) };
 }

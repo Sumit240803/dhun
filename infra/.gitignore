@@ -1,0 +1,19 @@
+# Terraform working files. State lives in the remote backend (R2), never here.
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfplan
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Secrets. The DigitalOcean token, the app's provider keys, and the backend
+# credentials. Only the .example files are committed.
+secrets/*
+!secrets/*.example
+*.secrets.tfvars
+backend.hcl
+!backend.hcl.example

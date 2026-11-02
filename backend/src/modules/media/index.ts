@@ -7,4 +7,5 @@
 export { buildMediaRouter } from './media.routes.js';
 
 export { claimUpload, createUpload, isMediaConfigured, publicUrlFor } from './media.service.js';
+export { isArchiveConfigured, putArchiveObject } from './r2.provider.js';
 export type { UploadPurpose } from './media.service.js';

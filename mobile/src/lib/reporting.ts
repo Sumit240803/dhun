@@ -8,6 +8,7 @@
 // what turns "a user says the app broke" into a single server log line.
 
 import * as Sentry from '@sentry/react-native';
+import * as Updates from 'expo-updates';
 import { Platform } from 'react-native';
 
 import { telemetryApi } from '@/api/endpoints/telemetry';
@@ -37,6 +38,7 @@ const ownEvents = createEventQueue({
         build: String(env.buildNumber),
         platform: Platform.OS === 'ios' ? 'ios' : Platform.OS === 'web' ? 'web' : 'android',
         env: env.environment,
+        ...runningUpdate(),
       },
       events,
     });
@@ -67,6 +69,13 @@ function keep(
     occurredAt: new Date().toISOString(),
     meta,
   });
+}
+
+/** Which bundle is running. A crash that only one OTA update shows is a bad update. */
+function runningUpdate(): { update: string; channel?: string } {
+  if (!Updates.isEnabled) return { update: 'development' };
+  const update = Updates.isEmbeddedLaunch ? 'embedded' : (Updates.updateId ?? 'unknown');
+  return Updates.channel ? { update, channel: Updates.channel } : { update };
 }
 
 /** Send whatever is queued now — on the way to the background, before the OS may kill the app. */

@@ -230,8 +230,21 @@ interface PgError {
   message?: string;
 }
 
+/**
+ * The pool itself failing, as opposed to a query. node-pg raises these as plain
+ * Errors with no SQLSTATE, so they slipped past the code table into a 500.
+ * Found by the gift-path load test (M21 slice 6): with every connection busy, a
+ * waiting request times out here after 5 seconds. It is overload, not a bug in
+ * the request — a 503 the client retries with the same idempotency key.
+ */
+const POOL_FAILURE = /timeout exceeded when trying to connect|Connection terminated|connect ECONNREFUSED/i;
+
 export function mapDatabaseError(err: unknown): AppError | undefined {
   const e = err as PgError;
+  if (err instanceof Error && !e.code && POOL_FAILURE.test(err.message)) {
+    return new TransientDatabaseError({ pool: err.message });
+  }
+  if ((e as { code?: unknown })?.code === 'ECONNREFUSED') return new TransientDatabaseError({ pool: 'ECONNREFUSED' });
   if (!e?.code || typeof e.code !== 'string') return undefined;
 
   const mapped = PG_CODES[e.code];

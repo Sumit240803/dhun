@@ -1,0 +1,41 @@
+# One unit template, one instance per process: dhun@api, dhun@gateway, dhun@worker.
+#
+# Each instance runs the same image (from /etc/dhun/release.env, written by
+# dhun-deploy) with a different command. systemd owns restarts: a process that
+# crashes — including the deliberate exit on an uncaught exception — is back in
+# five seconds without anyone touching it.
+#
+# Logs go to the journal (`journalctl -u dhun@api -f`). Errors are also kept in
+# Postgres by the event log, which is where they should be read.
+
+[Unit]
+Description=Dhun %i
+Wants=network-online.target
+After=docker.service network-online.target
+Requires=docker.service
+# Nothing runs until the first deploy has written a release and the app env.
+ConditionPathExists=/etc/dhun/release.env
+ConditionPathExists=/etc/dhun/app.env
+
+[Service]
+EnvironmentFile=/etc/dhun/release.env
+EnvironmentFile=/etc/dhun/%i.unit.env
+ExecStartPre=-/usr/bin/docker rm -f dhun-%i
+# $PUBLISH unbraced so systemd splits it into words ("-p 3000:3000"), and an
+# empty one (the worker) expands to nothing. ${IMAGE} braced: one argument.
+ExecStart=/usr/bin/docker run --rm --name dhun-%i \
+  --env-file /etc/dhun/app.env \
+  --env-file /etc/dhun/%i.env \
+  -v /etc/dhun/db-ca.crt:/etc/dhun/db-ca.crt:ro \
+  --log-driver journald --log-opt tag=dhun-%i \
+  --stop-timeout 30 \
+  $PUBLISH ${IMAGE} ${COMMAND}
+# 30 seconds is the API's own drain window plus margin (server.ts forces exit
+# at 15). A deploy must never sever a half-written money transaction.
+ExecStop=/usr/bin/docker stop -t 30 dhun-%i
+Restart=always
+RestartSec=5
+TimeoutStopSec=45
+
+[Install]
+WantedBy=multi-user.target

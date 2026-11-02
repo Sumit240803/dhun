@@ -5,6 +5,7 @@ import { buildAdminRouter } from './admin/admin.routes.js';
 import { fileURLToPath } from 'node:url';
 import { config } from './config/index.js';
 import { pool } from './infra/db.js';
+import { redis } from './infra/redis.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { globalRateLimit } from './middleware/rateLimit.js';
 import { requestContext } from './middleware/requestContext.js';
@@ -102,15 +103,26 @@ export function buildApp() {
   // Liveness: is the process up? Used by the load balancer. Never touches the DB.
   app.get('/health', (_req, res) => res.json({ ok: true }));
 
-  // Readiness: can it actually serve? A pod with a dead pool is pulled from
-  // rotation instead of failing user requests.
+  // Readiness: can it actually serve? The load balancer checks this, so a
+  // container with a dead pool or an unreachable Redis is pulled from rotation
+  // instead of failing user requests — and a half-started container after a
+  // deploy never takes traffic. Both checks are bounded: a probe that hangs is
+  // worse than one that fails.
+  //
+  // `version` is the git sha baked into the image, so a probe can tell which
+  // build answered during a rolling deploy. Nothing else is revealed.
   app.get('/ready', async (_req, res) => {
-    try {
-      await pool.query('SELECT 1');
-      res.json({ ok: true, db: 'up' });
-    } catch {
-      res.status(503).json({ ok: false, db: 'down' });
-    }
+    const [db, cache] = await Promise.all([
+      withTimeout(pool.query('SELECT 1'), 2_000),
+      withTimeout(redis.ping(), 2_000),
+    ]);
+    const ok = db && cache;
+    res.status(ok ? 200 : 503).json({
+      ok,
+      db: db ? 'up' : 'down',
+      redis: cache ? 'up' : 'down',
+      version: process.env.GIT_SHA ?? 'dev',
+    });
   });
 
   // Day-1 non-negotiable #4: /v1/ from the first endpoint. Old app versions stay
@@ -144,4 +156,23 @@ export function buildApp() {
   app.use(errorHandler());
 
   return app;
+}
+
+/**
+ * True when `work` settles successfully within `ms`, false otherwise.
+ *
+ * Never rejects: a readiness probe must answer, and a dependency that hangs is
+ * reported as down rather than holding the probe open until the balancer gives
+ * up on it.
+ */
+async function withTimeout(work: Promise<unknown>, ms: number): Promise<boolean> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<boolean>((resolve) => {
+    timer = setTimeout(() => resolve(false), ms);
+  });
+  try {
+    return await Promise.race([work.then(() => true, () => false), timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
 }

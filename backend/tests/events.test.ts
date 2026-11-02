@@ -11,7 +11,7 @@ import request from 'supertest';
 import { uuidv7 } from 'uuidv7';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../src/app.js';
-import { setAlertTransport, type Alert } from '../src/infra/alerts.js';
+import { resetAlertCooldowns, setAlertTransport, type Alert } from '../src/infra/alerts.js';
 import { runWithContext } from '../src/infra/context.js';
 import { pool } from '../src/infra/db.js';
 import {
@@ -100,6 +100,7 @@ async function registerByEmail(email = nextEmail()) {
 beforeEach(async () => {
   await resetLedger();
   discardQueuedEvents();
+  resetAlertCooldowns();
 });
 
 afterEach(() => {
@@ -419,7 +420,7 @@ describe('the jobs', () => {
   it('alerts when one error repeats past the threshold, and records the alert', async () => {
     silence();
     const sent: Alert[] = [];
-    setAlertTransport({ send: async (a) => void sent.push(a) });
+    setAlertTransport({ name: 'test', send: async (a) => void sent.push(a) });
 
     for (let i = 0; i < 20; i++) {
       recordEvent({ level: 'error', kind: 'error', event: 'error.ledger_timeout', message: 'timeout' });
@@ -445,7 +446,7 @@ describe('the jobs', () => {
 
   it('stays quiet under the threshold', async () => {
     const sent: Alert[] = [];
-    setAlertTransport({ send: async (a) => void sent.push(a) });
+    setAlertTransport({ name: 'test', send: async (a) => void sent.push(a) });
     for (let i = 0; i < 19; i++) {
       recordEvent({ level: 'error', kind: 'error', event: 'error.ledger_timeout' });
     }

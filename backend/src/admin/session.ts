@@ -67,9 +67,10 @@ export async function issueSession(
 
   res.cookie(COOKIE, token, {
     httpOnly: true,
-    // Over TLS only in production. Not in development, or the cookie is never
-    // stored and nobody can sign in locally.
-    secure: config.isProduction,
+    // Over TLS everywhere that is deployed — staging included, which runs as
+    // NODE_ENV=staging behind the same TLS load balancer. Not in development
+    // or tests, which are plain HTTP and would never store the cookie.
+    secure: !['development', 'test'].includes(config.nodeEnv),
     sameSite: 'strict',
     // Scoped to the panel, so it is never sent to the /v1 API.
     path: '/admin',

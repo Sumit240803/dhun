@@ -143,3 +143,107 @@ export const errorBurstCheckJob: Job = {
     return total ? { errors: total, distinct: rows.length, alerted: bursts.length } : undefined;
   },
 };
+
+// ── The daily summary ────────────────────────────────────────────────────────
+
+export interface DailySummary {
+  errors: number;
+  warnings: number;
+  alerts: number;
+  topErrors: { event: string; count: number }[];
+  failedJobs: { job: string; count: number }[];
+  reconciliation: { date: string | null; failed: number; checks: number };
+  outbox: { pending: number; oldestMinutes: number | null };
+}
+
+/** The last 24 hours, read from the tables that already record them. */
+export async function dailySummary(): Promise<DailySummary> {
+  const [levels, top, jobs, recon, outbox] = await Promise.all([
+    pool.query<{ level: string; kind: string; n: string }>(
+      `SELECT level, kind, count(*)::bigint AS n FROM system_events
+        WHERE occurred_at > now() - interval '24 hours' GROUP BY level, kind`,
+    ),
+    pool.query<{ event: string; n: string }>(
+      `SELECT (array_agg(event ORDER BY occurred_at DESC))[1] AS event, count(*)::bigint AS n
+         FROM system_events
+        WHERE level = 'error' AND kind <> 'alert' AND occurred_at > now() - interval '24 hours'
+        GROUP BY fingerprint ORDER BY n DESC LIMIT 3`,
+    ),
+    pool.query<{ job: string; n: string }>(
+      `SELECT job, count(*)::bigint AS n FROM job_runs
+        WHERE status = 'failed' AND started_at > now() - interval '24 hours'
+        GROUP BY job ORDER BY n DESC`,
+    ),
+    pool.query<{ run_date: Date | null; failed: string; checks: string }>(
+      `SELECT max(run_date) AS run_date,
+              count(*) FILTER (WHERE status = 'fail')::bigint AS failed,
+              count(*)::bigint AS checks
+         FROM reconciliation_checks
+        WHERE run_date = (SELECT max(run_date) FROM reconciliation_checks)`,
+    ),
+    pool.query<{ pending: string; oldest: string | null }>(
+      `SELECT count(*)::bigint AS pending,
+              floor(extract(epoch FROM now() - min(created_at)) / 60)::bigint AS oldest
+         FROM outbox WHERE published_at IS NULL`,
+    ),
+  ]);
+
+  const count = (pred: (r: { level: string; kind: string }) => boolean) =>
+    levels.rows.filter(pred).reduce((n, r) => n + Number(r.n), 0);
+
+  return {
+    errors: count((r) => r.level === 'error' && r.kind !== 'alert'),
+    warnings: count((r) => r.level === 'warn' && r.kind !== 'alert'),
+    alerts: count((r) => r.kind === 'alert' && r.level !== 'info'),
+    topErrors: top.rows.map((r) => ({ event: r.event, count: Number(r.n) })),
+    failedJobs: jobs.rows.map((r) => ({ job: r.job, count: Number(r.n) })),
+    reconciliation: {
+      date: recon.rows[0]?.run_date ? recon.rows[0].run_date.toISOString().slice(0, 10) : null,
+      failed: Number(recon.rows[0]?.failed ?? 0),
+      checks: Number(recon.rows[0]?.checks ?? 0),
+    },
+    outbox: {
+      pending: Number(outbox.rows[0]?.pending ?? 0),
+      oldestMinutes: outbox.rows[0]?.oldest === null || outbox.rows[0]?.oldest === undefined ? null : Number(outbox.rows[0].oldest),
+    },
+  };
+}
+
+/**
+ * Once a day, a message that says the watching is still happening.
+ *
+ * Silence from an alert channel means either "nothing is wrong" or "nothing
+ * is watching", and the two look identical from a phone. This one arrives
+ * every morning whatever happened, so a missing summary is itself the signal
+ * that the workers process — the thing that raises every other alert — is down.
+ *
+ * Info severity: never folded, sent without a notification sound.
+ */
+export const dailySummaryJob: Job = {
+  name: 'daily_summary',
+  dailyAtIst: '09:30',
+  run: async () => {
+    const s = await dailySummary();
+    const healthy =
+      s.errors === 0 && s.failedJobs.length === 0 && s.reconciliation.failed === 0 && s.outbox.pending < 100;
+
+    await alert({
+      severity: 'info',
+      key: 'daily_summary',
+      title: healthy ? 'Daily summary: all clear' : 'Daily summary: needs a look',
+      detail: {
+        errors_24h: s.errors,
+        warnings_24h: s.warnings,
+        alerts_24h: s.alerts,
+        top_errors: s.topErrors.length ? s.topErrors.map((e) => `${e.event} ×${e.count}`).join(', ') : 'none',
+        failed_jobs: s.failedJobs.length ? s.failedJobs.map((j) => `${j.job} ×${j.count}`).join(', ') : 'none',
+        reconciliation: s.reconciliation.date
+          ? `${s.reconciliation.date}: ${s.reconciliation.checks - s.reconciliation.failed}/${s.reconciliation.checks} passed`
+          : 'no run recorded',
+        outbox_pending: s.outbox.oldestMinutes === null ? 0 : `${s.outbox.pending} (oldest ${s.outbox.oldestMinutes} min)`,
+      },
+    });
+
+    return { ...s, healthy };
+  },
+};

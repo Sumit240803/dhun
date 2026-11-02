@@ -6,7 +6,7 @@ import { logger } from './logger.js';
 
 export const pool = new Pool({
   connectionString: config.databaseUrl,
-  max: 20,
+  max: config.dbPoolMax,
   idleTimeoutMillis: 30_000,
   connectionTimeoutMillis: 5_000,
   // Caps a runaway query at the SERVER, not just the client, so a bad plan

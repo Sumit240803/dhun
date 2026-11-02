@@ -9,6 +9,9 @@ import { pool } from './infra/db.js';
 import { flushEvents } from './infra/eventLog.js';
 import { logger } from './infra/logger.js';
 import { registerLeaderboardSubscribers } from './modules/leaderboard/index.js';
+import { redis } from './infra/redis.js';
+import { RedisRateLimitStore, setRateLimitStore } from './middleware/rateLimit.js';
+import { auditStaffCredentials } from './admin/staffAudit.js';
 
 function registerSubscribers() {
   // Every module that REACTS to events wires its subscribers here at startup.
@@ -44,6 +47,15 @@ async function main() {
 
   // Fail fast: a process that cannot reach Postgres should never accept traffic.
   await pool.query('SELECT 1');
+
+  if (config.rateLimitStore === 'redis') {
+    setRateLimitStore(new RedisRateLimitStore(redis));
+    logger.info('rate limits in redis');
+  }
+
+  // A deployed environment must hold no staff account with a known password
+  // (build-plan M21 slice 6). Checked at every start; pages if one is found.
+  if (!['development', 'test'].includes(config.nodeEnv)) void auditStaffCredentials();
 
   const app = buildApp();
   const server = app.listen(config.port, () =>

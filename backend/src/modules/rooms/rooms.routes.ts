@@ -72,7 +72,6 @@ export function buildRoomsRouter(): Router {
     authGuard(),
     requireRegistered(),
     requireFeature('goLive'),
-    requireFeature('goLive'),
     // A host starting rooms in a loop is either a bug or an attempt to spam the
     // feed. Either way the ceiling is low, because going live is a rare act.
     rateLimit({ scope: 'room:golive', limit: 10, windowMs: 3_600_000, by: 'user' }),

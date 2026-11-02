@@ -124,6 +124,40 @@ jobs:
       - name: Test
         run: npm test
 
+  # The deploy builds this image from every green main. Building it here too,
+  # on every push and PR, means a broken Dockerfile or a file the compiled
+  # layout cannot find is caught before merge, not at deploy time.
+  image:
+    name: Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: docker build --build-arg GIT_SHA="$GITHUB_SHA" -t dhun-backend:ci backend/
+      - name: Every process mode starts its entrypoint
+        run: |
+          code=0
+          docker run --rm dhun-backend:ci nonsense || code=$?
+          if [ "$code" -ne 64 ]; then echo "::error::unknown command should exit 64, got $code"; exit 1; fi
+          docker run --rm --entrypoint sh dhun-backend:ci -c 'test -f build/src/server.js && test -f build/src/gateway/index.js && test -f build/src/workers/index.js && test -f build/scripts/migrate.js && test -d build/migrations && test -d build/public && test -f build/ops/roles.sql && command -v psql'
+
+  infra:
+    name: Terraform
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.12.2
+      - name: Format
+        run: terraform -chdir=infra fmt -check -recursive
+      - name: Validate
+        run: |
+          for root in global envs/staging envs/prod; do
+            terraform -chdir="infra/$root" init -backend=false -input=false >/dev/null
+            terraform -chdir="infra/$root" validate
+          done
+
   # Cheap guard against the mistake that is expensive to undo: a committed .env.
   secrets:
     name: Secret scan

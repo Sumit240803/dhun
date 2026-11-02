@@ -1,0 +1,240 @@
+name: Deploy
+
+# Build-plan M21, slices 2 and 4.
+#
+#   green CI on main  → build the image, deploy to STAGING, publish the app's JS
+#                       to the `preview` update channel (if mobile/ changed)
+#   tag v*            → deploy that commit's image to PRODUCTION, publish to
+#                       `production` — only an image staging already ran
+#   manual            → either, for a re-deploy or a rollback to an older sha
+#
+# Inert until infrastructure exists: every job is gated on the repository
+# variable DEPLOY_ENABLED=true, which infra/README.md sets after the first
+# terraform apply. Until then a push builds and tests in CI and nothing here runs.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Where to deploy
+        type: choice
+        options: [staging, production]
+        default: staging
+      sha:
+        description: Commit to deploy (a rollback is a deploy of an older sha). Defaults to the branch head.
+        required: false
+
+# Never cancel a deploy halfway: a host left between releases is worse than a
+# queue. One deploy per environment at a time.
+concurrency:
+  group: deploy-${{ github.event_name == 'push' && 'production' || inputs.environment || 'staging' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    if: >-
+      vars.DEPLOY_ENABLED == 'true' &&
+      (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    outputs:
+      environment: ${{ steps.plan.outputs.environment }}
+      sha: ${{ steps.plan.outputs.sha }}
+      image: ${{ steps.plan.outputs.image }}
+      channel: ${{ steps.plan.outputs.channel }}
+      profile: ${{ steps.plan.outputs.profile }}
+    steps:
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          INPUT_ENV: ${{ inputs.environment }}
+          INPUT_SHA: ${{ inputs.sha }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          case "$EVENT" in
+            workflow_run) environment=staging;          sha="$RUN_SHA" ;;
+            push)         environment=production;       sha="$GITHUB_SHA" ;;
+            *)            environment="$INPUT_ENV";     sha="${INPUT_SHA:-$GITHUB_SHA}" ;;
+          esac
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::not a full commit sha: $sha"; exit 1; }
+          if [ "$environment" = production ]; then channel=production; profile=production; else channel=preview; profile=preview; fi
+          {
+            echo "environment=$environment"
+            echo "sha=$sha"
+            echo "image=ghcr.io/${OWNER,,}/dhun-backend:$sha"
+            echo "channel=$channel"
+            echo "profile=$profile"
+          } >> "$GITHUB_OUTPUT"
+          echo "### Deploying \`${sha:0:7}\` to **$environment**" >> "$GITHUB_STEP_SUMMARY"
+
+  image:
+    name: Image
+    needs: plan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+
+      - name: Sign in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      # Production never builds. It receives the exact bytes staging ran, or
+      # nothing — a tag on a commit that never reached staging is refused.
+      - name: Production uses the staging image
+        if: needs.plan.outputs.environment == 'production'
+        env:
+          IMAGE: ${{ needs.plan.outputs.image }}
+        run: |
+          if ! docker manifest inspect "$IMAGE" >/dev/null 2>&1; then
+            echo "::error::$IMAGE does not exist. Deploy this commit to staging first; production only takes an image staging has run."
+            exit 1
+          fi
+          echo "found $IMAGE"
+
+      - name: Build and push
+        if: needs.plan.outputs.environment == 'staging'
+        env:
+          IMAGE: ${{ needs.plan.outputs.image }}
+          SHA: ${{ needs.plan.outputs.sha }}
+        run: |
+          if docker manifest inspect "$IMAGE" >/dev/null 2>&1; then
+            echo "already built: $IMAGE"
+            exit 0
+          fi
+          docker build --build-arg GIT_SHA="$SHA" \
+            --label org.opencontainers.image.source="https://github.com/${{ github.repository }}" \
+            --label org.opencontainers.image.revision="$SHA" \
+            -t "$IMAGE" backend/
+          docker push "$IMAGE"
+
+      # Rollbacks need old images, an unbounded registry needs a bill. Thirty
+      # releases is weeks of history.
+      - name: Prune old images
+        if: needs.plan.outputs.environment == 'staging'
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: dhun-backend
+          package-type: container
+          min-versions-to-keep: 30
+        continue-on-error: true
+
+  deploy:
+    name: Deploy
+    needs: [plan, image]
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ needs.plan.outputs.environment }}
+      url: ${{ vars.API_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+
+      - name: Load the deploy key
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$DEPLOY_SSH_KEY" ] || [ -z "$SSH_KNOWN_HOSTS" ]; then
+            echo "::error::DEPLOY_SSH_KEY or SSH_KNOWN_HOSTS missing in this environment (infra/README.md)"
+            exit 1
+          fi
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          eval "$(ssh-agent -s)"
+          printf '%s\n' "$DEPLOY_SSH_KEY" | ssh-add - >/dev/null
+          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> "$GITHUB_ENV"
+
+      - name: Roll out
+        env:
+          DEPLOY_HOSTS: ${{ vars.DEPLOY_HOSTS }}
+          APP_ENV: ${{ secrets.APP_ENV }}
+          REGISTRY_USER: ${{ github.actor }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          API_URL: ${{ vars.API_URL }}
+          EXPECT_VERSION: ${{ needs.plan.outputs.sha }}
+        run: bash infra/scripts/deploy.sh "${{ needs.plan.outputs.image }}"
+
+  ota:
+    name: App update (OTA)
+    needs: [plan, deploy]
+    runs-on: ubuntu-latest
+    # No `environment:` here. The deploy job already passed the environment's
+    # protection rules; a second reference would ask for production approval
+    # twice. EXPO_TOKEN is a repository secret for that reason.
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Is there an Expo token?
+        id: token
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "No EXPO_TOKEN repository secret; skipping the OTA publish." >> "$GITHUB_STEP_SUMMARY"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.token.outputs.present == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - if: steps.token.outputs.present == 'true'
+        run: npm ci
+
+      # The bundle must carry the SAME EXPO_PUBLIC_* values as the builds on
+      # this channel. `eas update` does not read eas.json's build env, and
+      # config/env.ts throws at launch without EXPO_PUBLIC_API_URL — so an
+      # update published without this step would crash every phone it reached.
+      - name: Use the build profile's public env
+        if: steps.token.outputs.present == 'true'
+        env:
+          PROFILE: ${{ needs.plan.outputs.profile }}
+        run: |
+          jq -r --arg p "$PROFILE" '.build[$p].env | to_entries[] | "\(.key)=\(.value)"' eas.json | tee -a "$GITHUB_ENV"
+          grep -q '^EXPO_PUBLIC_API_URL=' <(jq -r --arg p "$PROFILE" '.build[$p].env | to_entries[] | "\(.key)=\(.value)"' eas.json) \
+            || { echo "::error::eas.json profile $PROFILE has no EXPO_PUBLIC_API_URL"; exit 1; }
+
+      # Publish only when mobile/ changed since the last update on this channel.
+      # The runtime version is a FINGERPRINT of the native project, so an
+      # update is only ever delivered to builds whose native code matches; a
+      # change that needs a new store build can never arrive as JS.
+      - name: Publish
+        if: steps.token.outputs.present == 'true'
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          CHANNEL: ${{ needs.plan.outputs.channel }}
+          SHA: ${{ needs.plan.outputs.sha }}
+        run: |
+          last="$(npx --yes eas-cli@20.5.1 update:list --branch "$CHANNEL" --limit 1 --json --non-interactive 2>/dev/null \
+            | jq -r '(.currentPage // .)[0].gitCommitHash // empty' || true)"
+          if [ -n "$last" ] && git cat-file -e "$last^{commit}" 2>/dev/null && git diff --quiet "$last" "$SHA" -- .; then
+            echo "mobile/ unchanged since $last; nothing to publish." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          npx --yes eas-cli@20.5.1 update --channel "$CHANNEL" --non-interactive \
+            --message "$(git log -1 --format='%h %s' "$SHA")"
+          echo "Published to \`$CHANNEL\`." >> "$GITHUB_STEP_SUMMARY"

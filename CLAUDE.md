@@ -535,7 +535,7 @@ walk away from a vendor and an SDK spread across four modules cannot walk anywhe
 One repo, pushed to `git@github.com:Sumit240803/dhun.git` (`main`).
 Verify everything with **`npm run check`** from the root.
 
-### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5–M7, M10, M12–M20 built, unverified on devices. 623 tests.
+### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5–M7, M10, M12–M21 built, unverified on devices. 652 tests.
 
 Seventeen migrations, 68 routes, and all three processes built: API, workers, and the
 realtime gateway. **M10 was built before M8 and M9, by agreement** — both are blocked on
@@ -604,11 +604,41 @@ external accounts (CA + RazorpayX, Hive) and neither is skipped.
     queued — a row is read in a browser session that can suspend accounts, so an access
     token, an OTP, the MSG91 authkey or a PAN one `meta` away from it is a breach. Pass a
     row's id, never its credential; the redaction is the floor, not the ceiling.
+12. **A deploy migrates before any new code starts, so migrations are expand-only.** Old
+    code keeps serving against the new schema until its host is released (build-plan M21).
+    Add a column in one release, drop the old one in a later one; a rename in one step
+    is an outage. And **production only receives an image staging ran**: the pipeline
+    refuses a `v*` tag whose image does not already exist.
+13. **Analytics events are never the source of a money number.** The app can claim any
+    `app_opened`; it cannot claim revenue. Purchases, gifts and room hours on
+    `/admin/metrics` are read from `purchases`, `gift_sends` and `room_sessions`, and the
+    account on an analytics row comes from the access token, never the body.
+
+### `infra/` — M21: built, not applied (no cloud account yet)
+
+DigitalOcean `blr1` (chosen over Hetzner 2026-11-02, build-plan M21), Terraform, one image
+for all three processes. **Read `infra/README.md` before touching it** — the first-apply
+walkthrough, the costs, and what notices each failure are there.
+
+- `backend/Dockerfile` → `docker run <image> api | gateway | worker | migrate | staff …`.
+  `migrate` also applies `ops/roles.sql` as the database owner; the app runs as `dhun_app`.
+- Each host runs `dhun@<process>` systemd units; `dhun-deploy` is the only way a release
+  reaches a host, and the deploy user can run nothing else as root.
+- `.github/workflows/deploy.yml`: green `main` → staging (+ OTA if `mobile/` changed);
+  `v*` tag → production. Inert until the repository variable `DEPLOY_ENABLED=true`.
+- Alerts: Telegram / Slack-compatible webhook (`ALERT_*`), folded per key, plus a
+  09:30 IST daily summary whose absence means the workers are down.
+- `/admin/metrics` (migration 039) and the nightly analytics export to a PRIVATE bucket —
+  never the media bucket, which is public.
+- Rate limits in Redis on staging and prod (`RATE_LIMIT_STORE=redis`); staff accounts
+  only via `scripts/staff.ts`, and every API start pages if a staff password is a known one.
+- **Open (ledger-decisions § F6):** one host's balance row serialises gifts to that host —
+  clean at 40 gifts/s on a laptop, queueing at 70. Re-measure on staging, then decide.
 
 ### `mobile/` — 35 routes, 31 of them built (the four legal pages wait for a lawyer's text).
 
 Expo SDK 57 · React Native 0.86 · React 19.2 · expo-router. EAS project
-`@sumitsumit/dhun` (`c7c547aa-86e2-4d02-befa-b5e643fde400`). 179 tests.
+`@sumitsumit/dhun` (`c7c547aa-86e2-4d02-befa-b5e643fde400`). 187 tests.
 
 Read **`mobile/ARCHITECTURE.md`** before adding a file. The essentials:
 
@@ -747,9 +777,9 @@ catch is early enough. The one hard stop is suspension. Three severities: `flag`
 append-only by trigger — a log that can be rewritten is not evidence.
 
 **The admin panel is server-rendered HTML on the API** (`src/admin/`), mounted BEFORE the
-JSON body parser because it takes form posts. Nine screens: **review queue**
+JSON body parser because it takes form posts. Ten screens: **review queue**
 (onboarding photos, go-live frames, appeals), **reports**, **live rooms**, **users**,
-**agencies**, **catalog**, **enforcement log**, **events** (the event log above, ops roles only),
+**agencies**, **catalog**, **enforcement log**, **events** (the event log above, ops roles only), **metrics** (migration 039, ops roles only),
 and **switches** — the kill switch per
 feature and the version floor (migration 033). One form post flips `app_config.features`, the feature's
 `ledger_txn_types.is_active` and the client flag the app reads, in one transaction, and
@@ -783,8 +813,9 @@ wheel, nearby, quiz, karaoke, voice effects, weekly events — build-plan M20 li
 each waits on) · VIP's stealth, global badge and priority-mic perks (listed as "soon";
 need gateway and seat-table enforcement) · beauty filters · stand-in
 art files · Firebase credentials for Android push · the legal screens' actual text and the
-Grievance Officer's name · analytics pipeline · OTA (`expo-updates`) · Terraform and
-environments.
+Grievance Officer's name · Kafka (deliberately deferred, build-plan M21). The M21 running
+pieces — Terraform, deploys, alerting, OTA, the analytics sink, hardening — are built and
+wait only on accounts (`infra/README.md` § First apply).
 
 Built but **unverified on devices**: everything from M5 on — M5 (two phones, live audio,
 chat under 200ms, an API redeploy with a room live), M6 (a real gift between two accounts,
@@ -809,7 +840,9 @@ developer account all queue behind the entity existing.
 Incorporation (name now settled) · TRAI DLT or WhatsApp Business verification ·
 Google Play developer account · Razorpay + RazorpayX KYC · **CA: TDS section in
 writing** · CA: agency commission TDS (likely 194H) · RTC vendor on real pricing ·
-gaming-law written opinion · Hive account.
+gaming-law written opinion · Hive account · **for M21: a DigitalOcean account and token,
+dhun.live nameservers at DigitalOcean, a LiveKit Cloud project, two private R2 buckets
+(Terraform state, analytics), a Telegram bot or Slack webhook, an Expo token.**
 
 ---
 

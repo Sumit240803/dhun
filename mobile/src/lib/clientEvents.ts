@@ -5,14 +5,12 @@
 // same table as the server's errors. Pure — the sender is injected — so the
 // batching rules are testable without a network.
 //
-// Rules, each for a reason:
-//   · An error flushes within a second; everything else waits longer and
-//     rides along. A crash report is time-sensitive; a warning is not.
-//   · A batch that fails to send is DROPPED, never requeued. A reporter that
-//     retries into an outage makes the outage worse, and a report about the
-//     reporter failing would loop.
-//   · The queue is bounded. Past the cap the OLDEST go — during an incident
-//     the most recent report is the one that explains it.
+// The batching rules live in batcher.ts and are shared with analytics. What
+// is specific here: an error is urgent (sent within a second, a crash report
+// is time-sensitive), and every report is shaped to the server's schema first,
+// so a bad one never costs a request.
+
+import { createBatcher } from './batcher';
 
 export type ClientEventLevel = 'info' | 'warn' | 'error';
 
@@ -79,65 +77,26 @@ export function conformEvent(input: ClientEvent): ClientEvent | null {
 }
 
 export function createEventQueue(options: EventQueueOptions): EventQueue {
-  const maxBatch = Math.min(options.maxBatch ?? 20, 20);
-  const maxQueued = options.maxQueued ?? 100;
-  const errorFlushMs = options.errorFlushMs ?? 1_000;
-  const flushMs = options.flushMs ?? 10_000;
-  const setTimer = options.setTimer ?? setTimeout;
-  const clearTimer = options.clearTimer ?? clearTimeout;
-
-  let queue: ClientEvent[] = [];
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  let timerDueAt = Infinity;
-  let sending: Promise<void> | undefined;
-
-  const schedule = (afterMs: number) => {
-    const dueAt = Date.now() + afterMs;
-    if (timer && dueAt >= timerDueAt) return;
-    if (timer) clearTimer(timer);
-    timerDueAt = dueAt;
-    timer = setTimer(() => {
-      timer = undefined;
-      timerDueAt = Infinity;
-      void flush();
-    }, afterMs);
-  };
-
-  const flush = async (): Promise<void> => {
-    if (timer) {
-      clearTimer(timer);
-      timer = undefined;
-      timerDueAt = Infinity;
-    }
-    if (sending) await sending;
-    if (queue.length === 0) return;
-
-    const batch = queue.slice(0, maxBatch);
-    queue = queue.slice(maxBatch);
-
-    sending = options
-      .send(batch)
-      .catch(() => undefined)
-      .finally(() => {
-        sending = undefined;
-      });
-    await sending;
-
-    if (queue.length > 0) schedule(0);
-  };
+  const batcher = createBatcher<ClientEvent>({
+    send: options.send,
+    // The server accepts at most 20 a batch.
+    maxBatch: Math.min(options.maxBatch ?? 20, 20),
+    maxQueued: options.maxQueued ?? 100,
+    flushMs: options.flushMs ?? 10_000,
+    urgentMs: options.errorFlushMs ?? 1_000,
+    isUrgent: (event) => event.level === 'error',
+    setTimer: options.setTimer,
+    clearTimer: options.clearTimer,
+  });
 
   return {
     push(event) {
       const shaped = conformEvent(event);
-      if (!shaped) return;
-      if (queue.length >= maxQueued) queue.shift();
-      queue.push(shaped);
-      if (queue.length >= maxBatch) schedule(0);
-      else schedule(shaped.level === 'error' ? errorFlushMs : flushMs);
+      if (shaped) batcher.push(shaped);
     },
-    flush,
+    flush: () => batcher.flush(),
     get size() {
-      return queue.length;
+      return batcher.size;
     },
   };
 }

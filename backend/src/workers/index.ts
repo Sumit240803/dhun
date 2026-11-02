@@ -31,7 +31,8 @@ import { agencyMembershipSweepJob } from './jobs/agency.js';
 import { purgeRoomHourScoresJob, roomHourRollupJob } from './jobs/board.js';
 import { pkMatchJob, pkSettleJob } from './jobs/pk.js';
 import { commissionCloseJob } from './jobs/commission.js';
-import { errorBurstCheckJob, purgeSystemEventsJob } from './jobs/events.js';
+import { dailySummaryJob, errorBurstCheckJob, purgeSystemEventsJob } from './jobs/events.js';
+import { analyticsExportJob, analyticsPartitionsJob } from './jobs/analytics.js';
 import { flushEvents, setEventLogProcess } from '../infra/eventLog.js';
 import { withConsumers } from './consumers.js';
 import { getEventPublisher, setEventPublisher } from './publisher.js';
@@ -56,6 +57,9 @@ export const JOBS: Job[] = [
   purgeRoomHourScoresJob,
   purgeSystemEventsJob,
   errorBurstCheckJob,
+  dailySummaryJob,
+  analyticsPartitionsJob,
+  analyticsExportJob,
 ];
 
 /**

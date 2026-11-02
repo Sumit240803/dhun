@@ -19,7 +19,6 @@
         "EXPO_PUBLIC_API_URL": "http://192.168.1.6:3000"
       }
     },
-
     "preview": {
       "distribution": "internal",
       "channel": "preview",
@@ -28,10 +27,10 @@
       },
       "env": {
         "EXPO_PUBLIC_ENV": "staging",
-        "EXPO_PUBLIC_API_URL": "https://api-staging.dhun.live"
+        "EXPO_PUBLIC_API_URL": "https://api-staging.dhun.live",
+        "EXPO_PUBLIC_GATEWAY_URL": "wss://gateway-staging.dhun.live"
       }
     },
-
     "production": {
       "distribution": "store",
       "channel": "production",
@@ -40,7 +39,8 @@
       },
       "env": {
         "EXPO_PUBLIC_ENV": "production",
-        "EXPO_PUBLIC_API_URL": "https://api.dhun.live"
+        "EXPO_PUBLIC_API_URL": "https://api.dhun.live",
+        "EXPO_PUBLIC_GATEWAY_URL": "wss://gateway.dhun.live"
       }
     }
   },

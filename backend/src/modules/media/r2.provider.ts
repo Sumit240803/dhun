@@ -81,3 +81,38 @@ export const r2: MediaProvider = {
     }
   },
 };
+
+/**
+ * Whether the PRIVATE archive bucket is configured: the R2 credentials plus
+ * ANALYTICS_BUCKET. Separate from the media bucket on purpose — that one is
+ * public (R2_PUBLIC_URL serves it), and analytics rows written there would be
+ * readable by anyone who guessed a key.
+ */
+export function isArchiveConfigured(): boolean {
+  return Boolean(
+    config.media.accountId &&
+      config.media.accessKeyId &&
+      config.media.secretAccessKey &&
+      config.archive.bucket &&
+      config.archive.bucket !== config.media.bucket,
+  );
+}
+
+/** Writes one object to the private archive bucket. Server-side only; never presigned. */
+export async function putArchiveObject(input: {
+  key: string;
+  body: Buffer;
+  contentType: string;
+  contentEncoding?: string;
+}): Promise<void> {
+  if (!isArchiveConfigured()) throw new Error('archive bucket is not configured');
+  await s3().send(
+    new PutObjectCommand({
+      Bucket: config.archive.bucket,
+      Key: input.key,
+      Body: input.body,
+      ContentType: input.contentType,
+      ContentEncoding: input.contentEncoding,
+    }),
+  );
+}

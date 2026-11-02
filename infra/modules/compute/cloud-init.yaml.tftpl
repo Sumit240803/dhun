@@ -1,0 +1,85 @@
+#cloud-config
+# Bootstraps a Dhun host ONCE. Holds no secrets: the app env arrives with the
+# first deploy (dhun-deploy env), never through droplet metadata, which any
+# process on the host can read at 169.254.169.254.
+#
+# Terraform ignores changes to this after creation (see compute/main.tf), so a
+# secret rotation or a new release never replaces a droplet. Changing the
+# bootstrap itself means `terraform apply -replace=...` on purpose.
+
+package_update: true
+package_upgrade: true
+packages:
+  - docker.io
+  - fail2ban
+  - unattended-upgrades
+  - curl
+
+users:
+  - default
+  - name: deploy
+    shell: /bin/bash
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ${deploy_public_key}
+    # The deploy key may run exactly one command as root.
+    sudo: "ALL=(root) NOPASSWD: /usr/local/bin/dhun-deploy"
+
+write_files:
+  - path: /etc/dhun/db-ca.crt
+    encoding: b64
+    content: ${ca_b64}
+    permissions: "0644"
+  - path: /etc/systemd/system/dhun@.service
+    encoding: b64
+    content: ${unit_b64}
+    permissions: "0644"
+  - path: /usr/local/bin/dhun-deploy
+    encoding: b64
+    content: ${deploy_b64}
+    permissions: "0755"
+  - path: /etc/dhun/host.env
+    permissions: "0644"
+    content: |
+      DHUN_ENV=${env}
+      DHUN_SERVICES="${join(" ", services)}"
+      DHUN_RUNS_MIGRATIONS=${runs_migrations}
+%{ for svc in services ~}
+  - path: /etc/dhun/${svc}.unit.env
+    permissions: "0644"
+    content: |
+      COMMAND=${svc}
+      PUBLISH=${publish[svc]}
+  - path: /etc/dhun/${svc}.env
+    permissions: "0644"
+    content: |
+      DB_POOL_MAX=${pool[svc]}
+%{ endfor ~}
+  - path: /etc/ssh/sshd_config.d/90-dhun.conf
+    permissions: "0644"
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin prohibit-password
+  - path: /etc/docker/daemon.json
+    permissions: "0644"
+    content: |
+      {"log-driver": "journald", "live-restore": true}
+  - path: /etc/systemd/journald.conf.d/90-dhun.conf
+    permissions: "0644"
+    content: |
+      [Journal]
+      SystemMaxUse=2G
+      MaxRetentionSec=14day
+
+runcmd:
+  # The deploy user is deliberately NOT in the docker group: that group is
+  # root by another name. Everything it does goes through sudo dhun-deploy.
+  - [systemctl, enable, --now, docker]
+  - [systemctl, restart, systemd-journald]
+  - [systemctl, reload, ssh]
+  - [systemctl, enable, --now, fail2ban]
+  - [systemctl, daemon-reload]
+%{ for svc in services ~}
+  - [systemctl, enable, "dhun@${svc}"]
+%{ endfor ~}

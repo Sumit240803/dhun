@@ -22,6 +22,7 @@ export interface Nav {
     | 'catalog'
     | 'log'
     | 'events'
+    | 'metrics'
     | 'switches';
   /** Pending counts, shown as badges. A queue you cannot see is a queue nobody works. */
   counts?: { verifications: number; faceChecks: number; reports: number; appeals: number };
@@ -168,6 +169,7 @@ const TABS: { key: Nav['active']; href: string; label: string }[] = [
   { key: 'catalog', href: '/admin/catalog', label: 'Catalog' },
   { key: 'log', href: '/admin/log', label: 'Enforcement log' },
   { key: 'events', href: '/admin/events', label: 'Events' },
+  { key: 'metrics', href: '/admin/metrics', label: 'Metrics' },
   { key: 'switches', href: '/admin/switches', label: 'Switches' },
 ];
 

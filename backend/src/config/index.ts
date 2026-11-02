@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+/** An env var left blank in a deploy's env file (KEY=) means unset, not an empty value. */
+const blankIsUnset = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((v) => (v === '' ? undefined : v), schema.optional());
+
 const schema = z.object({
   NODE_ENV: z.string().default('development'),
   PORT: z.coerce.number().default(3000),
@@ -13,8 +17,21 @@ const schema = z.object({
   CORS_ORIGINS: z.string().default(''),
   // Caps a runaway query so one bad plan cannot exhaust the pool.
   DB_STATEMENT_TIMEOUT_MS: z.coerce.number().default(10_000),
+  // Connections this PROCESS may hold. Three processes share one database, and
+  // a managed Postgres caps connections by size (DigitalOcean's 1 GB node
+  // allows 22 for the app). 20 each would be 60 against a ceiling of 22, and
+  // the third process to start would fail to connect. Set per process by the
+  // deploy (infra/) — the default suits one process on a laptop.
+  DB_POOL_MAX: z.coerce.number().int().min(1).max(200).default(20),
   REQUEST_TIMEOUT_MS: z.coerce.number().default(20_000),
   MAX_BODY_BYTES: z.coerce.number().default(262_144),
+  // memory: one process, counters lost on restart (development, tests).
+  // redis: shared by every instance and kept across deploys (staging, prod).
+  RATE_LIMIT_STORE: z.enum(['memory', 'redis']).default('memory'),
+  // The flood ceiling per IP per minute. 600 in production. Staging raises it
+  // so ONE machine can generate a load test's traffic (scripts/loadtest-gifts.ts);
+  // real users arrive from many addresses, so production never needs to.
+  GLOBAL_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(60).max(100_000).default(600),
 
   DATABASE_URL: z.string(),
   REDIS_URL: z.string(),
@@ -64,6 +81,9 @@ const schema = z.object({
   // cannot recompute.
   R2_PUBLIC_URL: z.string().optional(),
   R2_UPLOAD_TTL_MINUTES: z.coerce.number().int().min(1).max(60).default(10),
+  // The PRIVATE bucket the nightly analytics export writes to. Must differ from
+  // R2_BUCKET, which is public; the export refuses to run if they match.
+  ANALYTICS_BUCKET: blankIsUnset(z.string().regex(/^[a-z0-9][a-z0-9-]{2,62}$/)),
 
   LIVEKIT_URL: z.string().optional(),
   LIVEKIT_API_KEY: z.string().optional(),
@@ -95,6 +115,19 @@ const schema = z.object({
 
   RTC_APP_ID: z.string().optional(),
   RTC_SERVER_SECRET: z.string().optional(),
+
+  // ── Alerts (infra/alerts.ts) ──────────────────────────────────────────────
+  //
+  // All optional: with none set, alerts are log lines and event-log rows only.
+  // The bot token and the webhook URL are credentials — whoever holds one can
+  // post into the channel — and are never logged or echoed.
+  ALERT_TELEGRAM_BOT_TOKEN: blankIsUnset(z.string()),
+  ALERT_TELEGRAM_CHAT_ID: blankIsUnset(z.string().regex(/^-?\d{1,20}$/, 'A numeric Telegram chat id')),
+  ALERT_WEBHOOK_URL: blankIsUnset(z.string().url().startsWith('https://')),
+  // "staging" / "prod" in the message, so a phone can tell them apart.
+  ALERT_ENV_LABEL: blankIsUnset(z.string().max(20)),
+  // Where the admin panel lives, for the link at the end of a message.
+  ALERT_LINK_BASE: blankIsUnset(z.string().url()),
 });
 
 const env = schema.parse(process.env);
@@ -115,8 +148,11 @@ export const config = {
           : env.TRUST_PROXY,
   corsOrigins: env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean),
   dbStatementTimeoutMs: env.DB_STATEMENT_TIMEOUT_MS,
+  dbPoolMax: env.DB_POOL_MAX,
   requestTimeoutMs: env.REQUEST_TIMEOUT_MS,
   maxBodyBytes: env.MAX_BODY_BYTES,
+  rateLimitStore: env.RATE_LIMIT_STORE,
+  globalRateLimitPerMinute: env.GLOBAL_RATE_LIMIT_PER_MINUTE,
 
   databaseUrl: env.DATABASE_URL,
   redisUrl: env.REDIS_URL,
@@ -208,4 +244,16 @@ export const config = {
   },
 
   rtc: { appId: env.RTC_APP_ID, serverSecret: env.RTC_SERVER_SECRET },
+
+  archive: {
+    bucket: env.ANALYTICS_BUCKET,
+  },
+
+  alerts: {
+    telegramBotToken: env.ALERT_TELEGRAM_BOT_TOKEN || undefined,
+    telegramChatId: env.ALERT_TELEGRAM_CHAT_ID || undefined,
+    webhookUrl: env.ALERT_WEBHOOK_URL || undefined,
+    envLabel: env.ALERT_ENV_LABEL || env.NODE_ENV,
+    linkBase: env.ALERT_LINK_BASE || undefined,
+  },
 };

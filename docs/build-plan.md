@@ -993,6 +993,88 @@ less the items that wait on a decision (listed at the end).
 **Exit criteria met:** 605 backend tests · 173 mobile ·
 `npm run check` clean · CI green.
 
+### M21 · Running it — BUILT; every apply step waits on the founder's accounts
+
+**Status 2026-11-02:** all six slices are built and tested locally. No exit criterion is
+met yet, and none can be until the accounts below exist: each one is "on staging", and
+there is no staging. What was verified without an account is listed per slice under
+**Built** at the end of this entry.
+
+**Agreed 2026-11-02.** The code passes CI on a laptop and runs nowhere else. M21 is the
+gap between "the code exists" and "the code runs in three environments, deploys without
+a person watching, and tells someone when it breaks". No product feature is in it.
+
+**Provider: DigitalOcean, Bangalore (`blr1`).** Chosen over Hetzner on 2026-11-02:
+Hetzner's only Asian location is Singapore at a markup, its shared plans showed
+"currently unavailable", its dedicated line repriced twice in 2026, and it has no managed
+Postgres — which would leave the ledger's backups and point-in-time recovery to one
+person by hand. Compute can move later without touching the database; the modules are
+split for exactly that. Media stays on Cloudflare R2 (no egress fee, already wired).
+LiveKit Cloud for staging and the beta; self-hosting waits for real minutes.
+
+| Slice | What | Exit (binary) |
+|---|---|---|
+| 1 · Infrastructure | One Dockerfile for all three processes; Terraform in `infra/` for staging and prod (VPC, droplets, managed Postgres + Valkey, load balancer with TLS, DNS, firewall, uptime checks); secrets from a git-ignored tfvars file | `terraform apply` from an empty account gives a staging whose `/ready` answers over TLS and a dev build on a phone signs in |
+| 2 · Deploy pipeline | Image built on every green `main`, pushed to GHCR; migrations as a one-off job before the API restarts; API and workers rolled, gateway rolled on its own; prod only from a `v*` tag | A merge reaches staging with nobody typing a command; a room stays live through an API redeploy |
+| 3 · Alerting | Real transports behind `AlertTransport` (Telegram, Slack-compatible webhook), deduplicated by key; external uptime checks; a daily summary so silence is confirmed, not assumed | Stop Postgres on staging and a phone buzzes within five minutes |
+| 4 · OTA | `expo-updates` wired to the three channels; fingerprint runtime so a native change can never be delivered as JS; publish step in the pipeline; update id on every report | A string change reaches a staging phone without a reinstall |
+| 5 · Analytics sink | `POST /v1/client/analytics`, a day-partitioned table, 90-day retention, nightly NDJSON export to R2, SQL views and an admin Metrics screen | Yesterday's funnel from app opened to first gift is one query |
+| 6 · Hardening | Rate limits in Redis so they hold across instances and restarts; staff accounts only from a script, no default credential anywhere; gift-path load test | No default credential exists; the gift path holds p95 under 200ms at 100 gifts/s on staging |
+
+**Kafka is deliberately not in M21.** The outbox plus the Redis bus carries every event
+at this scale and the seam is drawn (`infra/eventBus.ts`, `workers/publisher.ts`). A
+Kafka cluster is the most expensive line in the day-1 list for the least benefit before
+10K DAU; it is revisited when the analytics sink needs a second consumer.
+
+**Needs from the founder, gating only the apply steps:** a DigitalOcean account with
+billing and a token; `dhun.live` nameservers pointed at DigitalOcean (or four records
+pasted by hand); a LiveKit Cloud project; a Telegram bot or a Slack webhook for alerts;
+an `EXPO_TOKEN` for the OTA publish step. Everything else is built and tested without them.
+
+**Built (2026-11-02):**
+
+- **Slice 1.** `backend/Dockerfile` (one image; `api`, `gateway`, `worker`, `migrate`,
+  `grants`, `staff`, `loadtest-seed`), run against local Postgres and Redis in every mode,
+  SIGTERM reaching Node through tini. `infra/` Terraform for the DNS root, staging and prod
+  through one `stack` module; `terraform validate` passes for all three roots and the
+  rendered cloud-init parses. `/ready` checks Postgres AND Valkey with a 2-second bound.
+  `DB_POOL_MAX` per process. The admin cookie is Secure on staging too. `eas.json` gives
+  the deployed builds an explicit gateway URL. Steps 8 and 9 (apply staging, plan prod)
+  wait on the account. Walkthrough: `infra/README.md`.
+- **Slice 2.** `.github/workflows/deploy.yml` and `infra/scripts/deploy.sh`, inert until
+  `DEPLOY_ENABLED=true`. CI now also builds the image and validates Terraform on every
+  push. The rollout order was dry-run with a recording `ssh`: prepare every host, migrate
+  once, release the API host, then the gateway host. `dhun-deploy` refuses unpinned images
+  and env files without a database URL, and rolls a host back if it is not healthy in 90 s.
+- **Slice 3.** Telegram and Slack-compatible webhook transports beside the log; repeats
+  folded per key (30 min for a page, 2 h for a warning) with a count; detail redacted
+  before it leaves; a transport failure is a warning so it cannot feed the burst check.
+  `daily_summary` at 09:30 IST. DigitalOcean uptime checks from three regions, certificate
+  expiry, host CPU/memory/disk alerts, all in Terraform.
+- **Slice 4.** `expo-updates` installed; fingerprint runtime already in `app.json`. A long
+  absence outside a room checks, fetches and reloads (`lib/otaPolicy.ts`); never inside a
+  room, open or minimised. Every report carries the running update id. The OTA job reads
+  `EXPO_PUBLIC_*` from `eas.json`, because `eas update` does not, and publishes only when
+  `mobile/` changed since the channel's last update. **The next dev build is required**
+  before OTA can be tried: adding a native module changes the fingerprint.
+- **Slice 5.** Migration 039 (`analytics_events` by IST day, 90 days, owner-run partition
+  functions), `POST /v1/client/analytics`, `analytics_funnel(day)`, money read from the
+  ledger's tables only, nightly NDJSON export to a PRIVATE bucket, `/admin/metrics`. The
+  app batches events through the batcher it now shares with error reports.
+- **Slice 6.** Rate limits in Redis (atomic, fail open to per-process); staff accounts only
+  from `scripts/staff.ts` with a generated password; a credential audit at every API start
+  that pages on a known password; pool exhaustion now a retryable 503, not a 500; the
+  global per-IP ceiling is a config dial. Load test: `scripts/loadtest-seed.ts` and
+  `loadtest-gifts.ts`.
+
+**What the local load test found** (laptop, Docker Postgres, one API process; staging is
+the measurement that counts): spread over 10 rooms, 100 gifts/s held p95 30–70 ms after a
+two-second warm-up. One room is clean at 40 gifts/s and queues at 70, because every gift
+to one host updates that host's balance row. That is a ledger decision, so it is written
+as **ledger-decisions § F6, open for the founder**, with three options, and not changed
+here. It also found that an exhausted connection pool answered 500 after a 5-second wait;
+that is fixed (503, retried by the app with the same idempotency key).
+
 ---
 
 ## Admin panel — threaded, not a milestone

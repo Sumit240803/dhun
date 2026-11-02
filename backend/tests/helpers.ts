@@ -49,6 +49,7 @@ export async function resetLedger(): Promise<void> {
     await c.query('DELETE FROM room_sessions');
     await c.query('DELETE FROM live_notifications');
     await c.query('DELETE FROM system_events');
+    await c.query('DELETE FROM analytics_events');
     // TRUNCATE, not DELETE: the append-only trigger refuses a row delete, and
     // it is right to — the log is evidence. TRUNCATE does not fire row
     // triggers, which is exactly what a test reset wants.

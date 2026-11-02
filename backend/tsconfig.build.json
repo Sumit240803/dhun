@@ -1,0 +1,17 @@
+{
+  // The image build. Separate from tsconfig.json because the migration runner
+  // lives in scripts/, outside rootDir "src", and the image must ship it.
+  //
+  // rootDir "." keeps the relative layout the code depends on:
+  //   build/src/app.js          resolves ../public/      → build/public/
+  //   build/scripts/migrate.js  resolves ../migrations/  → build/migrations/
+  // The Dockerfile copies public/ and migrations/ to those two places.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "build",
+    "sourceMap": true,
+    "noEmit": false
+  },
+  "include": ["src/**/*", "scripts/migrate.ts", "scripts/staff.ts", "scripts/loadtest-seed.ts"]
+}

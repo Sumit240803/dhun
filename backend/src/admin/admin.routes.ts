@@ -42,7 +42,16 @@ import {
 } from '../modules/verification/index.js';
 import { buildAgencyPages } from './agencies.routes.js';
 import { buildCatalogPages } from './catalog.routes.js';
-import { eventCounts, listEvents, topFingerprints } from '../modules/telemetry/index.js';
+import {
+  dailyActive,
+  dailyMoney,
+  eventCounts,
+  funnel,
+  listEvents,
+  retention,
+  topFingerprints,
+} from '../modules/telemetry/index.js';
+import { metricsPage } from './pages.metrics.js';
 import { eventsPage } from './pages.events.js';
 import { html } from './html.js';
 import { asText, CAN_SUSPEND, CAN_SWITCH, nav } from './nav.js';
@@ -590,6 +599,19 @@ export function buildAdminRouter(): Router {
       res.send(
         page(await nav(req, 'events'), 'Events', eventsPage({ counts, groups, events, filter, filtered })),
       );
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // ── Metrics ─────────────────────────────────────────────────────────────
+  //
+  // Ops only: revenue and per-day activity are business numbers, not
+  // moderation tools.
+  router.get('/metrics', requireRoles(...CAN_SWITCH), async (req, res, next) => {
+    try {
+      const [f, active, money, cohorts] = await Promise.all([funnel(), dailyActive(14), dailyMoney(14), retention(14)]);
+      res.send(page(await nav(req, 'metrics'), 'Metrics', metricsPage({ funnel: f, active, money, cohorts })));
     } catch (err) {
       next(err);
     }

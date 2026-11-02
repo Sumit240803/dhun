@@ -14,7 +14,8 @@ import { ApiError } from '@/api/client';
 import { getDeviceId } from '@/features/auth/device';
 import { restoreSession } from '@/features/auth/session';
 import { UpdateGate } from '@/features/config/UpdateGate';
-import { startAnalyticsSession, track } from '@/lib/analytics';
+import { useOtaUpdates } from '@/features/config/useOtaUpdates';
+import { flushAnalytics, startAnalyticsSession, startHttpAnalytics, track } from '@/lib/analytics';
 import { initNetworkMonitor } from '@/lib/network';
 import { flushReports, initReporting } from '@/lib/reporting';
 import { MODE, colors } from '@/theme';
@@ -26,6 +27,8 @@ SplashScreen.preventAutoHideAsync();
 // Crash reporting starts before anything else, so a failure during bootstrap is
 // still captured. No-ops when no DSN is configured.
 initReporting();
+// Product events post to the API from here on (lib/analytics.ts).
+startHttpAnalytics();
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -46,6 +49,8 @@ export default function RootLayout() {
   const { isReady } = useSession();
   const isAuthenticated = useIsAuthenticated();
   const isRegistered = useIsRegistered();
+  // A long absence outside a room picks up a published fix (lib/otaPolicy.ts).
+  useOtaUpdates();
   const [bootstrapped, setBootstrapped] = useState(false);
 
   useEffect(() => {
@@ -71,7 +76,10 @@ export default function RootLayout() {
     // Queued error reports go out before the OS may kill a backgrounded app;
     // a crash's report is otherwise the first thing lost.
     const appState = AppState.addEventListener('change', (next) => {
-      if (next === 'background') void flushReports();
+      if (next === 'background') {
+        void flushReports();
+        void flushAnalytics();
+      }
     });
 
     return () => {
