@@ -808,9 +808,10 @@ roles re-read from the database on every request, and a CSRF token in every form
 (build-plan M19, M20). Still to build: OAuth (Google / Facebook / Instagram) · withdrawal
 and the rest of host payouts (M8) · Hive moderation and the rest of trust & safety (M9;
 reports queue and appeals are done) · platform rankings and the region picker (both
-waiting on a decision) · the decision-bound Phase 1 items (1-on-1 calls, fan club, lucky
-wheel, nearby, quiz, karaoke, voice effects, weekly events — build-plan M20 lists what
-each waits on) · VIP's stealth, global badge and priority-mic perks (listed as "soon";
+waiting on a decision) · the decision-bound Phase 1 items (fan club, lucky wheel, nearby,
+quiz, karaoke, voice effects, weekly events — build-plan M20 lists what each waits on;
+1-on-1 paid calls were DROPPED from the plan on 2026-11-02 and `private_call_charge` must
+stay inactive) · VIP's stealth, global badge and priority-mic perks (listed as "soon";
 need gateway and seat-table enforcement) · beauty filters · stand-in
 art files · Firebase credentials for Android push · the legal screens' actual text and the
 Grievance Officer's name · Kafka (deliberately deferred, build-plan M21). The M21 running

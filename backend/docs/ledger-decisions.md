@@ -230,6 +230,11 @@ a cosmetic appearing with no gem spend.
 `fan_club_join` · `fan_club_renewal` · `private_call_charge` · `room_entry_fee` ·
 `guardian_slot_purchase`
 
+`private_call_charge` belongs to a feature **dropped from the plan** (founder, 2026-11-02;
+build-plan M20). The row stays in migration 002 because migrations are never rewritten,
+and it stays `is_active = false`. Nothing may switch it on without the feature first
+coming back as an agreed scope change.
+
 Unlike cosmetics, these all have a **points leg** — the host earns from them.
 
 **Points lifecycle (3)**

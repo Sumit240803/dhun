@@ -981,7 +981,6 @@ less the items that wait on a decision (listed at the end).
 
 | Item | What is open |
 |---|---|
-| 1-on-1 paid calls | Per-minute price and the host's share; `private_call_charge` is seeded and inactive |
 | Fan club | Price, perks, and whether the host earns (it would be the first host-earning feature besides gifts) |
 | Lucky wheel | Only legal as a FREE daily spin — settle whether it exists at all |
 | Nearby | What a region is, and how precisely location may be used |
@@ -989,6 +988,13 @@ less the items that wait on a decision (listed at the end).
 | Karaoke | Music licensing |
 | Voice effects, auto-preview | Native media processing; after the device pass |
 | Weekly events, platform rankings | The daily/weekly ranking decision |
+
+**Dropped, 2026-11-02 (founder): 1-on-1 paid calls.** Removed from the plan, not
+postponed. A private paid video call between strangers is where nudity, solicitation and
+contact with minors concentrate on apps of this kind, and it would have needed M9's
+moderation in place first. `private_call_charge` stays in migration 002, inactive, because
+migrations are never rewritten; nothing may switch it on. Bringing the feature back is a
+new scope change, agreed in this file first.
 
 **Exit criteria met:** 605 backend tests · 173 mobile ·
 `npm run check` clean · CI green.
@@ -1107,6 +1113,8 @@ guardian slots · CP pairing · family/guild · stealth mode
 
 **Never build:** lucky gifts · mystery boxes · any paid chance-based game · user-to-user
 currency transfer · a lucky wheel that costs coins to spin.
+
+*(Private 1-on-1 calls were dropped from the plan entirely on 2026-11-02 — see M20.)*
 
 *(M20 later brought in polls, VIP, fan levels, DMs, the friend list, trending, daily
 tasks and super messages — Phase 1, after Phase 0 was finished. The rest of the list
