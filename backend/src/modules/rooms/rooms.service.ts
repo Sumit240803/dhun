@@ -29,6 +29,8 @@ export interface FeedRoom {
   title: string;
   tag: string;
   country: string;
+  /** ISO 639 code (shared/languages.ts). */
+  language: string;
   /**
    * Null while the cold-start rules hide counts. "3 watching" on every card is
    * what makes a new app look empty; a Live badge alone does not.
@@ -61,6 +63,7 @@ interface Row {
   title: string;
   tag: string;
   country: string;
+  language: string;
   viewer_count: number;
   cover_url: string | null;
   seats_taken: number;
@@ -81,6 +84,8 @@ interface Row {
  */
 export async function listFeed(input: {
   category: FeedCategory;
+  /** Only rooms in this language. Absent means all of them. */
+  language?: string;
   viewerId?: string;
   limit: number;
   offset: number;
@@ -125,6 +130,7 @@ export async function fullestRoom(viewerId: string | undefined): Promise<FeedRoo
 
 async function queryRooms(input: {
   category: FeedCategory | 'any';
+  language?: string;
   viewerId?: string;
   limit: number;
   offset: number;
@@ -169,6 +175,14 @@ async function queryRooms(input: {
     );
   }
 
+  // "Nearby" is a language, never a place (build-plan M20). Composes with any
+  // category, Following included — a user who follows hosts in two languages
+  // can still narrow to one.
+  if (input.language !== undefined) {
+    params.push(input.language);
+    filters.push(`r.language = $${params.length}`);
+  }
+
   params.push(input.limit, input.offset);
 
   const { rows } = await pool.query<Row>(
@@ -179,6 +193,7 @@ async function queryRooms(input: {
             r.title,
             r.tag,
             r.country,
+            r.language,
             r.viewer_count,
             r.cover_url,
             r.seats_taken,
@@ -225,6 +240,7 @@ function toFeedRoom(row: Row, hideViewerCounts: boolean, looks: Map<string, User
     title: row.title,
     tag: row.tag,
     country: row.country,
+    language: row.language,
     viewers: hideViewerCounts ? null : row.viewer_count,
     coverUrl: row.cover_url,
     seatCount: row.seat_capacity === null ? null : row.seats_taken,

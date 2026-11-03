@@ -18,6 +18,7 @@ import { AppError } from '../../infra/errors.js';
 import { recordEvent } from '../../infra/eventLog.js';
 import { logger } from '../../infra/logger.js';
 import { enqueueEvent } from '../../infra/outbox.js';
+import { defaultRoomLanguage, type Language } from '../../shared/languages.js';
 import { roomBackgroundPath, roomBackgrounds } from '../config/index.js';
 import { endBattlesForRoom } from '../games/index.js';
 import {
@@ -54,6 +55,8 @@ export interface LiveRoom {
   title: string;
   tag: string;
   country: string;
+  /** ISO 639 code (shared/languages.ts). How the feed answers "nearby". */
+  language: string;
   coverUrl: string | null;
   /**
    * The backdrop the room wears, as an asset PATH the client resolves against
@@ -88,6 +91,7 @@ interface RoomRow {
   title: string;
   tag: string;
   country: string;
+  language: string;
   cover_url: string | null;
   background_key: string | null;
   is_video: boolean;
@@ -104,7 +108,7 @@ interface RoomRow {
 // check fired on every live room and nobody could join anything.
 const ROOM_SELECT = `
   SELECT r.id, r.public_id, r.host_user_id, p.display_name AS host_name, r.title, r.tag, r.country,
-         r.cover_url, r.background_key, r.is_video, r.seat_capacity, r.seats_taken,
+         r.language, r.cover_url, r.background_key, r.is_video, r.seat_capacity, r.seats_taken,
          r.viewer_count, r.started_at, r.ended_at
     FROM rooms r
     LEFT JOIN user_profiles p ON p.user_id = r.host_user_id`;
@@ -122,6 +126,7 @@ async function toLiveRoom(row: RoomRow): Promise<LiveRoom> {
     title: row.title,
     tag: row.tag,
     country: row.country,
+    language: row.language,
     coverUrl: row.cover_url,
     backgroundPath: await roomBackgroundPath(row.background_key),
     video: row.is_video,
@@ -152,6 +157,8 @@ export async function goLive(input: {
   seatCapacity?: number;
   coverKey?: string;
   country?: string;
+  /** Absent takes the host's own default — see defaultRoomLanguage. */
+  language?: Language;
   /**
    * A face frame captured as they tapped Go Live.
    *
@@ -186,6 +193,10 @@ export async function goLive(input: {
   // and neither is worth holding a row lock for.
   const faceCheck = await planFaceCheck(input);
 
+  // Stored on the room, never derived on read: a host who later changes the
+  // languages on their profile must not move a room that is already live.
+  const language = input.language ?? (await hostDefaultLanguage(input.hostId));
+
   const backgrounds = await roomBackgrounds();
   const backgroundKey =
     backgrounds.length === 0
@@ -209,8 +220,8 @@ export async function goLive(input: {
 
     await client.query(
       `INSERT INTO rooms (id, host_user_id, title, tag, country, cover_url, cover_key,
-                          background_key, is_video, seat_capacity)
-            VALUES ($1, $2, $3, $4, COALESCE($5, 'IN'), $6, $9, $10, $7, $8)`,
+                          background_key, is_video, seat_capacity, language)
+            VALUES ($1, $2, $3, $4, COALESCE($5, 'IN'), $6, $9, $10, $7, $8, $11)`,
       [
         roomId,
         input.hostId,
@@ -222,6 +233,7 @@ export async function goLive(input: {
         input.seatCapacity ?? null,
         cover?.key ?? null,
         backgroundKey,
+        language,
       ],
     );
 
@@ -298,6 +310,15 @@ export async function goLive(input: {
  * a missing frame is a gap a later one fills, where a refused go-live is a
  * host who cannot earn tonight.
  */
+/** The host's first listed language, else their app language, else Hindi. */
+async function hostDefaultLanguage(hostId: string): Promise<Language> {
+  const { rows } = await pool.query<{ languages: string[]; locale: string | null }>(
+    'SELECT languages, locale FROM user_profiles WHERE user_id = $1',
+    [hostId],
+  );
+  return defaultRoomLanguage(rows[0]?.languages ?? [], rows[0]?.locale ?? null);
+}
+
 async function planFaceCheck(input: {
   hostId: string;
   faceKey?: string;

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { authGuard, optionalAuth, requireRegistered } from '../../middleware/authGuard.js';
 import { validate } from '../../middleware/validate.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
+import { userLanguagesSchema } from '../../shared/languages.js';
 import {
   createGuest,
   getSessionUser,
@@ -520,6 +521,9 @@ export function buildAuthRouter(): Router {
         // The two languages the app ships. Anything else would reach a push
         // template that has no copy for it.
         locale: z.enum(['en-IN', 'hi-IN']).optional(),
+        // The languages they speak, one to three, no repeats. Replaces the
+        // list whole — there is no "add one", so a retry cannot double it.
+        languages: userLanguagesSchema.optional(),
       }),
     ),
     async (req, res, next) => {

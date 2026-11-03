@@ -8,12 +8,13 @@ import { useQuery } from '@tanstack/react-query';
 
 import { configApi, messagesApi, roomsApi, usersApi } from '@/api/endpoints/feed';
 import { queryKeys } from '@/api/queries/keys';
-import type { FeedCategory, ThreadFilter } from '@/api/types';
+import type { FeedCategory, Language, ThreadFilter } from '@/api/types';
 
-export function useRoomFeed(category: FeedCategory) {
+/** `language` null means every language — the default, and what a guest sees. */
+export function useRoomFeed(category: FeedCategory, language: Language | null = null) {
   return useQuery({
-    queryKey: queryKeys.rooms.feed(category),
-    queryFn: async () => (await roomsApi.feed(category)).rooms,
+    queryKey: queryKeys.rooms.feed(category, language),
+    queryFn: async () => (await roomsApi.feed(category, language)).rooms,
     // A live feed is stale the moment it renders — a room that has ended is
     // worse than a room that is missing. Short window, refetched on focus.
     staleTime: 15_000,

@@ -251,8 +251,22 @@ export interface SessionUser {
    * authenticated, went straight to the feed, and was never asked again.
    */
   profileComplete: boolean;
+  /**
+   * The languages they said they speak, in their order. Empty until they say.
+   * Optional because a session stored by an older build lacks it — read it as
+   * `user.languages ?? []`.
+   */
+  languages?: Language[];
   roles: RoleGrant[];
 }
+
+/**
+ * A room's language, and the languages a person speaks. ISO 639 — Bhojpuri has
+ * only a three-letter code. The list itself is features/language/languages.ts,
+ * mirroring backend/src/shared/languages.ts.
+ */
+export type Language =
+  'hi' | 'en' | 'bho' | 'bn' | 'mr' | 'ta' | 'te' | 'kn' | 'ml' | 'gu' | 'pa' | 'or' | 'as' | 'ur';
 
 export interface TokenPair {
   accessToken: string;
@@ -304,6 +318,8 @@ export interface FeedRoom {
   tag: RoomTag;
   /** ISO 3166-1 alpha-2, rendered as a flag. */
   country: string;
+  /** Absent from a server older than migration 040. */
+  language?: Language;
   /** Null while cold start hides counts — the card then shows "Live" alone. */
   viewers: number | null;
   coverUrl: string | null;
@@ -346,6 +362,8 @@ export interface LiveRoom {
   title: string;
   tag: RoomTag;
   country: string;
+  /** Absent from a server older than migration 040. */
+  language?: Language;
   coverUrl: string | null;
   /**
    * The room's backdrop, as an asset PATH — resolve it with `assetUrl()`, the

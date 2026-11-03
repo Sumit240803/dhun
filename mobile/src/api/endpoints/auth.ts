@@ -8,6 +8,7 @@ import { api } from '@/api/client';
 import type {
   ActiveSession,
   DevicePayload,
+  Language,
   OtpRequestResponse,
   SessionResponse,
   SessionUser,
@@ -57,6 +58,8 @@ export const authApi = {
     avatarKey?: string;
     /** The app's language, so a push the server writes matches it. */
     locale?: 'en-IN' | 'hi-IN';
+    /** One to three, no repeats. Replaces the list whole. */
+    languages?: Language[];
   }) => api.patch<{ user: SessionUser }>('auth/profile', patch),
 
   logout: (deviceId?: string) => api.post<{ revoked: number }>('auth/logout', { deviceId }),

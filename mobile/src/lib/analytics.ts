@@ -41,6 +41,7 @@ export type AnalyticsEvent =
   | 'host_unfollowed'
   | 'search_performed'
   | 'category_selected'
+  | 'feed_language_selected'
   // room
   | 'room_joined'
   | 'room_left'

@@ -1,13 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, type Href } from 'expo-router';
+import { useRef } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
+import { EditLanguagesSheet } from '@/features/language/LanguagePicker';
+import { isLanguage, LANGUAGE_LABELS } from '@/features/language/languages';
 import { useTranslation, type MessageKey } from '@/i18n';
 import { haptic } from '@/lib/haptics';
 import { colors, spacing } from '@/theme';
 import { useSession } from '@/store/session';
-import { Card, Column, Divider, ListItem, Row, Screen, Text } from '@/ui';
+import { Card, Column, Divider, ListItem, Row, Screen, Text, type SheetHandle } from '@/ui';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -25,6 +28,8 @@ export default function AccountScreen() {
   // A phone-only account has no password to change. Showing the row anyway
   // would lead to a screen whose only content is "this does not apply to you".
   const hasPassword = user?.email != null;
+  const languages = (user?.languages ?? []).filter(isLanguage);
+  const languageSheet = useRef<SheetHandle>(null);
 
   const rows: {
     href: Href;
@@ -107,6 +112,30 @@ export default function AccountScreen() {
         </Animated.View>
 
         {/*
+          The languages they speak — set at signup, changed here. Every account
+          made before migration 040 starts empty, and this is where it fills.
+        */}
+        <Animated.View entering={FadeInDown.duration(280).delay(30)}>
+          <Card padded={false}>
+            <ListItem
+              title={t('language.accountRow')}
+              subtitle={
+                languages.length === 0
+                  ? t('language.accountRowEmpty')
+                  : languages.map((code) => t(LANGUAGE_LABELS[code])).join(', ')
+              }
+              left={<Ionicons name="language-outline" size={20} color={colors.text.secondary} />}
+              right={<Ionicons name="chevron-forward" size={18} color={colors.text.faint} />}
+              onPress={() => {
+                haptic.selection();
+                languageSheet.current?.present();
+              }}
+              testID="account-languages"
+            />
+          </Card>
+        </Animated.View>
+
+        {/*
           Separated from the rest by a gap and its own card, not merely coloured
           red at the bottom of a list. Deletion is permanent and unlike every
           other row here — the layout should say so before the copy does.
@@ -129,6 +158,9 @@ export default function AccountScreen() {
           </Column>
         </Animated.View>
       </ScrollView>
+
+      {/* Keyed on the saved list so reopening after a save starts from it. */}
+      <EditLanguagesSheet ref={languageSheet} initial={languages} key={languages.join(',')} />
     </Screen>
   );
 }

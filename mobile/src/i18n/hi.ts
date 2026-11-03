@@ -1225,6 +1225,45 @@ export const hi: Messages = {
     done: 'आप पहले से वेरिफ़ाइड हैं।',
   },
 
+  // Language names stay in their own script, identical to en.ts — see there.
+  language: {
+    hi: 'हिन्दी',
+    en: 'English',
+    bho: 'भोजपुरी',
+    bn: 'বাংলা',
+    mr: 'मराठी',
+    ta: 'தமிழ்',
+    te: 'తెలుగు',
+    kn: 'ಕನ್ನಡ',
+    ml: 'മലയാളം',
+    gu: 'ગુજરાતી',
+    pa: 'ਪੰਜਾਬੀ',
+    or: 'ଓଡ଼ିଆ',
+    as: 'অসমীয়া',
+    ur: 'اردو',
+
+    all: 'सभी भाषाएँ',
+    filterLabel: 'रूम की भाषा: {language}',
+    pickerTitle: 'इस भाषा के रूम दिखाएँ',
+    yours: 'आपकी भाषाएँ',
+    more: 'और भाषाएँ',
+
+    profileLabel: 'आप कौन-सी भाषाएँ बोलते हैं',
+    profileHelp: 'ज़्यादा से ज़्यादा 3 चुनें। इन्हीं से तय होता है कि हम पहले कौन-से रूम सुझाएँ।',
+    limitReached: 'आप ज़्यादा से ज़्यादा 3 चुन सकते हैं। नई जोड़ने के लिए एक हटाएँ।',
+
+    accountRow: 'भाषाएँ',
+    accountRowEmpty: 'वे भाषाएँ चुनें जो आप बोलते हैं',
+    editTitle: 'आप कौन-सी भाषाएँ बोलते हैं',
+
+    roomLabel: 'रूम की भाषा',
+    roomPickerTitle: 'इस रूम में आप किस भाषा में बात करेंगे?',
+
+    emptyTitle: 'अभी {language} में कोई रूम नहीं है',
+    emptyBody: 'इस समय {language} में कोई लाइव नहीं है। सभी भाषाएँ देखें, या खुद इसमें लाइव जाएँ।',
+    emptyAction: 'सभी भाषाएँ दिखाएँ',
+  },
+
   legal: {
     privacy: 'प्राइवेसी पॉलिसी',
     terms: 'सेवा की शर्तें',

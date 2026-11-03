@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -9,7 +9,9 @@ import { useMyAppeal } from '@/api/queries/useAppeal';
 import { useGoLive } from '@/api/queries/useRoom';
 import { getDeviceId } from '@/features/auth/device';
 import { captureFaceForGoLive } from '@/features/verification/faceCapture';
-import { ApiErrorCode, type RoomTag } from '@/api/types';
+import { ApiErrorCode, type Language, type RoomTag } from '@/api/types';
+import { LanguagePickerSheet } from '@/features/language/LanguagePicker';
+import { LANGUAGE_LABELS, languageFromLocale } from '@/features/language/languages';
 import { CoverPicker } from '@/features/media/CoverPicker';
 import { useFlag } from '@/config/flags';
 import { useTranslation, type MessageKey } from '@/i18n';
@@ -17,8 +19,20 @@ import { track } from '@/lib/analytics';
 import { errorMessage, isErrorCode, traceReference } from '@/lib/errors';
 import { haptic } from '@/lib/haptics';
 import { colors, radius, spacing } from '@/theme';
-import { useIsRegistered } from '@/store/session';
-import { Banner, Button, Card, Chip, Column, EmptyState, Input, Row, Screen, Text } from '@/ui';
+import { useIsRegistered, useSession } from '@/store/session';
+import {
+  Banner,
+  Button,
+  Card,
+  Chip,
+  Column,
+  EmptyState,
+  Input,
+  Row,
+  Screen,
+  Text,
+  type SheetHandle,
+} from '@/ui';
 
 const TAGS: { value: RoomTag; label: MessageKey }[] = [
   { value: 'chatting', label: 'room.tagChatting' },
@@ -40,13 +54,14 @@ const PARTY_SEATS = 9;
 /**
  * Starting a broadcast.
  *
- * Three decisions and one button. Everything else a host might want to
- * configure — cover image, region, video — is either derived or deferred,
+ * A few decisions and one button. Everything else a host might want to
+ * configure — video, say — is either derived or deferred. The language is
+ * pre-filled from their profile, so it costs a tap only when it differs —
  * because the screen someone sees before going live for the first time is the
  * wrong place to ask eight questions.
  */
 export default function GoLiveScreen() {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const goLive = useGoLive();
   const [coverKey, setCoverKey] = useState<string | null>(null);
   const [coverUri, setCoverUri] = useState<string | null>(null);
@@ -63,6 +78,14 @@ export default function GoLiveScreen() {
   const [party, setParty] = useState(true);
   const [seats, setSeats] = useState<number>(PARTY_SEATS);
   const [touched, setTouched] = useState(false);
+  // What the room is in — how viewers find it ("nearby" is a language, never
+  // a place). Starts on the host's first listed language, else the app's, so
+  // most hosts never open the picker.
+  const ownLanguages = useSession().user?.languages ?? [];
+  const [language, setLanguage] = useState<Language>(
+    () => ownLanguages[0] ?? languageFromLocale(locale),
+  );
+  const languageSheet = useRef<SheetHandle>(null);
 
   const trimmed = title.trim();
   const valid = trimmed.length > 0 && trimmed.length <= 60;
@@ -85,6 +108,7 @@ export default function GoLiveScreen() {
       {
         title: trimmed,
         tag,
+        language,
         ...(party ? { seatCapacity: seats } : {}),
         ...(coverKey !== null ? { coverKey } : {}),
         ...(faceKey !== null ? { faceKey } : {}),
@@ -241,6 +265,30 @@ export default function GoLiveScreen() {
               </Row>
             </Column>
 
+            <Pressable
+              onPress={() => {
+                haptic.tap();
+                languageSheet.current?.present();
+              }}
+              disabled={goLive.isPending}
+              accessibilityRole="button"
+              accessibilityLabel={t('language.roomLabel')}
+              accessibilityValue={{ text: t(LANGUAGE_LABELS[language]) }}
+              style={({ pressed }) => [
+                styles.languageField,
+                pressed && styles.languageFieldPressed,
+              ]}
+              testID="room-language"
+            >
+              <Text variant="caption" tone="secondary">
+                {t('language.roomLabel')}
+              </Text>
+              <Row gap="xs">
+                <Text variant="bodyStrong">{t(LANGUAGE_LABELS[language])}</Text>
+                <Ionicons name="chevron-down" size={16} color={colors.text.faint} />
+              </Row>
+            </Pressable>
+
             <Column gap="sm">
               <Text variant="caption" tone="secondary">
                 {t('room.roomType')}
@@ -337,6 +385,18 @@ export default function GoLiveScreen() {
           />
         </KeyboardStickyView>
       </View>
+
+      <LanguagePickerSheet
+        ref={languageSheet}
+        title={t('language.roomPickerTitle')}
+        value={language}
+        own={ownLanguages}
+        allowAll={false}
+        onPick={(next) => {
+          if (next !== null) setLanguage(next);
+        }}
+        testID="room-language"
+      />
     </Screen>
   );
 }
@@ -395,4 +455,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg.surface,
   },
   typeSelected: { borderColor: colors.brand.accent, backgroundColor: colors.brand.soft },
+  languageField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 52,
+    paddingHorizontal: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    borderRadius: radius.md,
+    backgroundColor: colors.bg.surface,
+  },
+  languageFieldPressed: { backgroundColor: colors.bg.pressed },
 });

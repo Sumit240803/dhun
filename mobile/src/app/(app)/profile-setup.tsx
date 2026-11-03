@@ -8,7 +8,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
 import { discoverApi } from '@/api/endpoints/growth';
 import { authApi } from '@/api/endpoints/auth';
-import { ApiErrorCode } from '@/api/types';
+import { ApiErrorCode, type Language } from '@/api/types';
 import {
   MIN_AGE,
   ageInYears,
@@ -17,6 +17,8 @@ import {
   latestAdultDob,
   toApiDate,
 } from '@/features/auth/dob';
+import { LanguageChips } from '@/features/language/LanguagePicker';
+import { languageFromLocale } from '@/features/language/languages';
 import { AvatarPicker } from '@/features/media/AvatarPicker';
 import { useTranslation, type MessageKey } from '@/i18n';
 import { track } from '@/lib/analytics';
@@ -47,6 +49,11 @@ export default function ProfileSetupScreen() {
   // request rather than leaving a half-made profile if the person backs out.
   const [avatarKey, setAvatarKey] = useState<string | null>(null);
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
+  // Where the reference signup asks for a country (app-reference-images,
+  // Screenshot 2026-10-06 124536), Dhun asks for languages: "nearby" is a
+  // language here, never a place. Pre-filled with the app language so the
+  // common case is no taps at all.
+  const [languages, setLanguages] = useState<Language[]>(() => [languageFromLocale(locale)]);
 
   const nameIsValid = name.trim().length >= 2;
   const dobIsValid = dob !== null && ageInYears(dob) >= MIN_AGE;
@@ -56,6 +63,9 @@ export default function ProfileSetupScreen() {
       authApi.updateProfile({
         displayName: name.trim(),
         dateOfBirth: toApiDate(dob!),
+        // Optional on the server, so emptying the chips skips it rather than
+        // blocking signup on a question that only orders the feed.
+        ...(languages.length > 0 ? { languages } : {}),
         ...(gender !== null ? { gender } : {}),
         ...(avatarKey !== null ? { avatarKey } : {}),
       }),
@@ -207,6 +217,15 @@ export default function ProfileSetupScreen() {
             )}
           </Animated.View>
         )}
+      </Animated.View>
+
+      <Animated.View entering={FadeInDown.duration(300).delay(150)} style={styles.section}>
+        <Column gap="sm">
+          <Text variant="caption" tone="secondary">
+            {t('language.profileLabel')}
+          </Text>
+          <LanguageChips value={languages} onChange={setLanguages} disabled={save.isPending} />
+        </Column>
       </Animated.View>
 
       <Animated.View entering={FadeInDown.duration(300).delay(180)} style={styles.section}>

@@ -62,7 +62,8 @@ export const queryKeys = {
     all: ['rooms'] as const,
     // Keyed by category so switching tabs does not discard the other tab's
     // pages — coming back to Explore should be instant, not another spinner.
-    feed: (category: string) => [...queryKeys.rooms.all, 'feed', category] as const,
+    feed: (category: string, language: string | null = null) =>
+      [...queryKeys.rooms.all, 'feed', category, language ?? 'all'] as const,
     detail: (roomId: string) => [...queryKeys.rooms.all, 'detail', roomId] as const,
     leaderboard: (roomId: string) => [...queryKeys.rooms.all, 'leaderboard', roomId] as const,
     rank: (roomId: string) => [...queryKeys.rooms.all, 'rank', roomId] as const,

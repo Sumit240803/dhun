@@ -537,9 +537,9 @@ walk away from a vendor and an SDK spread across four modules cannot walk anywhe
 One repo, pushed to `git@github.com:Sumit240803/dhun.git` (`main`).
 Verify everything with **`npm run check`** from the root.
 
-### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5–M7, M10, M12–M21 built, unverified on devices. 652 tests.
+### `backend/` — M1, M2 (bar OAuth) and M4 complete; M5–M7, M10, M12–M21 built, unverified on devices. 669 tests.
 
-Seventeen migrations, 68 routes, and all three processes built: API, workers, and the
+Forty migrations, 68 routes, and all three processes built: API, workers, and the
 realtime gateway. **M10 was built before M8 and M9, by agreement** — both are blocked on
 external accounts (CA + RazorpayX, Hive) and neither is skipped.
 
@@ -640,7 +640,7 @@ walkthrough, the costs, and what notices each failure are there.
 ### `mobile/` — 35 routes, 31 of them built (the four legal pages wait for a lawyer's text).
 
 Expo SDK 57 · React Native 0.86 · React 19.2 · expo-router. EAS project
-`@sumitsumit/dhun` (`c7c547aa-86e2-4d02-befa-b5e643fde400`). 187 tests.
+`@sumitsumit/dhun` (`c7c547aa-86e2-4d02-befa-b5e643fde400`). 193 tests.
 
 Read **`mobile/ARCHITECTURE.md`** before adding a file. The essentials:
 
@@ -660,6 +660,12 @@ Read **`mobile/ARCHITECTURE.md`** before adding a file. The essentials:
 - **Every screen reads a real endpoint.** The mock layer was deleted once the
   endpoints existed. TanStack Query throughout, keys centralised in
   `api/queries/keys.ts`.
+- **"Nearby" is a language, never a place** (founder, 2026-11-03; migration 040). A
+  person lists one to three languages, a room has one, and the feed narrows by it.
+  There is no state, no city, no distance and no location permission, and none may be
+  added: a distance on a room card is how a viewer finds where a host lives. The list
+  lives in `backend/src/shared/languages.ts` and `features/language/languages.ts`, and
+  each language is named in its own script in both catalogues.
 
 **Built:** the five tabs (home feed, party, discover, messages, me), auth (phone, OTP,
 email sign-in/up, forgot and reset password), profile setup, email confirmation, account
@@ -809,12 +815,12 @@ roles re-read from the database on every request, and a CSRF token in every form
 **Phase 0 and Phase 1 of the blueprint are complete except where a decision is open**
 (build-plan M19, M20). Still to build: OAuth (Google / Facebook / Instagram) · withdrawal
 and the rest of host payouts (M8) · Hive moderation and the rest of trust & safety (M9;
-reports queue and appeals are done) · platform rankings and the region picker (both
-waiting on a decision) · the decision-bound Phase 1 items (nearby,
-quiz, karaoke, voice effects, weekly events — build-plan M20 lists what each waits on;
-1-on-1 paid calls were DROPPED from the plan on 2026-11-02 and `private_call_charge` must
-stay inactive; fan club was SKIPPED on 2026-11-03 and `fan_club_join` /
-`fan_club_renewal` stay inactive the same way; the lucky wheel was SKIPPED the same day) · VIP's stealth, global badge and priority-mic perks (listed as "soon";
+reports queue and appeals are done) · platform rankings (waiting on a decision) · the
+decision-bound Phase 1 items (quiz, karaoke, voice effects, weekly events — build-plan
+M20 lists what each waits on; 1-on-1 paid calls were DROPPED from the plan on 2026-11-02
+and `private_call_charge` must stay inactive; fan club was SKIPPED on 2026-11-03 and
+`fan_club_join` / `fan_club_renewal` stay inactive the same way; the lucky wheel was
+SKIPPED the same day) · VIP's stealth, global badge and priority-mic perks (listed as "soon";
 need gateway and seat-table enforcement) · beauty filters · stand-in
 art files · Firebase credentials for Android push · the legal screens' actual text and the
 Grievance Officer's name · Kafka (deliberately deferred, build-plan M21). The M21 running

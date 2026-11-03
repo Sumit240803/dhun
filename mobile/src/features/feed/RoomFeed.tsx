@@ -1,13 +1,17 @@
+import { Ionicons } from '@expo/vector-icons';
 import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { RefreshControl, StyleSheet, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Pressable, RefreshControl, StyleSheet, View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { useBanners, useRoomFeed } from '@/api/queries/useFeed';
 import { useAppConfig } from '@/features/config/useAppConfig';
 import { SearchResults } from '@/features/discover/SearchResults';
+import { feedLanguage, useFeedLanguage } from '@/features/language/feedLanguage';
+import { LanguagePickerSheet } from '@/features/language/LanguagePicker';
+import { LANGUAGE_LABELS } from '@/features/language/languages';
 import { NewUserEntry } from '@/features/rewards/newUser/NewUserEntry';
 import { peakWindow } from '@/features/rewards/schedule';
 import { useTranslation, type MessageKey } from '@/i18n';
@@ -15,7 +19,8 @@ import { track } from '@/lib/analytics';
 import { errorMessage } from '@/lib/errors';
 import { haptic } from '@/lib/haptics';
 import type { AppBanner, FeedCategory, FeedRoom, RoomTag } from '@/api/types';
-import { colors, spacing } from '@/theme';
+import { colors, radius, spacing } from '@/theme';
+import { useSession } from '@/store/session';
 import {
   Banner,
   EmptyState,
@@ -25,7 +30,9 @@ import {
   SearchBar,
   SegmentedTabs,
   Skeleton,
+  Text,
   useSectionSwipe,
+  type SheetHandle,
 } from '@/ui';
 import { BannerCarousel } from '@/visuals/BannerCarousel';
 import { RoomCard } from '@/visuals/RoomCard';
@@ -64,7 +71,16 @@ export function RoomFeed({ sections, action }: RoomFeedProps) {
   const [category, setCategory] = useState<FeedCategory>(sections[0]);
   const [query, setQuery] = useState('');
 
-  const feed = useRoomFeed(category);
+  // "Nearby" is a language, never a place (build-plan M20). Shared by both
+  // feed tabs and remembered on the device; null is every language.
+  const language = useFeedLanguage();
+  const ownLanguages = useSession().user?.languages ?? [];
+  const languageSheet = useRef<SheetHandle>(null);
+  useEffect(() => {
+    void feedLanguage.load();
+  }, []);
+
+  const feed = useRoomFeed(category, language);
   const banners = useBanners();
 
   // An empty feed outside peak hours says when to come back. "Nothing here"
@@ -99,18 +115,55 @@ export function RoomFeed({ sections, action }: RoomFeedProps) {
 
   return (
     <Screen padded={false} edges={['top']}>
-      <SegmentedTabs
-        options={sections.map((section) => ({
-          value: section,
-          label: t(SECTION_LABELS[section]),
-        }))}
-        value={category}
-        onChange={(next) => {
-          haptic.selection();
-          setCategory(next);
-        }}
-        testID="feed-tabs"
-      />
+      {/*
+        The language control sits where the reference feed keeps its region
+        picker — right of the section tabs (app-reference-images, Screenshot
+        2026-10-06 124605, "Global ▾").
+      */}
+      <View style={styles.tabsRow}>
+        <View style={styles.tabs}>
+          <SegmentedTabs
+            options={sections.map((section) => ({
+              value: section,
+              label: t(SECTION_LABELS[section]),
+            }))}
+            value={category}
+            onChange={(next) => {
+              haptic.selection();
+              setCategory(next);
+            }}
+            testID="feed-tabs"
+          />
+        </View>
+        <Pressable
+          onPress={() => {
+            haptic.tap();
+            languageSheet.current?.present();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={t('language.filterLabel', {
+            language: language === null ? t('language.all') : t(LANGUAGE_LABELS[language]),
+          })}
+          hitSlop={spacing.sm}
+          style={({ pressed }) => [styles.languagePill, pressed && styles.languagePillPressed]}
+          testID="feed-language"
+        >
+          <Ionicons
+            name="language-outline"
+            size={16}
+            color={language === null ? colors.text.secondary : colors.brand.accent}
+          />
+          <Text
+            variant="caption"
+            tone={language === null ? 'secondary' : 'brand'}
+            numberOfLines={1}
+            style={styles.languageText}
+          >
+            {language === null ? t('language.all') : t(LANGUAGE_LABELS[language])}
+          </Text>
+          <Ionicons name="chevron-down" size={14} color={colors.text.faint} />
+        </Pressable>
+      </View>
 
       <View style={styles.search}>
         <SearchBar
@@ -166,7 +219,21 @@ export function RoomFeed({ sections, action }: RoomFeedProps) {
               ListEmptyComponent={
                 feed.isLoading ? (
                   <FeedSkeleton />
-                ) : feed.isError ? null : category === 'following' ? (
+                ) : feed.isError ? null : language !== null ? (
+                  // Narrowed and empty: name the language and offer the way out,
+                  // rather than a generic "nothing live" that hides the filter.
+                  <EmptyState
+                    icon="language-outline"
+                    title={t('language.emptyTitle', { language: t(LANGUAGE_LABELS[language]) })}
+                    body={t('language.emptyBody', { language: t(LANGUAGE_LABELS[language]) })}
+                    actionLabel={t('language.emptyAction')}
+                    onAction={() => {
+                      haptic.tap();
+                      feedLanguage.set(null);
+                    }}
+                    testID="feed-empty-language"
+                  />
+                ) : category === 'following' ? (
                   <EmptyState
                     icon="heart-outline"
                     title={t('feed.emptyFollowingTitle')}
@@ -238,6 +305,19 @@ export function RoomFeed({ sections, action }: RoomFeedProps) {
 
       {/* On both feeds, above the Fab, for as long as the window is open. */}
       <NewUserEntry />
+
+      <LanguagePickerSheet
+        ref={languageSheet}
+        title={t('language.pickerTitle')}
+        value={language}
+        own={ownLanguages}
+        allowAll
+        onPick={(next) => {
+          track('feed_language_selected', { language: next ?? 'all', category });
+          feedLanguage.set(next);
+        }}
+        testID="feed-language"
+      />
     </Screen>
   );
 }
@@ -256,6 +336,21 @@ function FeedSkeleton() {
 }
 
 const styles = StyleSheet.create({
+  tabsRow: { flexDirection: 'row', alignItems: 'center', paddingRight: spacing.lg },
+  // Takes what the pill leaves; the tabs scroll sideways inside it if needed.
+  tabs: { flex: 1 },
+  languagePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    maxWidth: 140,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.pill,
+    backgroundColor: colors.bg.raised,
+  },
+  languagePillPressed: { backgroundColor: colors.bg.pressed },
+  languageText: { flexShrink: 1 },
   search: { paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
   header: { gap: spacing.lg, paddingBottom: spacing.lg },
   gutter: { paddingHorizontal: spacing.lg },

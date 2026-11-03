@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { authGuard, optionalAuth, requireRegistered } from '../../middleware/authGuard.js';
 import { rateLimit } from '../../middleware/rateLimit.js';
 import { validate } from '../../middleware/validate.js';
+import { languageSchema, type Language } from '../../shared/languages.js';
 import { assertFeature, requireFeature } from '../config/index.js';
 import { rankFor, topRooms } from './board.service.js';
 import { appointAdmin, listAdmins, removeAdmin } from './admins.service.js';
@@ -26,6 +27,10 @@ export function buildRoomsRouter(): Router {
       query: z
         .object({
           category: z.enum(['explore', 'party', 'following', 'trending']).default('explore'),
+          // Narrows any category to rooms in one language. Absent means every
+          // language — the default, because at launch a filtered feed is an
+          // empty one.
+          language: languageSchema.optional(),
           // Bounded. An unbounded limit is a denial-of-service that costs the
           // attacker exactly one request.
           limit: z.coerce.number().int().min(1).max(50).default(20),
@@ -41,6 +46,7 @@ export function buildRoomsRouter(): Router {
         // and every unfiltered request silently fell through to Following.
         const query = req.validatedQuery as {
           category: 'explore' | 'party' | 'following' | 'trending';
+          language?: Language;
           limit: number;
           offset: number;
         };
@@ -48,6 +54,7 @@ export function buildRoomsRouter(): Router {
         res.json({
           rooms: await listFeed({
             category: query.category,
+            language: query.language,
             viewerId: req.userId,
             limit: query.limit,
             offset: query.offset,
@@ -87,6 +94,14 @@ export function buildRoomsRouter(): Router {
         // who could name any URL could put anything in the feed.
         coverKey: z.string().trim().min(8).max(256).optional(),
         country: z.string().length(2).toUpperCase().optional(),
+        // The room's language. Absent takes the host's first listed language,
+        // then their app language, then Hindi.
+        language: languageSchema.optional(),
+        // The go-live selfie and the device, both sent by the app since M16.
+        // They were missing here, so the strict schema refused every go-live
+        // that carried them — which, from the app, is every go-live.
+        faceKey: z.string().trim().min(8).max(256).optional(),
+        deviceId: z.string().min(8).max(128).optional(),
       }),
     ),
     async (req, res, next) => {
@@ -102,6 +117,9 @@ export function buildRoomsRouter(): Router {
             seatCapacity: req.body.seatCapacity,
             coverKey: req.body.coverKey,
             country: req.body.country,
+            language: req.body.language,
+            faceKey: req.body.faceKey,
+            deviceId: req.body.deviceId,
           }),
         );
       } catch (err) {

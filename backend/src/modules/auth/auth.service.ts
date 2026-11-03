@@ -27,6 +27,12 @@ export interface SessionUser {
   displayName: string | null;
   /** Display name AND date of birth are both set — the signup flow is finished. */
   profileComplete: boolean;
+  /**
+   * The languages they said they speak, in their order. Empty until they say
+   * — every account made before migration 040, and every guest. Orders the
+   * feed's language picker and defaults a host's room language.
+   */
+  languages: string[];
   roles: RoleGrant[];
 }
 
@@ -56,6 +62,7 @@ export async function createGuest(device: DeviceInfo): Promise<{ user: SessionUs
         emailVerified: false,
         displayName: null,
         profileComplete: false,
+        languages: [],
         roles: [],
       },
       ...tokens,
@@ -220,9 +227,10 @@ async function loadSessionUser(client: PoolClient, userId: string): Promise<Sess
     email_verified_at: Date | null;
     display_name: string | null;
     date_of_birth: Date | null;
+    languages: string[] | null;
   }>(
     'SELECT u.id, u.status, u.phone_e164, u.email, u.email_verified_at,' +
-      ' p.display_name, p.date_of_birth' +
+      ' p.display_name, p.date_of_birth, p.languages' +
       ' FROM users u LEFT JOIN user_profiles p ON p.user_id = u.id' +
       ' WHERE u.id = $1',
     [userId],
@@ -250,6 +258,7 @@ async function loadSessionUser(client: PoolClient, userId: string): Promise<Sess
      * and no way to fix it.
      */
     profileComplete: rows[0].display_name !== null && rows[0].date_of_birth !== null,
+    languages: rows[0].languages ?? [],
     roles: await getRoles(userId),
   };
 }
@@ -323,6 +332,8 @@ export async function updateProfile(
     dateOfBirth?: string;
     /** The app's language, so text the SERVER writes — a push — matches it. */
     locale?: string;
+    /** The languages they speak (shared/languages.ts). Replaces the list whole. */
+    languages?: string[];
   },
 ): Promise<SessionUser> {
   if (patch.dateOfBirth) {
@@ -360,7 +371,8 @@ export async function updateProfile(
         '  bio           = COALESCE($4, bio),' +
         '  gender        = COALESCE($5, gender),' +
         '  date_of_birth = COALESCE($6::date, date_of_birth),' +
-        '  locale        = COALESCE($7, locale)' +
+        '  locale        = COALESCE($7, locale),' +
+        '  languages     = COALESCE($9::text[], languages)' +
         ' WHERE user_id = $1',
       [
         userId,
@@ -371,6 +383,7 @@ export async function updateProfile(
         patch.dateOfBirth ?? null,
         patch.locale ?? null,
         avatar?.key ?? null,
+        patch.languages ?? null,
       ],
     );
     return loadSessionUser(client, userId);

@@ -168,6 +168,7 @@ export async function registerWithEmail(input: {
       emailVerified: false,
       displayName: null,
       profileComplete: false,
+      languages: [],
       roles: [],
     },
     isNewUser: true,
@@ -201,9 +202,10 @@ export async function loginWithEmail(input: {
     password_hash: string | null;
     display_name: string | null;
     date_of_birth: Date | null;
+    languages: string[] | null;
   }>(
     `SELECT u.id, u.status, u.email, u.email_verified_at, u.password_hash,
-            p.display_name, p.date_of_birth
+            p.display_name, p.date_of_birth, p.languages
        FROM users u LEFT JOIN user_profiles p ON p.user_id = u.id
       WHERE lower(u.email) = $1`,
     [email],
@@ -265,6 +267,7 @@ export async function loginWithEmail(input: {
       emailVerified: row.email_verified_at !== null,
       displayName: row.display_name,
       profileComplete: row.display_name !== null && row.date_of_birth !== null,
+      languages: row.languages ?? [],
       roles: [],
     },
     ...tokens,

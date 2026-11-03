@@ -881,8 +881,8 @@ with no form on it, so the sign-out form now carries the token on every page.
 `npm run check` clean · CI green on `main` for the first time.
 
 **Outstanding:** device verification of everything since M5; the legal pages' text and
-the Grievance Officer's name; platform rankings and the region picker, both waiting on a
-decision (daily or weekly boards; what a region is).
+the Grievance Officer's name; platform rankings, waiting on a decision (daily or weekly
+boards). The region picker was answered on 2026-11-03 as a language picker — see M20.
 
 ### M19 · Phase 0, finished — ✅ COMPLETE, unverified on devices
 
@@ -981,7 +981,6 @@ less the items that wait on a decision (listed at the end).
 
 | Item | What is open |
 |---|---|
-| Nearby | What a region is, and how precisely location may be used |
 | Live quiz / games | Gaming-law opinion first — anything with an entry fee is out |
 | Karaoke | Music licensing |
 | Voice effects, auto-preview | Native media processing; after the device pass |
@@ -1009,6 +1008,26 @@ reads as gambling to a regulator or a Play reviewer, and the daily habit is alre
 covered by check-in, daily tasks, the watch reward and referrals. It may come back only as
 a free spin, only after the gaming-law written opinion (Track 0) clears it in writing, and
 only as a scope change agreed in this file first.
+
+**Decided and built, 2026-11-03 (founder): "nearby" is language only.** No state, no city,
+no GPS, and no location permission in any future version — a distance on a room card is
+how a viewer finds where a host lives. Migration 040:
+
+- `user_profiles.languages`, one to three from the list in `backend/src/shared/languages.ts`
+  (Hindi, English, Bhojpuri, Bengali, Marathi, Tamil, Telugu, Kannada, Malayalam, Gujarati,
+  Punjabi, Odia, Assamese, Urdu). Asked at profile setup where the reference signup asks
+  for a country, editable on the account screen. Empty for every earlier account.
+- `rooms.language`, picked at go-live. It defaults to the host's first listed language,
+  then their app language, then Hindi. It is stored on the room, so a later profile edit
+  never moves a live room.
+- `GET /rooms/feed?language=` narrows any category. Absent means every language, and that
+  is the app's default, because at launch a filtered feed is an empty one. The app's
+  picker sits right of the section tabs, where the reference feed keeps "Global", and its
+  choice is remembered per device.
+- Fixed in the same change: the go-live route's strict schema refused the `faceKey` and
+  `deviceId` the app has sent since M16, so every go-live from the app was a 422.
+
+This also answers the "region picker" that M18 left waiting on a decision.
 
 **Exit criteria met:** 605 backend tests · 173 mobile ·
 `npm run check` clean · CI green.

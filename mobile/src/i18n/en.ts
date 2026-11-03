@@ -1249,6 +1249,53 @@ export const en = {
     done: 'You are already verified.',
   },
 
+  /**
+   * "Nearby", decided as language only (build-plan M20): never a place.
+   *
+   * Each language's name is written the way its own speakers write it, and is
+   * the SAME in every catalogue — a Tamil speaker scanning a list looks for
+   * தமிழ், not for "Tamil" or "तमिल". English is the one exception people
+   * read in Latin script either way.
+   */
+  language: {
+    hi: 'हिन्दी',
+    en: 'English',
+    bho: 'भोजपुरी',
+    bn: 'বাংলা',
+    mr: 'मराठी',
+    ta: 'தமிழ்',
+    te: 'తెలుగు',
+    kn: 'ಕನ್ನಡ',
+    ml: 'മലയാളം',
+    gu: 'ગુજરાતી',
+    pa: 'ਪੰਜਾਬੀ',
+    or: 'ଓଡ଼ିଆ',
+    as: 'অসমীয়া',
+    ur: 'اردو',
+
+    all: 'All languages',
+    filterLabel: 'Room language: {language}',
+    pickerTitle: 'Show rooms in',
+    yours: 'Your languages',
+    more: 'More languages',
+
+    profileLabel: 'Languages you speak',
+    profileHelp: 'Pick up to 3. They decide which rooms we suggest first.',
+    limitReached: 'You can pick up to 3. Remove one to add another.',
+
+    accountRow: 'Languages',
+    accountRowEmpty: 'Choose the languages you speak',
+    editTitle: 'Languages you speak',
+
+    roomLabel: 'Room language',
+    roomPickerTitle: 'What will you speak in this room?',
+
+    emptyTitle: 'No rooms in {language} right now',
+    emptyBody:
+      'Nobody is live in {language} at the moment. See every language, or go live in it yourself.',
+    emptyAction: 'Show all languages',
+  },
+
   legal: {
     privacy: 'Privacy Policy',
     terms: 'Terms of Service',

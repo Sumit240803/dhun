@@ -8,6 +8,7 @@
 import { api } from '@/api/client';
 import type {
   JoinedRoom,
+  Language,
   LiveRoom,
   PollView,
   PollsConfig,
@@ -31,6 +32,8 @@ export const liveRoomsApi = {
     isVideo?: boolean;
     seatCapacity?: number;
     coverKey?: string;
+    /** Omitted, the server uses the host's first listed language. */
+    language?: Language;
     /**
      * A selfie taken as they tapped Go Live.
      *

@@ -12,6 +12,7 @@ import type {
   FeedCategory,
   FeedRoom,
   Friend,
+  Language,
   MessageThread,
   ProfileSummary,
   PublicProfile,
@@ -29,8 +30,10 @@ export const roomsApi = {
    * user has to see what the app IS before being asked for a phone number.
    * `following` needs a session and returns empty without one.
    */
-  feed: (category: FeedCategory, limit = 20) =>
-    api.get<{ rooms: FeedRoom[] }>(`rooms/feed?category=${category}&limit=${limit}`),
+  feed: (category: FeedCategory, language: Language | null = null, limit = 20) =>
+    api.get<{ rooms: FeedRoom[] }>(
+      `rooms/feed?category=${category}&limit=${limit}${language === null ? '' : `&language=${language}`}`,
+    ),
 };
 
 export const messagesApi = {
