@@ -235,6 +235,11 @@ build-plan M20). The row stays in migration 002 because migrations are never rew
 and it stays `is_active = false`. Nothing may switch it on without the feature first
 coming back as an agreed scope change.
 
+`fan_club_join` and `fan_club_renewal` are in the same position: fan club was **skipped**
+(founder, 2026-11-03; build-plan M20). Both rows stay `is_active = false`. If the club
+returns, its points leg, agency commission and revenue recognition over the membership
+period are decided here before anything is built.
+
 Unlike cosmetics, these all have a **points leg** — the host earns from them.
 
 **Points lifecycle (3)**
