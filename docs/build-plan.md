@@ -981,7 +981,6 @@ less the items that wait on a decision (listed at the end).
 
 | Item | What is open |
 |---|---|
-| Lucky wheel | Only legal as a FREE daily spin — settle whether it exists at all |
 | Nearby | What a region is, and how precisely location may be used |
 | Live quiz / games | Gaming-law opinion first — anything with an entry fee is out |
 | Karaoke | Music licensing |
@@ -1002,6 +1001,14 @@ commission, revenue recognition over the membership period and a host level syst
 does not exist yet. `fan_club_join` and `fan_club_renewal` stay in migration 002,
 inactive. Fan levels, which are free and derived from gifts, are unaffected. Bringing the
 club back is a new scope change, agreed in this file first.
+
+**Skipped, 2026-11-03 (founder): lucky wheel.** Out of the plan, including the free
+version. A wheel that costs anything to spin is a money game under the 2025 Act and is on
+the never-build list below. A free daily spin is outside the Act's definition, but it
+reads as gambling to a regulator or a Play reviewer, and the daily habit is already
+covered by check-in, daily tasks, the watch reward and referrals. It may come back only as
+a free spin, only after the gaming-law written opinion (Track 0) clears it in writing, and
+only as a scope change agreed in this file first.
 
 **Exit criteria met:** 605 backend tests · 173 mobile ·
 `npm run check` clean · CI green.
@@ -1122,7 +1129,7 @@ guardian slots · CP pairing · family/guild · stealth mode
 currency transfer · a lucky wheel that costs coins to spin.
 
 *(Private 1-on-1 calls were dropped from the plan entirely on 2026-11-02, and fan club
-was skipped on 2026-11-03 — see M20.)*
+and the lucky wheel were skipped on 2026-11-03 — see M20.)*
 
 *(M20 later brought in polls, VIP, fan levels, DMs, the friend list, trending, daily
 tasks and super messages — Phase 1, after Phase 0 was finished. The rest of the list

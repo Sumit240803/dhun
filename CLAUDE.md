@@ -85,10 +85,12 @@ That is one-directional and closed: never user→user, never user→agency, neve
 and there is no route back. Generalising it in any direction re-creates the payment
 instrument rule #7 exists to prevent.
 
-**Unresolved contradiction:** `app-blueprint-v1.pdf` lists a **lucky wheel** under Phase 1
-daily hooks. If it costs coins to spin, it is a paid chance-based game and breaks hard rule
-#1. Only acceptable as a *free* daily spin awarding coins (a `free_coin_grant` subtype).
-Settle this before anyone builds it.
+**Settled 2026-11-03 (founder): the lucky wheel is skipped.** `app-blueprint-v1.pdf` lists
+one under Phase 1 daily hooks. A wheel that costs coins to spin is a paid chance-based game
+and breaks hard rule #1. Even the free version is out of the plan: it reads as gambling,
+and check-in, daily tasks, the watch reward and referrals already make the daily habit. It
+may return only as a free spin awarding coins, after the gaming-law written opinion clears
+it, as a build-plan scope change (M20).
 
 Store-fee note: Google Play India's alternative billing gives only a 4% reduction. Google
 dropped anti-steering worldwide, but a purchase within 24 hours of an in-app link click
@@ -808,11 +810,11 @@ roles re-read from the database on every request, and a CSRF token in every form
 (build-plan M19, M20). Still to build: OAuth (Google / Facebook / Instagram) · withdrawal
 and the rest of host payouts (M8) · Hive moderation and the rest of trust & safety (M9;
 reports queue and appeals are done) · platform rankings and the region picker (both
-waiting on a decision) · the decision-bound Phase 1 items (lucky wheel, nearby,
+waiting on a decision) · the decision-bound Phase 1 items (nearby,
 quiz, karaoke, voice effects, weekly events — build-plan M20 lists what each waits on;
 1-on-1 paid calls were DROPPED from the plan on 2026-11-02 and `private_call_charge` must
 stay inactive; fan club was SKIPPED on 2026-11-03 and `fan_club_join` /
-`fan_club_renewal` stay inactive the same way) · VIP's stealth, global badge and priority-mic perks (listed as "soon";
+`fan_club_renewal` stay inactive the same way; the lucky wheel was SKIPPED the same day) · VIP's stealth, global badge and priority-mic perks (listed as "soon";
 need gateway and seat-table enforcement) · beauty filters · stand-in
 art files · Firebase credentials for Android push · the legal screens' actual text and the
 Grievance Officer's name · Kafka (deliberately deferred, build-plan M21). The M21 running
