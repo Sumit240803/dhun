@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "dhun",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.dhunlive.dhun",
