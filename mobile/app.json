@@ -73,7 +73,14 @@
         }
       ],
       "expo-localization",
-      "@sentry/react-native",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "dhun-0m",
+          "project": "dhun-live",
+          "url": "https://de.sentry.io/"
+        }
+      ],
       "@react-native-community/datetimepicker",
       "@livekit/react-native-expo-plugin",
       "@config-plugins/react-native-webrtc"

@@ -223,6 +223,7 @@ jobs:
       # update is only ever delivered to builds whose native code matches; a
       # change that needs a new store build can never arrive as JS.
       - name: Publish
+        id: publish
         if: steps.token.outputs.present == 'true'
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
@@ -238,3 +239,20 @@ jobs:
           npx --yes eas-cli@20.5.1 update --channel "$CHANNEL" --non-interactive \
             --message "$(git log -1 --format='%h %s' "$SHA")"
           echo "Published to \`$CHANNEL\`." >> "$GITHUB_STEP_SUMMARY"
+          echo "published=true" >> "$GITHUB_OUTPUT"
+
+      # The update's bundles carry Sentry debug IDs (metro.config.js); their
+      # source maps sit in dist/. Without this upload, a crash in an OTA update
+      # shows minified frames. Org, project and the EU region come from the
+      # Sentry plugin's options in app.json, so only the token is passed here.
+      # A missing token skips the upload; it never fails a published update.
+      - name: Upload source maps to Sentry
+        if: steps.publish.outputs.published == 'true'
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          if [ -z "$SENTRY_AUTH_TOKEN" ]; then
+            echo "No SENTRY_AUTH_TOKEN repository secret; source maps not uploaded." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          npx sentry-expo-upload-sourcemaps dist
