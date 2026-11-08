@@ -49,7 +49,6 @@ coverage/
 *.local
 
 
-app-reference-images
 # --- local reference material ------------------------------------------------
 # Large, local, and not part of the build. 60MB between them, and git keeps
 # every byte forever once committed.
@@ -68,6 +67,12 @@ app-reference-images
 #
 # None of these are deleted — they stay on disk. If you would rather version
 # them, use a bucket or git-lfs rather than the repo.
-assets/
-app-reference-images/
-reference-assets/
+#
+# ANCHORED with a leading slash, and that is load-bearing. Unanchored, `assets/`
+# also matched mobile/assets/ — the app's icon, splash and tab icons. Git kept
+# tracking them because they were committed first, but EAS leaves ignored paths
+# out of the upload, so every cloud build failed at prebuild on a missing
+# ./assets/images/icon.png.
+/assets/
+/app-reference-images/
+/reference-assets/
