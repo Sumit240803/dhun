@@ -822,7 +822,9 @@ and `private_call_charge` must stay inactive; fan club was SKIPPED on 2026-11-03
 `fan_club_join` / `fan_club_renewal` stay inactive the same way; the lucky wheel was
 SKIPPED the same day) · VIP's stealth, global badge and priority-mic perks (listed as "soon";
 need gateway and seat-table enforcement) · beauty filters · stand-in
-art files · Firebase credentials for Android push · the legal screens' actual text and the
+art files · Firebase credentials for Android push (steps in `docs/firebase-push.md`;
+`google-services.json` reaches builds only as the EAS file variable `GOOGLE_SERVICES_JSON`,
+never through the public repo) · the legal screens' actual text and the
 Grievance Officer's name · Kafka (deliberately deferred, build-plan M21). The M21 running
 pieces — Terraform, deploys, alerting, OTA, the analytics sink, hardening — are built and
 wait only on accounts (`infra/README.md` § First apply).
